@@ -1,0 +1,48 @@
+# Optional dependencies for official / verified model wrappers.
+# Install only when running the corresponding model track.
+
+# Verified time-series deep learning library:
+# TCN, InceptionTime, ResNet1D wrappers
+tsai
+fastai
+pyts
+imbalanced-learn
+
+# MiniROCKET / MiniROCKETMultivariate
+sktime
+
+# MOMENT official package
+momentfm
+
+# THUML/iTransformer dependency
+reformer-pytorch
+
+# TS2Vec linear probe
+scikit-learn
+
+# Official repos that are not reliable plain pip packages should be cloned and
+# connected with environment variables instead of vendoring their code:
+#
+# Time-Series-Library:
+#   git clone https://github.com/thuml/Time-Series-Library external/Time-Series-Library
+#   set TSLIB_REPO=C:\path\to\external\Time-Series-Library
+#
+# iTransformer:
+#   git clone https://github.com/thuml/iTransformer external/iTransformer
+#   set ITRANSFORMER_REPO=C:\path\to\external\iTransformer
+#
+# TimeMixer:
+#   git clone https://github.com/kwuking/TimeMixer external/TimeMixer
+#   set TIMEMIXER_REPO=C:\path\to\external\TimeMixer
+#
+# UniTS:
+#   git clone https://github.com/mims-harvard/UniTS external/UniTS
+#   set UNITS_REPO=C:\path\to\external\UniTS
+#
+# One-Fits-All / GPT4TS:
+#   git clone https://github.com/DAMO-DI-ML/One_Fits_All external/One_Fits_All
+#   set ONE_FITS_ALL_REPO=C:\path\to\external\One_Fits_All
+#
+# TS2Vec:
+#   git clone https://github.com/yuezhihan/ts2vec external/ts2vec
+#   set TS2VEC_REPO=C:\path\to\external\ts2vec

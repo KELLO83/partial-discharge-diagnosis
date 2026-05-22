@@ -9,15 +9,16 @@
 AI는 코드를 작성하기 전에 다음 문서를 우선순위대로 확인해야 한다.
 
 1. `docs/PRD.md`: 프로젝트 목표, 범위, 실험 단계, 성공 기준
-2. `docs/DATASET_EXPLAIN.md`: Validation 데이터 구조, CSV/PNG/JSON 형태, label, manifest 규칙
+2. `docs/DATASET_EXPLAIN.md`: Train 데이터 구조, CSV/PNG/JSON 형태, label, manifest 규칙
 3. `docs/TIMESERIES_MODELS.md`: 실험 후보 시계열 모델, Core/Extended 구분, 모델별 입력 관점
-4. `AGENT.md`: 코드 스타일, 실행 환경, 리소스 사용, 검증 규칙
+4. `docs/VLM_STRATEGY.md`: VLM 모델 후보, 입력/출력 설계, QLoRA 학습 전략
+5. `AGENT.md`: 코드 스타일, 실행 환경, 리소스 사용, 검증 규칙
 
 ## 프로젝트 범위
 
 현재 구현 우선순위는 다음과 같다.
 
-1. Validation 데이터 구조 확인 및 `manifest.csv` 기반 데이터 매핑
+1. Train 데이터 구조 확인 및 `manifest.csv` 기반 데이터 매핑
 2. CSV 시계열 분류 데이터셋/DataLoader 구현
 3. GRU baseline 학습 및 평가
 4. Non-Transformer, Transformer/SOTA, Foundation/Pretrained 시계열 모델 비교
@@ -28,7 +29,7 @@ Forecasting은 현재 프로젝트 범위에서 제외한다. 이 프로젝트�
 
 ## 데이터 해석 규칙
 
-Validation 데이터는 `Validation/manifest.csv`를 기준으로 CSV, PNG, JSON을 연결한다.
+Train 데이터는 `Train/manifest.csv`를 기준으로 CSV, PNG, JSON을 연결한다.
 
 규칙:
 
@@ -69,9 +70,18 @@ docs/
 - VLM 데이터 변환 및 학습 코드는 `vlm/` 아래에 작성한다.
 - 데이터 점검/manifest 생성처럼 반복 실행 가능한 유틸리티는 `scripts/` 아래에 작성한다.
 - 실험 결과와 모델 산출물은 `results/` 아래에 저장한다.
-- 원천 데이터는 `Validation/` 아래 구조를 유지하고, 코드가 원천 데이터를 덮어쓰지 않는다.
+- 원천 데이터는 `Train/` 아래 구조를 유지하고, 코드가 원천 데이터를 덮어쓰지 않는다.
 - 외부 pip/오픈소스 구현이 있는 Transformer/Foundation 시계열 모델은 프로젝트 내부에 모델 본체를 재구현하지 않고, 모델별 wrapper 파일에서 import해서 사용한다.
 - 모델 wrapper는 모델별 파일로 분리한다. 예: `gru.py`, `tcn.py`, `patchtst.py`, `moment.py`.
+- GRU를 제외한 유명 논문 모델은 공식 repo, Hugging Face, PyTorch 기본 모듈, 또는 검증 라이브러리 구현을 우선 사용한다.
+- 공식 dependency가 설치되어 있지 않은 모델은 임의 fallback 구현으로 조용히 대체하지 않고, 설치/clone 방법을 안내하는 `ImportError`를 발생시킨다.
+- 공식 repo clone 연결은 환경변수로 처리한다. 예: `TSLIB_REPO`, `ITRANSFORMER_REPO`, `TIMEMIXER_REPO`, `UNITS_REPO`, `ONE_FITS_ALL_REPO`, `TS2VEC_REPO`.
+- VLM 관련 코드나 데이터셋을 작성하기 전에는 `docs/VLM_STRATEGY.md`를 먼저 확인한다.
+- VLM은 PRPD 이미지 단독 분류 모델이 아니라, PRPD 이미지 + JSON 메타데이터 + 시계열 요약 정보를 결합한 진단 리포트 생성 모델로 구현한다.
+- VLM 학습에서 원본 CSV 전체를 프롬프트에 넣지 않는다. 시계열 모델 예측값, confidence, class probability, 통계 feature처럼 압축된 정보를 텍스트 문맥으로 제공한다.
+- 초기 VLM 후보는 Qwen2.5-VL-3B-Instruct를 우선하고, smoke 검증에는 Qwen2-VL-2B-Instruct를 사용할 수 있다.
+- VLM 초기 학습은 QLoRA SFT를 우선하며, vision encoder는 먼저 freeze하고 LLM/projector 계층 위주로 LoRA를 적용한다.
+- VLM 출력은 자연어보다 구조화된 JSON 진단 결과를 우선한다.
 
 ## 모델 실험 원칙
 
@@ -94,57 +104,57 @@ docs/
 
 ## Python 실행 환경 정책
 
-모델 훈련 환경과 일반 서버 실행 환경은 분리한다.
+모델 훈련 환경은 현재 프로젝트 루트의 `.venv`를 기본으로 사용한다.
 
 ### ML 모델 훈련 환경
 
-CPU 중심 ML 모델 훈련과 대규모 전처리는 다음 가상환경을 사용한다.
+GPU 기반 시계열/VLM 모델 훈련과 대규모 전처리는 다음 가상환경을 사용한다.
 
 ```text
-.venv314t
+.venv
 ```
 
 목적:
 
-- Python 3.14t free-threaded, GIL 해제 버전 사용
-- CPU 기반 전처리 및 전통 시계열 baseline 실행 시 멀티스레드 활용 극대화
-- 대용량 CSV 로딩, manifest 검증, feature 추출, MiniROCKET/sklearn 계열 실험용 기본 환경
+- 일반 CPython 3.14, GIL 활성 버전 사용
+- CUDA 지원 PyTorch 기반 GPU 학습
+- 대용량 CSV 로딩, manifest 검증, feature 추출, DataLoader 실행
 - pandas/numpy/scikit-learn 등 CPU multi-thread 작업용 환경
 
 주의:
 
-- 라이브러리가 Python 3.14t 또는 free-threaded runtime을 지원하지 않는 경우, 해당 모델은 호환 가능한 환경에서 별도 실행하고 사유를 기록한다.
-- `.venv314t`에서 pip install 또는 wheel 로딩이 실패하는 패키지는 무리하게 우회하지 않고, `.venv314` 또는 해당 패키지가 공식 지원하는 별도 Python 환경에서 실행한 뒤 실행 환경 차이를 실험 로그에 기록한다.
-- `.venv314t`에서 호환 wheel이 없다는 이유로 패키지를 직접 소스 빌드하지 않는다. 특히 PyTorch, CUDA, 시계열 foundation model 관련 패키지는 사용자가 명시적으로 지시하지 않는 한 소스 빌드를 시도하지 않는다.
+- 라이브러리가 Python 3.14를 지원하지 않는 경우, 해당 모델은 호환 가능한 환경에서 별도 실행하고 사유를 기록한다.
+- `.venv`에서 pip install 또는 wheel 로딩이 실패하는 패키지는 무리하게 우회하지 않고, 해당 패키지가 공식 지원하는 별도 Python 환경에서 실행한 뒤 실행 환경 차이를 실험 로그에 기록한다.
+- `.venv`에서 호환 wheel이 없다는 이유로 패키지를 직접 소스 빌드하지 않는다. 특히 PyTorch, CUDA, 시계열 foundation model 관련 패키지는 사용자가 명시적으로 지시하지 않는 한 소스 빌드를 시도하지 않는다.
 - 모델별 실행 환경은 실험 로그에 기록한다.
 
 전통 ML/CPU baseline 예외:
 
 - 현재 프로젝트의 주 실험은 딥러닝 시계열 분류이므로 LightGBM/CatBoost류 tabular baseline은 기본 실험 범위에 포함하지 않는다.
-- MiniROCKET, shapelet, sklearn classifier처럼 CPU 기반 전통 시계열 baseline을 추가하는 경우 `.venv314t`를 우선 사용한다.
-- 해당 패키지가 Python 3.14t/free-threaded runtime을 지원하지 않으면 `.venv314`에서 실행하고, 실행 환경 차이를 실험 로그에 기록한다.
+- MiniROCKET, shapelet, sklearn classifier처럼 CPU 기반 전통 시계열 baseline을 추가하는 경우에도 기본은 `.venv`를 사용한다.
+- 해당 패키지가 Python 3.14를 지원하지 않으면 별도 호환 환경에서 실행하고, 실행 환경 차이를 실험 로그에 기록한다.
 - CPU fallback은 내부 멀티스레딩을 사용하므로 가능한 경우 `n_jobs=14` 또는 라이브러리별 thread 옵션을 명시한다.
 
 Neural/Transformer/Foundation 예외:
 
 - GRU, TCN, InceptionTime, ResNet1D, PatchTST, iTransformer, TimesNet, TimeMixer, MOMENT, UniTS, GPT4TS 계열은 기본적으로 GPU 학습 또는 GPU 추론을 사용한다.
-- 이 모델들은 PyTorch/CUDA/공식 pretrained checkpoint 호환성이 중요하므로 `.venv314`에서 설치하고 실행한다.
-- `.venv314t`에 PyTorch, CUDA extension, time-series foundation model package를 소스 빌드해서 맞추지 않는다.
-- `ml/requirements-optional-dl.txt`는 `.venv314` 기준 optional dependency 목록으로 취급한다.
+- 이 모델들은 PyTorch/CUDA/공식 pretrained checkpoint 호환성이 중요하므로 `.venv`에서 설치하고 실행한다.
+- `.venv`에 PyTorch, CUDA extension, time-series foundation model package를 소스 빌드해서 억지로 맞추지 않는다.
+- `ml/requirements.txt`는 `.venv` 기준 dependency 목록으로 취급한다.
 - GPU를 사용할 수 없는 경우에만 명시적으로 CPU fallback을 검토하고, 실행 환경과 사유를 실험 로그에 기록한다.
 - MOMENT, UniTS, GPT4TS 등 pretrained checkpoint가 필요한 모델은 브라우저 로그인 프롬프트에 의존하지 않고 Hugging Face token, local checkpoint path, 또는 명시적 cache path를 사용한다.
 
 ### 서버/API/관리자 화면 실행 환경
 
-FastAPI 백엔드, 관리자 API, 일반 서버 실행은 다음 가상환경을 사용한다.
+FastAPI 백엔드, 관리자 API, 일반 서버를 추가하는 경우에도 다음 가상환경을 사용한다.
 
 ```text
-.venv314
+.venv
 ```
 
 목적:
 
-- 일반 Python 3.14 환경 사용
+- 일반 CPython 3.14 환경 사용
 - FastAPI, SQLAlchemy, Alembic, PostgreSQL 연동, 관리자 API 실행
 - ML 훈련 환경과 서비스 runtime dependency 충돌 방지
 
@@ -222,7 +232,7 @@ ML/AI 모델 개발 코드는 중요한 실행 상태를 logger의 `info` 레벨
 
 이유:
 
-- 30,010건 Validation과 대규모 Train 데이터를 다룰 때 연속 실험은 GPU/CPU/메모리 점유 위험이 크다.
+- 30,010건 Train working dataset과 원본 대규모 데이터를 다룰 때 연속 실험은 GPU/CPU/메모리 점유 위험이 크다.
 - 여러 실험이 한 프로세스에 섞이면 로그, 진행률, 실패 원인, 결과 CSV 해석이 어려워진다.
 - Transformer/Foundation 모델처럼 장시간/고자원 작업은 사용자가 실험 단위를 명확히 통제해야 한다.
 
@@ -239,24 +249,20 @@ target_gpu_memory_utilization: 0.90
 원칙:
 
 - 모델 훈련 시 GPU 가용 메모리의 최대 90%까지 사용하는 것을 목표로 한다.
+- `train.py`에서 `--batch-size`를 생략하면 synthetic forward/backward probe로 단일 모델의 batch size를 자동 산정한다.
+- `--batch-size`를 명시한 경우에는 사용자가 의도한 수동 실험으로 보고 자동 batch sizing을 끈다.
 - OOM이 발생하면 batch size, embedding dimension, model depth 순서로 줄인다.
 - GPU memory 사용량은 실험 결과에 기록한다.
 - 다른 서비스 프로세스가 같은 GPU를 사용 중이면 90% 정책을 낮출 수 있다.
 
 ### CPU 훈련
 
-CPU 기반 전처리와 전통 시계열 baseline은 `.venv314t` 환경을 우선 사용한다. PyTorch 기반 Neural/Transformer/Foundation 모델은 `.venv314`에서 실행한다.
-
-기본 정책:
-
-```text
-cpu_workers: 14
-```
+CPU 기반 전처리와 전통 시계열 baseline도 `.venv` 환경을 우선 사용한다. PyTorch 기반 Neural/Transformer/Foundation 모델 역시 `.venv`에서 실행한다.
 
 원칙:
 
-- CPU 기반 전처리, 샘플링, feature 추출, batch prediction 작업은 기본 14 workers를 사용한다.
-- 라이브러리별 thread 파라미터가 있으면 14로 맞춘다.
-  - joblib/sklearn: `n_jobs=14`
-  - PyTorch DataLoader: `num_workers`는 데이터/OS 안정성을 보고 최대 14까지 사용
+- 이 프로젝트의 주 훈련은 GPU 기반이므로 LightGBM식 CPU multi-thread 훈련 최적화 코드는 기본으로 작성하지 않는다.
+- Windows 로컬 실험에서는 PyTorch DataLoader `num_workers=0`을 기본값으로 둔다.
+- CSV 로딩 병목이 확인된 경우에만 `num_workers`를 2, 4, 8 순서로 올려 보고, 안정성이 확인되면 최대 14까지 사용한다.
+- CPU 기반 전처리, feature 추출, batch prediction 작업에서 병렬화가 필요한 경우에만 `n_jobs` 또는 worker 옵션을 명시한다.
 - 시스템 부하가 과도하거나 메모리 병목이 발생하면 workers를 낮추고 사유를 기록한다.

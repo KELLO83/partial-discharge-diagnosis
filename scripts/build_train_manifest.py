@@ -36,10 +36,10 @@ def value(data: dict, *keys: str, default: str = ""):
 
 
 def main() -> None:
-    validation_root = Path("Validation")
-    source_root = validation_root / "01.원천데이터"
-    label_root = validation_root / "02.라벨링데이터"
-    output_path = validation_root / "manifest.csv"
+    train_root = Path("Train")
+    source_root = train_root / "01.원천데이터"
+    label_root = train_root / "02.라벨링데이터"
+    output_path = train_root / "manifest.csv"
 
     csv_index = build_file_index(source_root, ".csv")
     png_index = build_file_index(source_root, ".png")
@@ -109,7 +109,7 @@ def main() -> None:
         rows.append(
             {
                 "sample_id": sample_id,
-                "split": "validation",
+                "split": "train",
                 "json_path": json_path.as_posix(),
                 "image_path": image_path.as_posix(),
                 "timeseries_path": timeseries_path.as_posix(),

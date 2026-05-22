@@ -73,22 +73,22 @@ AI-Hub 페이지에는 원시 수집 데이터도 함께 설명되어 있다.
 
 이 프로젝트에서는 우선 원천 데이터인 `.PNG`, `.CSV`, `.JSON`을 기준으로 개발을 시작하는 것이 적절하다.
 
-## 현재 로컬 Validation 데이터 확인 결과
+## 현재 로컬 Train 데이터 확인 결과
 
-현재 로컬에 해제된 `Validation` 데이터 기준으로 파일 수는 다음과 같다.
+현재 로컬에 해제된 `Train` 데이터 기준으로 파일 수는 다음과 같다.
 
 | 파일 형식 | 개수 | 위치 |
 | --- | ---: | --- |
-| `.png` | 30,010 | `Validation/01.원천데이터` |
-| `.csv` | 30,010 | `Validation/01.원천데이터` |
-| `.json` | 30,010 | `Validation/02.라벨링데이터` |
+| `.png` | 30,010 | `Train/01.원천데이터` |
+| `.csv` | 30,010 | `Train/01.원천데이터` |
+| `.json` | 30,010 | `Train/02.라벨링데이터` |
 
 압축 해제 후 `.zip` 파일은 제거했으며, 원천 파일과 라벨 파일만 남아 있다.
 
-Validation 데이터는 원천데이터와 라벨링데이터가 분리되어 있다.
+Train 데이터는 원천데이터와 라벨링데이터가 분리되어 있다.
 
 ```text
-Validation/
+Train/
 ├── 01.원천데이터/
 │   ├── VS_노이즈_고체_ACSR-OC/
 │   ├── VS_노이즈_고체_CNCV-W/
@@ -117,9 +117,9 @@ VS_노이즈_고체_ACSR-OC
 VL_노이즈_고체_ACSR-OC
 ```
 
-## Validation 라벨 분포
+## Train 라벨 분포
 
-현재 해제된 Validation 데이터는 5개 클래스가 동일한 개수로 구성되어 있다.
+현재 해제된 Train 데이터는 5개 클래스가 동일한 개수로 구성되어 있다.
 
 | 라벨 ID | 라벨명 | 개수 |
 | --- | --- | ---: |
@@ -180,21 +180,21 @@ JSON 파일
 json_path, image_path, timeseries_path, label_id, 설비 정보, 환경 정보
 ```
 
-현재 로컬 Validation 데이터에서는 `.csv`, `.png`, `.json` 파일의 base filename이 모두 일치한다.
+현재 로컬 Train 데이터에서는 `.csv`, `.png`, `.json` 파일의 base filename이 모두 일치한다.
 
 예시:
 
 ```text
 원천 CSV:
-Validation/01.원천데이터/VS_노이즈_고체_ACSR-OC/
+Train/01.원천데이터/VS_노이즈_고체_ACSR-OC/
 └── 노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.csv
 
 원천 PNG:
-Validation/01.원천데이터/VS_노이즈_고체_ACSR-OC/
+Train/01.원천데이터/VS_노이즈_고체_ACSR-OC/
 └── 노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.png
 
 라벨 JSON:
-Validation/02.라벨링데이터/VL_노이즈_고체_ACSR-OC/
+Train/02.라벨링데이터/VL_노이즈_고체_ACSR-OC/
 └── 노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.json
 ```
 
@@ -215,7 +215,7 @@ Validation/02.라벨링데이터/VL_노이즈_고체_ACSR-OC/
 ./원천데이터/노이즈/고체/ACSR-OC/노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.png
 ```
 
-현재 해제된 로컬 폴더 구조는 `Validation/01.원천데이터/VS_노이즈_고체_ACSR-OC/...` 형태이므로, JSON 내부 경로를 그대로 사용하기보다는 파일명 기준으로 실제 경로를 매칭하는 편이 적절하다.
+현재 해제된 로컬 폴더 구조는 `Train/01.원천데이터/VS_노이즈_고체_ACSR-OC/...` 형태이므로, JSON 내부 경로를 그대로 사용하기보다는 파일명 기준으로 실제 경로를 매칭하는 편이 적절하다.
 
 ## 파일명 규칙
 
@@ -251,7 +251,7 @@ Validation/02.라벨링데이터/VL_노이즈_고체_ACSR-OC/
 
 ## CSV 시계열 데이터 형태
 
-현재 Validation 샘플 기준 CSV 파일은 헤더가 없는 숫자 행렬 형태다.
+현재 Train 샘플 기준 CSV 파일은 헤더가 없는 숫자 행렬 형태다.
 
 확인된 샘플 구조:
 
@@ -310,7 +310,7 @@ shape = (20, 7680)
 예시 파일:
 
 ```text
-Validation/01.원천데이터/VS_노이즈_고체_ACSR-OC/
+Train/01.원천데이터/VS_노이즈_고체_ACSR-OC/
 └── 노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.png
 ```
 

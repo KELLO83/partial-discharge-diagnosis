@@ -154,7 +154,7 @@ Classification:
 
 따라서 TimesFM, Chronos, Lag-Llama처럼 미래 파형 예측에 특화된 foundation model은 프로젝트 범위에서 제외한다. 대신 부분방전 유형 분류에 직접 사용할 수 있는 시계열 분류 모델과 downstream fine-tuning이 가능한 시계열 foundation model을 우선한다.
 
-현재 Validation 데이터 기준 CSV 하나의 입력 형태는 다음과 같다.
+현재 Train 데이터 기준 CSV 하나의 입력 형태는 다음과 같다.
 
 ```text
 sample shape = (20, 7680)
@@ -172,8 +172,8 @@ sample shape = (20, 7680)
 모델 구현에서는 일반적으로 다음 두 형태 중 하나로 변환해 사용한다.
 
 ```text
-Conv/TCN/Patch 계열: (batch, pseudo_channels, time) = (B, 20, 7680)
-RNN/일부 Transformer 계열: (batch, time, pseudo_channels) = (B, 7680, 20)
+Conv/TCN 계열: (batch, pseudo_channels, time) = (B, 20, 7680)
+RNN/Hugging Face PatchTST/일부 Transformer 계열: (batch, time, pseudo_channels) = (B, 7680, 20)
 ```
 
 ### 시계열 모델 실험 라인업
@@ -214,28 +214,35 @@ Core 실험 순서:
 
 Core 실험이 안정적으로 끝난 뒤 추가로 실험할 후보들이다. 처음부터 모두 구현하지 않고, 시간과 GPU 여유가 있을 때 확장한다.
 
+이 프로젝트의 기본 훈련 정책은 CUDA GPU 기반이다. 또한 `AGENT.md`의 실행 단위 정책에 따라 `train.py`는 한 번 실행할 때 정확히 하나의 모델만 훈련해야 한다. 따라서 `core`, `extended`, `all`, `cpu_only` 같은 그룹명은 `--model` 값으로 지원하지 않고, 실제 훈련 명령에는 `gru`, `patchtst`, `moment`처럼 구체적인 단일 모델명만 사용한다. `MiniROCKET`은 Extended 성격의 추가 실험 후보가 맞지만, `sktime/sklearn` 기반 CPU classical baseline이므로 GPU 학습 라인업과 분리해 optional로 둔다.
+
 | 그룹 | 모델 | 목적 |
 | --- | --- | --- |
 | Non-Transformer | TCN | dilated causal convolution 기반의 RNN 대체 baseline |
 | Non-Transformer | ResNet1D | 1D residual convolution 기반 baseline |
-| Non-Transformer | MiniROCKET | 시계열 분류에서 강한 classical/feature 기반 baseline |
 | Transformer / Modern SOTA | iTransformer | 변수/채널축을 token처럼 다루는 inverted attention 모델 |
 | Transformer / Modern SOTA | TimeMixer | 다해상도 분해와 mixing 기반 최신 시계열 모델 |
 | Foundation / Pretrained | UniTS | classification을 포함한 다중 시계열 task를 지원하는 unified model |
 | Foundation / Pretrained | GPT4TS / One-Fits-All | GPT-2 계열 pretrained LM을 시계열 분석에 재활용하는 모델 |
 | Representation Learning | TS2Vec | self-supervised 시계열 representation 학습 후 downstream classifier 적용 |
 
+Optional CPU-only Extended baseline:
+
+| 그룹 | 모델 | 목적 |
+| --- | --- | --- |
+| Classical Baseline | MiniROCKET | 딥러닝 없이 random convolution feature와 RidgeClassifier로 비교하는 강한 시계열 분류 baseline |
+
 Extended 실험 우선순위:
 
 ```text
 1. iTransformer
 2. TCN
-3. MiniROCKET
-4. TimeMixer
-5. UniTS
-6. GPT4TS / One-Fits-All
-7. TS2Vec
-8. ResNet1D
+3. TimeMixer
+4. UniTS
+5. GPT4TS / One-Fits-All
+6. TS2Vec
+7. ResNet1D
+8. MiniROCKET (optional CPU-only classical baseline)
 ```
 
 ### 모델 그룹별 설명
@@ -250,7 +257,7 @@ InceptionTime은 시계열 분류에서 널리 쓰이는 강한 deep learning ba
 
 TCN은 RNN 대체 baseline이다. `7680` 길이의 긴 시계열을 순차적으로 처리하는 RNN보다 convolution 기반 접근이 더 안정적일 수 있다.
 
-MiniROCKET은 딥러닝 모델은 아니지만 시계열 분류에서 매우 강력한 baseline으로 알려져 있다. 랜덤 convolution kernel로 feature를 추출하고 간단한 classifier로 분류한다.
+MiniROCKET은 딥러닝 모델은 아니지만 시계열 분류에서 매우 강력한 baseline으로 알려져 있다. 랜덤 convolution kernel로 feature를 추출하고 간단한 classifier로 분류한다. 다만 GPU에서 backpropagation으로 학습하는 neural model이 아니므로 기본 GPU 실험 라인업에서는 제외하고, CPU-only optional 비교 실험으로 둔다.
 
 #### Transformer / Modern SOTA 모델
 
@@ -285,8 +292,10 @@ GRU -> InceptionTime -> PatchTST -> TimesNet -> MOMENT
 Core 실험이 끝난 뒤, 시간이 허용되면 Extended Experiments를 추가한다.
 
 ```text
-iTransformer -> TCN -> MiniROCKET -> TimeMixer -> UniTS -> GPT4TS
+iTransformer -> TCN -> TimeMixer -> UniTS -> GPT4TS -> TS2Vec -> ResNet1D
 ```
+
+MiniROCKET은 Extended 후보이지만 CPU-only classical baseline이므로, GPU 실험 결과가 어느 정도 정리된 뒤 선택적으로 비교한다.
 
 이 방식은 시계열 프로젝트 경험이 부족한 상태에서도 학습 곡선을 관리하면서, 포트폴리오에는 충분히 넓은 모델 비교를 보여줄 수 있다.
 

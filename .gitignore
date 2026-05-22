@@ -1,7 +1,8 @@
 # Local data
-Validation/
+Train/
 Sample/
-data/
+/data/
+external/
 
 # Experiment outputs
 results/

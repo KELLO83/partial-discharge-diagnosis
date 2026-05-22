@@ -1,5 +1,7 @@
 # 시계열 모델 후보 정리
 
+모델별 공식 구현 소스와 wrapper 적용 방침은 `docs/MODEL_IMPLEMENTATION_SOURCES.md`를 기준으로 한다. 이 문서의 모델 설명은 실험 후보를 이해하기 위한 개념 정리이며, 실제 구현은 가능한 한 공식 repo, Hugging Face, 또는 검증 라이브러리를 import해서 사용한다.
+
 이 문서는 부분방전 시계열 분류 트랙에서 실험할 모델 후보를 정리한다.
 
 현재 프로젝트의 시계열 태스크는 forecasting이 아니라 classification이다.
@@ -29,7 +31,7 @@
 3. Foundation / Pretrained 모델
 ```
 
-처음에는 Core 모델만 실험하고, 이후 Extended 모델로 확장한다.
+처음에는 Core 모델만 실험하고, 이후 Extended 모델로 확장한다. 기본 훈련 정책은 CUDA GPU 기반이다. `train.py`는 한 번 실행할 때 정확히 하나의 모델만 훈련한다. `core`, `extended`, `all`, `cpu_only`는 실험 그룹을 설명하기 위한 이름이며 `--model` 값으로 지원하지 않는다. CPU-only classical baseline은 Extended 후보로 기록하되 GPU 훈련 라인업과 분리한다.
 
 ## Core Experiments
 
@@ -47,12 +49,17 @@
 | --- | --- | --- |
 | Non-Transformer | TCN | dilated causal convolution baseline |
 | Non-Transformer | ResNet1D | residual 1D CNN baseline |
-| Non-Transformer | MiniROCKET | 강한 classical 시계열 분류 baseline |
 | Transformer / Modern SOTA | iTransformer | 변수/채널축 attention |
 | Transformer / Modern SOTA | TimeMixer | 다해상도 mixing 기반 최신 시계열 모델 |
 | Foundation / Pretrained | UniTS | unified multi-task time-series model |
 | Foundation / Pretrained | GPT4TS / One-Fits-All | GPT-2 pretrained LM을 시계열에 전이 |
 | Representation Learning | TS2Vec | self-supervised 시계열 표현 학습 |
+
+## Optional CPU-Only Extended Baseline
+
+| 그룹 | 모델 | 핵심 목적 |
+| --- | --- | --- |
+| Classical Baseline | MiniROCKET | 딥러닝 없이 random convolution feature와 RidgeClassifier로 비교하는 강한 시계열 분류 baseline |
 
 ## 입력 형태
 
@@ -74,10 +81,10 @@ raw CSV shape = (20, 7680)
 모델별로 요구하는 입력 형태가 다를 수 있다.
 
 ```text
-Conv/TCN/Patch 계열:
+Conv/TCN 계열:
 (batch, pseudo_channels, time) = (B, 20, 7680)
 
-RNN/일부 Transformer 계열:
+RNN/Hugging Face PatchTST/일부 Transformer 계열:
 (batch, time, pseudo_channels) = (B, 7680, 20)
 ```
 
@@ -146,7 +153,7 @@ GRU보다 강한 non-Transformer 시계열 분류 baseline
 예상 입력:
 
 ```text
-(B, 20, 7680)
+(B, 7680, 20)
 ```
 
 ## 3. PatchTST
@@ -341,6 +348,8 @@ MiniROCKET은 랜덤 convolution kernel을 사용해 시계열 feature를 빠르
 
 - end-to-end deep learning 모델은 아니다.
 - feature extractor와 classifier가 분리된다.
+- 일반적인 공식 구현은 `sktime/sklearn` 기반 CPU pipeline이다.
+- GPU-only 훈련 대상은 아니므로 기본 `train.py` 훈련 대상에서는 제외한다.
 - VLM으로 연결할 embedding 활용성은 deep model보다 낮을 수 있다.
 
 예상 입력:
@@ -535,12 +544,12 @@ TS2Vec은 self-supervised 방식으로 시계열 representation을 학습한 뒤
 ```text
 1. iTransformer
 2. TCN
-3. MiniROCKET
-4. TimeMixer
-5. UniTS
-6. GPT4TS / One-Fits-All
-7. TS2Vec
-8. ResNet1D
+3. TimeMixer
+4. UniTS
+5. GPT4TS / One-Fits-All
+6. TS2Vec
+7. ResNet1D
+8. MiniROCKET (optional CPU-only classical baseline)
 ```
 
 ## 최종 목표

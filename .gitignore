@@ -1,0 +1,33 @@
+# Local data
+Validation/
+Sample/
+data/
+
+# Experiment outputs
+results/
+outputs/
+checkpoints/
+runs/
+wandb/
+mlruns/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.venv*/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

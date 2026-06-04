@@ -25,8 +25,57 @@ from ml.src.models.registry import MODEL_REGISTRY
 LOGGER = logging.getLogger(__name__)
 
 CORE_MODELS = ["gru", "inception_time", "patchtst", "timesnet", "moment"]
-EXTENDED_MODELS = ["tcn", "resnet1d", "itransformer", "timemixer", "units", "gpt4ts", "ts2vec"]
-CPU_ONLY_MODELS = ["minirocket"]
+EXTENDED_MODELS = ["tcn", "resnet1d", "moderntcn", "itransformer", "timemixer", "units", "gpt4ts", "ts2vec"]
+EXTENDED_COST_NOTES = {
+    "tcn": "medium: convolution baseline, usually manageable after small smoke runs",
+    "resnet1d": "medium: 1D CNN baseline, usually manageable after small smoke runs",
+    "moderntcn": "medium_high: modern CNN/TCN, resize/seq_len controls cost",
+    "itransformer": "medium_high: attention-based model, subset first",
+    "timemixer": "high: modern long-sequence model, subset first",
+    "units": "very_high: foundation/unified model, subset only before full runs",
+    "gpt4ts": "very_high: GPT-2/LM transfer path, sinception_timeubset only before full runs",
+    "ts2vec": "very_high: self-supervised representation training plus classifier",
+}
+CPU_ONLY_MODELS = [
+    "minirocket",
+    "multirocket",
+    "hydra",
+    "sktime_summary",
+    "sktime_catch22",
+    "sktime_random_interval",
+    "sktime_tsfresh",
+    "sktime_freshprince",
+    "sktime_rocket",
+    "sktime_arsenal",
+    "feature_logistic",
+    "feature_svm",
+    "feature_random_forest",
+    "feature_tabpfn",
+]
+CPU_BASELINE_COMMANDS = {
+    "minirocket": "python ml/scripts/run_minirocket.py",
+    "multirocket": "python ml/scripts/run_multirocket.py",
+    "hydra": "python ml/scripts/run_hydra.py",
+    "sktime_summary": "python ml/scripts/run_sktime_classifier.py --model summary",
+    "sktime_catch22": "python ml/scripts/run_sktime_classifier.py --model catch22",
+    "sktime_random_interval": (
+        "python ml/scripts/run_sktime_classifier.py --model random_interval --allow-expensive"
+    ),
+    "sktime_tsfresh": (
+        "python ml/scripts/run_sktime_classifier.py --model tsfresh --allow-expensive"
+    ),
+    "sktime_freshprince": (
+        "python ml/scripts/run_sktime_classifier.py --model freshprince --allow-expensive"
+    ),
+    "sktime_rocket": "python ml/scripts/run_sktime_classifier.py --model rocket",
+    "sktime_arsenal": (
+        "python ml/scripts/run_sktime_classifier.py --model arsenal --allow-expensive"
+    ),
+    "feature_logistic": "python ml/scripts/run_feature_baseline.py --model logistic",
+    "feature_svm": "python ml/scripts/run_feature_baseline.py --model svm",
+    "feature_random_forest": "python ml/scripts/run_feature_baseline.py --model random_forest",
+    "feature_tabpfn": "python ml/scripts/run_feature_baseline.py --model tabpfn",
+}
 
 
 @dataclass(frozen=True)
@@ -42,6 +91,7 @@ MODEL_PRESETS: dict[str, TrainPreset] = {
     "tcn": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
     "inception_time": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
     "resnet1d": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
+    "moderntcn": TrainPreset(auto_batch_start_size=4, learning_rate=1e-4, model_params={"seq_len": 4096}),
     "patchtst": TrainPreset(auto_batch_start_size=4, learning_rate=2e-4),
     "timesnet": TrainPreset(auto_batch_start_size=4, learning_rate=1e-4, model_params={"seq_len": 4096}),
     "itransformer": TrainPreset(auto_batch_start_size=4, learning_rate=1e-4),
@@ -53,7 +103,6 @@ MODEL_PRESETS: dict[str, TrainPreset] = {
     ),
     "units": TrainPreset(auto_batch_start_size=1, learning_rate=1e-4, model_params={"seq_len": 1024}),
     "gpt4ts": TrainPreset(auto_batch_start_size=1, learning_rate=1e-4, model_params={"seq_len": 1024}),
-    "minirocket": TrainPreset(auto_batch_start_size=0, learning_rate=0.0, runner="minirocket"),
     "ts2vec": TrainPreset(
         auto_batch_start_size=0,
         learning_rate=0.0,
@@ -90,9 +139,12 @@ def resolve_model(model_arg: str) -> str:
             "Do not pass comma-separated model names."
         )
     model_name = model_arg.strip()
+    if model_name in CPU_ONLY_MODELS:
+        return model_name
     if model_name not in MODEL_REGISTRY:
-        supported = ", ".join(sorted(MODEL_REGISTRY))
-        raise ValueError(f"Unsupported model: {model_name}. Supported concrete models: {supported}")
+        supported = ", ".join(sorted(name for name in MODEL_REGISTRY if name not in CPU_ONLY_MODELS))
+        cpu_only = ", ".join(sorted(CPU_ONLY_MODELS))
+        raise ValueError(f"Unsupported model: {model_name}. Supported GPU models: {supported}. CPU-only optional: {cpu_only}")
     return model_name
 
 
@@ -142,10 +194,12 @@ def run_special_runner(
     epochs: int,
     model_params: dict[str, Any],
 ) -> None:
+    if runner != "ts2vec":
+        raise ValueError(f"Unsupported special GPU runner: {runner}")
     if sample_size is None:
         raise ValueError(f"{runner} loads data into memory. Set --sample-size explicitly before full-scale runs.")
 
-    script = Path("ml/scripts/run_minirocket.py") if runner == "minirocket" else Path("ml/scripts/run_ts2vec.py")
+    script = Path("ml/scripts/run_ts2vec.py")
     cmd = [
         sys.executable,
         str(script),
@@ -160,15 +214,14 @@ def run_special_runner(
         "--seed",
         str(seed),
     ]
-    if runner == "ts2vec":
-        cmd += [
-            "--epochs",
-            str(epochs),
-            "--device",
-            "cuda",
-            "--seq-len",
-            str(model_params.get("seq_len", 1024)),
-        ]
+    cmd += [
+        "--epochs",
+        str(epochs),
+        "--device",
+        "cuda",
+        "--seq-len",
+        str(model_params.get("seq_len", 1024)),
+    ]
 
     LOGGER.info("Launching %s runner: %s", runner, " ".join(cmd))
     env = os.environ.copy()
@@ -187,6 +240,12 @@ def main() -> None:
         print("core:", ", ".join(CORE_MODELS))
         print("extended:", ", ".join(EXTENDED_MODELS))
         print("cpu_only:", ", ".join(CPU_ONLY_MODELS))
+        print("cpu_only_runner_hints:")
+        for name in CPU_ONLY_MODELS:
+            print(f"  {name}: {CPU_BASELINE_COMMANDS[name]}")
+        print("extended_cost_notes:")
+        for name in EXTENDED_MODELS:
+            print(f"  {name}: {EXTENDED_COST_NOTES[name]}")
         print("rule: one train.py run = one concrete model only")
         return
 
@@ -196,18 +255,19 @@ def main() -> None:
         parser.error(str(exc))
     cli_params = dict(args.model_param)
     LOGGER.info("Training model: %s", model_name)
+
+    if model_name in CPU_ONLY_MODELS:
+        LOGGER.info(
+            "model=%s is a CPU-only baseline and is intentionally not trained by train.py.",
+            model_name,
+        )
+        LOGGER.info("Use the dedicated one-model runner instead: %s", CPU_BASELINE_COMMANDS[model_name])
+        return
+
     if not torch.cuda.is_available():
         LOGGER.info("CUDA GPU is not available. CPU training is disabled for this project; no training was started.")
         return
     LOGGER.info("CUDA GPU detected: %s", torch.cuda.get_device_name(0))
-
-    if model_name in CPU_ONLY_MODELS:
-        LOGGER.info(
-            "Skipping model=%s because it is a CPU-only sklearn/sktime baseline. "
-            "GPU-only training policy is enabled.",
-            model_name,
-        )
-        return
 
     preset = MODEL_PRESETS[model_name]
     model_params = dict(preset.model_params)

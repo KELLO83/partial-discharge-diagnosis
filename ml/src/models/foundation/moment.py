@@ -39,6 +39,8 @@ class MOMENTModel(BaseTimeSeriesModel):
         self.backbone.init()
         self.head = nn.Linear(int(cfg.get("embedding_dim", 512)), int(cfg.get("n_classes", N_CLASSES)))
         self.freeze_backbone = bool(cfg.get("freeze_backbone", True))
+        self.pretrained = True
+        self.training_mode = "frozen_backbone" if self.freeze_backbone else "fine_tuning"
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = resize_time_axis_channel_first(x, self.seq_len)

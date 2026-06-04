@@ -1,21 +1,24 @@
-"""Run one MiniROCKET official sktime experiment."""
+"""Run one HYDRA aeon experiment.
+
+HYDRA is a CPU classical time-series classification baseline.  It is kept out
+of train.py's GPU neural-model path on purpose.
+"""
 
 from __future__ import annotations
 
 import argparse
+import importlib
 import logging
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
-from sklearn.linear_model import RidgeClassifierCV
-from sklearn.pipeline import make_pipeline
-from sktime.transformations.panel.rocket import MiniRocketMultivariate
 from tqdm.auto import tqdm
 
 from ml.src.data.loader import load_manifest, make_stratified_split, read_timeseries_csv
@@ -32,7 +35,30 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sample-size", type=int, default=100)
     parser.add_argument("--valid-ratio", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--n-jobs", type=int, default=14)
     return parser.parse_args()
+
+
+def hydra_classifier(n_jobs: int) -> Any:
+    try:
+        module = importlib.import_module("aeon.classification.convolution_based")
+    except ImportError as exc:
+        raise ImportError(
+            "HYDRA baseline requires aeon. Install a compatible aeon environment, "
+            "then rerun ml/scripts/run_hydra.py."
+        ) from exc
+
+    classifier_cls = getattr(module, "HydraClassifier", None) or getattr(module, "MultiRocketHydraClassifier", None)
+    if classifier_cls is None:
+        raise ImportError(
+            "Installed aeon does not expose HydraClassifier or MultiRocketHydraClassifier "
+            "under aeon.classification.convolution_based."
+        )
+
+    try:
+        return classifier_cls(n_jobs=n_jobs)
+    except TypeError:
+        return classifier_cls()
 
 
 def load_panel(paths: list[str]) -> np.ndarray:
@@ -47,21 +73,21 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
     manifest = load_manifest(args.manifest)
     split = make_stratified_split(manifest, valid_ratio=args.valid_ratio, seed=args.seed, sample_size=args.sample_size)
+    model = hydra_classifier(args.n_jobs)
 
-    LOGGER.info("Loading MiniROCKET panels: train=%s valid=%s", len(split.train), len(split.valid))
+    LOGGER.info("Loading HYDRA panels: train=%s valid=%s", len(split.train), len(split.valid))
     x_train = load_panel(split.train["timeseries_path"].tolist())
     y_train = split.train["label_id"].to_numpy(dtype=int)
     x_valid = load_panel(split.valid["timeseries_path"].tolist())
     y_valid = split.valid["label_id"].to_numpy(dtype=int)
 
-    model = make_pipeline(MiniRocketMultivariate(), RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)))
     start_train = time.perf_counter()
-    LOGGER.info("Training MiniROCKET official sktime pipeline")
+    LOGGER.info("Training HYDRA aeon classifier")
     model.fit(x_train, y_train)
     train_time = time.perf_counter() - start_train
 
     start_predict = time.perf_counter()
-    LOGGER.info("Predicting MiniROCKET validation")
+    LOGGER.info("Predicting HYDRA validation")
     pred = model.predict(x_valid)
     predict_time = time.perf_counter() - start_predict
     metrics = classification_metrics(y_valid, pred)
@@ -70,10 +96,10 @@ def main() -> None:
     append_experiment_result(
         args.output,
         {
-            "experiment_id": f"minirocket_{args.sample_size}_seed{args.seed}",
-            "model_name": "minirocket",
+            "experiment_id": f"hydra_{args.sample_size}_seed{args.seed}",
+            "model_name": "hydra",
             "model_family": "classical_tsc",
-            "training_mode": "sktime_official",
+            "training_mode": "aeon_official",
             "pretrained": False,
             "device": "cpu",
             "manifest_path": str(args.manifest),

@@ -49,17 +49,53 @@
 | --- | --- | --- |
 | Non-Transformer | TCN | dilated causal convolution baseline |
 | Non-Transformer | ResNet1D | residual 1D CNN baseline |
+| Non-Transformer / Modern CNN | ModernTCN | modern convolution block 기반 최신 CNN/TCN 계열 비교 |
 | Transformer / Modern SOTA | iTransformer | 변수/채널축 attention |
 | Transformer / Modern SOTA | TimeMixer | 다해상도 mixing 기반 최신 시계열 모델 |
 | Foundation / Pretrained | UniTS | unified multi-task time-series model |
 | Foundation / Pretrained | GPT4TS / One-Fits-All | GPT-2 pretrained LM을 시계열에 전이 |
 | Representation Learning | TS2Vec | self-supervised 시계열 표현 학습 |
 
+Extended 모델 중 훈련 시간이 길어질 수 있는 모델:
+
+| 모델 | 예상 비용 | 이유 |
+| --- | --- | --- |
+| ModernTCN | 중간~높음 | 긴 sequence를 modern convolution block으로 처리 |
+| iTransformer | 중간~높음 | attention 기반 구조, 입력 길이/채널 설정에 민감 |
+| TimeMixer | 높음 | 다해상도 mixing과 긴 sequence 처리 비용 |
+| UniTS | 매우 높음 | unified/foundation 성격의 무거운 공식 구현 |
+| GPT4TS / One-Fits-All | 매우 높음 | GPT-2 계열 pretrained LM transfer 구조 |
+| TS2Vec | 매우 높음 | self-supervised representation 학습 후 downstream classifier |
+
+`TCN`, `ResNet1D`는 Extended 안에서는 상대적으로 비용이 낮은 편이지만, full 30k 실행 전 smoke와 subset 실험을 먼저 한다.
+
 ## Optional CPU-Only Extended Baseline
 
 | 그룹 | 모델 | 핵심 목적 |
 | --- | --- | --- |
 | Classical Baseline | MiniROCKET | 딥러닝 없이 random convolution feature와 RidgeClassifier로 비교하는 강한 시계열 분류 baseline |
+| Classical Baseline | MultiROCKET | MiniROCKET 확장형 convolution feature baseline |
+| sktime Feature-based | SummaryClassifier | 기본 summary feature 기반 매우 빠른 baseline |
+| sktime Feature-based | Catch22Classifier | 검증된 22개 feature 기반 빠른 baseline |
+| sktime Feature-based | RandomIntervalClassifier | random interval feature 기반 baseline. 느릴 수 있어 subset 전용 |
+| sktime Feature-based | TSFreshClassifier | 많은 자동 feature를 추출하므로 subset 전용 |
+| sktime Feature-based | FreshPRINCE | TSFresh 계열 ensemble, subset 전용 |
+| Classical Baseline | ROCKET | `sktime` 공식 `RocketClassifier` 기반 비교군 |
+| Classical Ensemble | Arsenal | `sktime` 공식 ROCKET ensemble. 느릴 수 있으므로 subset 전용 |
+| Classical Baseline | HYDRA | dictionary + convolution 계열 classical TSC baseline |
+| Feature Baseline | Logistic / SVM / RandomForest | 통계, amplitude, FFT feature 기반 빠른 기준선 |
+| Feature Foundation | TabPFN | 추출 feature 위에 tabular foundation classifier 적용 |
+
+Feature baseline은 raw 시계열 모델이 아니라 다음 구조의 tabular classifier다.
+
+```text
+HFCT CSV 시계열
+-> amplitude / pulse / cycle / phase-bin / FFT / numeric PRPD histogram feature
+-> Logistic / Linear SVM / RandomForest / TabPFN
+-> 5-class classification
+```
+
+현재 구현은 기본적으로 CSV 신호만 사용한다. 메타데이터는 `--include-metadata`를 켰을 때만 안전한 숫자 whitelist를 붙인다. 파일 경로, sample id, label text, defect detail처럼 클래스명이 섞일 수 있는 값은 feature로 쓰지 않는다.
 
 ## 입력 형태
 
@@ -544,12 +580,16 @@ TS2Vec은 self-supervised 방식으로 시계열 representation을 학습한 뒤
 ```text
 1. iTransformer
 2. TCN
-3. TimeMixer
-4. UniTS
-5. GPT4TS / One-Fits-All
-6. TS2Vec
-7. ResNet1D
-8. MiniROCKET (optional CPU-only classical baseline)
+3. ModernTCN
+4. TimeMixer
+5. UniTS
+6. GPT4TS / One-Fits-All
+7. TS2Vec
+8. ResNet1D
+9. MiniROCKET / MultiROCKET / sktime feature-based / ROCKET / HYDRA (optional CPU-only classical baseline)
+10. Feature baseline / TabPFN (optional CPU-only feature baseline)
+
+`sktime`이 공식 classifier를 제공하는 classical TSC 모델은 직접 구현하지 않고 `ml/scripts/run_sktime_classifier.py` 또는 전용 runner를 사용한다. `Catch22Classifier`와 `SummaryClassifier`는 빠른 baseline으로 우선 실험하고, `RandomIntervalClassifier`, `TSFreshClassifier`, `FreshPRINCE`, `Arsenal`은 전체 데이터에 바로 실행하지 않는다.
 ```
 
 ## 최종 목표
@@ -564,6 +604,9 @@ VLM에 전달할 수 있는 정보:
 class probability
 hidden embedding
 통계 feature
+phase-bin feature
+pulse/cycle feature
+numeric PRPD histogram summary
 ```
 
 VLM 입력 예시:

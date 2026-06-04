@@ -1,4 +1,4 @@
-"""Run one MiniROCKET official sktime experiment."""
+"""Run one MultiROCKET official sktime experiment."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import numpy as np
 from sklearn.linear_model import RidgeClassifierCV
 from sklearn.pipeline import make_pipeline
-from sktime.transformations.panel.rocket import MiniRocketMultivariate
+from sktime.transformations.panel.rocket import MultiRocketMultivariate
 from tqdm.auto import tqdm
 
 from ml.src.data.loader import load_manifest, make_stratified_split, read_timeseries_csv
@@ -48,20 +48,20 @@ def main() -> None:
     manifest = load_manifest(args.manifest)
     split = make_stratified_split(manifest, valid_ratio=args.valid_ratio, seed=args.seed, sample_size=args.sample_size)
 
-    LOGGER.info("Loading MiniROCKET panels: train=%s valid=%s", len(split.train), len(split.valid))
+    LOGGER.info("Loading MultiROCKET panels: train=%s valid=%s", len(split.train), len(split.valid))
     x_train = load_panel(split.train["timeseries_path"].tolist())
     y_train = split.train["label_id"].to_numpy(dtype=int)
     x_valid = load_panel(split.valid["timeseries_path"].tolist())
     y_valid = split.valid["label_id"].to_numpy(dtype=int)
 
-    model = make_pipeline(MiniRocketMultivariate(), RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)))
+    model = make_pipeline(MultiRocketMultivariate(), RidgeClassifierCV(alphas=np.logspace(-3, 3, 10)))
     start_train = time.perf_counter()
-    LOGGER.info("Training MiniROCKET official sktime pipeline")
+    LOGGER.info("Training MultiROCKET official sktime pipeline")
     model.fit(x_train, y_train)
     train_time = time.perf_counter() - start_train
 
     start_predict = time.perf_counter()
-    LOGGER.info("Predicting MiniROCKET validation")
+    LOGGER.info("Predicting MultiROCKET validation")
     pred = model.predict(x_valid)
     predict_time = time.perf_counter() - start_predict
     metrics = classification_metrics(y_valid, pred)
@@ -70,8 +70,8 @@ def main() -> None:
     append_experiment_result(
         args.output,
         {
-            "experiment_id": f"minirocket_{args.sample_size}_seed{args.seed}",
-            "model_name": "minirocket",
+            "experiment_id": f"multirocket_{args.sample_size}_seed{args.seed}",
+            "model_name": "multirocket",
             "model_family": "classical_tsc",
             "training_mode": "sktime_official",
             "pretrained": False,

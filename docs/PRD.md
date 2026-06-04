@@ -214,35 +214,69 @@ Core 실험 순서:
 
 Core 실험이 안정적으로 끝난 뒤 추가로 실험할 후보들이다. 처음부터 모두 구현하지 않고, 시간과 GPU 여유가 있을 때 확장한다.
 
-이 프로젝트의 기본 훈련 정책은 CUDA GPU 기반이다. 또한 `AGENT.md`의 실행 단위 정책에 따라 `train.py`는 한 번 실행할 때 정확히 하나의 모델만 훈련해야 한다. 따라서 `core`, `extended`, `all`, `cpu_only` 같은 그룹명은 `--model` 값으로 지원하지 않고, 실제 훈련 명령에는 `gru`, `patchtst`, `moment`처럼 구체적인 단일 모델명만 사용한다. `MiniROCKET`은 Extended 성격의 추가 실험 후보가 맞지만, `sktime/sklearn` 기반 CPU classical baseline이므로 GPU 학습 라인업과 분리해 optional로 둔다.
+이 프로젝트의 기본 훈련 정책은 CUDA GPU 기반이다. 또한 `AGENT.md`의 실행 단위 정책에 따라 `train.py`는 한 번 실행할 때 정확히 하나의 모델만 훈련해야 한다. 따라서 `core`, `extended`, `all`, `cpu_only` 같은 그룹명은 `--model` 값으로 지원하지 않고, 실제 훈련 명령에는 `gru`, `patchtst`, `moment`처럼 구체적인 단일 모델명만 사용한다. `MiniROCKET`, `MultiROCKET`, `HYDRA`, `feature_*`, `sktime_*`는 Extended 성격의 추가 실험 후보가 맞지만, `sktime/sklearn/aeon` 기반 CPU classical baseline이므로 GPU 학습 라인업과 분리해 전용 runner로 실행한다.
 
 | 그룹 | 모델 | 목적 |
 | --- | --- | --- |
 | Non-Transformer | TCN | dilated causal convolution 기반의 RNN 대체 baseline |
 | Non-Transformer | ResNet1D | 1D residual convolution 기반 baseline |
+| Non-Transformer / Modern CNN | ModernTCN | modern convolution block 기반 최신 CNN/TCN 계열 classification 비교 |
 | Transformer / Modern SOTA | iTransformer | 변수/채널축을 token처럼 다루는 inverted attention 모델 |
 | Transformer / Modern SOTA | TimeMixer | 다해상도 분해와 mixing 기반 최신 시계열 모델 |
 | Foundation / Pretrained | UniTS | classification을 포함한 다중 시계열 task를 지원하는 unified model |
 | Foundation / Pretrained | GPT4TS / One-Fits-All | GPT-2 계열 pretrained LM을 시계열 분석에 재활용하는 모델 |
 | Representation Learning | TS2Vec | self-supervised 시계열 representation 학습 후 downstream classifier 적용 |
 
+Extended 모델별 훈련 비용 주의:
+
+| 모델 | 예상 비용 | 운영 원칙 |
+| --- | --- | --- |
+| TCN | 중간 | small smoke 후 필요하면 full 실행 |
+| ResNet1D | 중간 | small smoke 후 필요하면 full 실행 |
+| ModernTCN | 중간~높음 | `seq_len`과 batch size를 제한해 subset부터 실행 |
+| iTransformer | 중간~높음 | attention 비용이 있으므로 subset부터 실행 |
+| TimeMixer | 높음 | full 실행 전 100/1000/5000 단계 확인 |
+| UniTS | 매우 높음 | foundation/unified model이므로 subset 검증 후 결정 |
+| GPT4TS / One-Fits-All | 매우 높음 | LM transfer 계열이므로 subset 검증 후 결정 |
+| TS2Vec | 매우 높음 | self-supervised encoder 학습 + classifier라 full 실행 전 subset 필수 |
+
 Optional CPU-only Extended baseline:
 
 | 그룹 | 모델 | 목적 |
 | --- | --- | --- |
 | Classical Baseline | MiniROCKET | 딥러닝 없이 random convolution feature와 RidgeClassifier로 비교하는 강한 시계열 분류 baseline |
+| Classical Baseline | MultiROCKET | MiniROCKET 확장형 convolution feature baseline |
+| sktime Feature-based | SummaryClassifier | 기본 summary feature 기반 매우 빠른 baseline |
+| sktime Feature-based | Catch22Classifier | 검증된 22개 feature 기반 빠른 baseline |
+| sktime Feature-based | RandomIntervalClassifier | random interval feature 기반 baseline. 느릴 수 있어 subset 전용 |
+| sktime Feature-based | TSFreshClassifier | 자동 feature가 많아 subset 전용 |
+| sktime Feature-based | FreshPRINCE | TSFresh 계열 ensemble, subset 전용 |
+| Classical Baseline | HYDRA | dictionary + convolution 계열의 강한 classical TSC baseline |
+| Feature Baseline | Logistic / SVM / RandomForest | 통계, amplitude, FFT feature 기반 가장 해석 쉬운 기준선 |
+| Feature Foundation | TabPFN | tabular foundation classifier를 추출 feature 위에 적용하는 optional 비교군 |
+
+CPU-only baseline 실행 예:
+
+```powershell
+python ml/scripts/run_feature_baseline.py --model logistic
+python ml/scripts/run_minirocket.py
+python ml/scripts/run_multirocket.py
+python ml/scripts/run_sktime_classifier.py --model catch22
+```
 
 Extended 실험 우선순위:
 
 ```text
 1. iTransformer
 2. TCN
-3. TimeMixer
-4. UniTS
-5. GPT4TS / One-Fits-All
-6. TS2Vec
-7. ResNet1D
-8. MiniROCKET (optional CPU-only classical baseline)
+3. ModernTCN
+4. TimeMixer
+5. UniTS
+6. GPT4TS / One-Fits-All
+7. TS2Vec
+8. ResNet1D
+9. MiniROCKET / MultiROCKET / sktime feature-based / HYDRA (optional CPU-only classical baseline)
+10. Feature baseline / TabPFN (optional CPU-only feature baseline)
 ```
 
 ### 모델 그룹별 설명
@@ -259,6 +293,22 @@ TCN은 RNN 대체 baseline이다. `7680` 길이의 긴 시계열을 순차적으
 
 MiniROCKET은 딥러닝 모델은 아니지만 시계열 분류에서 매우 강력한 baseline으로 알려져 있다. 랜덤 convolution kernel로 feature를 추출하고 간단한 classifier로 분류한다. 다만 GPU에서 backpropagation으로 학습하는 neural model이 아니므로 기본 GPU 실험 라인업에서는 제외하고, CPU-only optional 비교 실험으로 둔다.
 
+MultiROCKET과 HYDRA도 같은 이유로 CPU-only optional baseline으로 둔다. 이들은 신경망 훈련 코드가 아니라 `sktime` 또는 `aeon` 기반 classical TSC classifier로 실행한다.
+
+통계/FFT feature baseline과 TabPFN은 원본 시계열을 직접 deep model에 넣기 전, hand-crafted feature만으로 어느 정도 분리가 가능한지 확인하는 용도다. TabPFN은 tabular foundation classifier이므로 원본 시계열 foundation model이 아니라, 추출 feature 위의 optional 비교군으로만 취급한다.
+
+현재 feature baseline extractor는 세 가지 feature set을 제공한다.
+
+| Feature set | CSV feature count | 목적 |
+| --- | ---: | --- |
+| `small` | 64 | 가장 빠른 baseline. global/stat, FFT, amplitude histogram, pulse, cycle, half-cycle 사용 |
+| `medium` | 128 | balanced baseline. phase-bin count/max 포함 |
+| `full` | 182 | phase 12 bin x amplitude 8 bin numeric PRPD histogram 96개 포함 |
+
+기본값은 `small`이다. `full`에서도 numeric PRPD histogram은 96개로 제한하며, 기존처럼 512차원 histogram을 기본 feature로 만들지 않는다.
+
+메타데이터는 기본적으로 사용하지 않는다. `--include-metadata`를 명시한 경우에도 `temperature`, `humidity`, `recording_time_length`, 정격 전압/전류, 주파수, ramping time, cutoff current, clearance distance처럼 숫자로 파싱 가능한 whitelist만 추가한다. `max_discharge_value`는 label proxy 가능성이 있으므로 기본 whitelist에서 제외하고 별도 ablation에서만 사용한다. `timeseries_path`, `image_path`, `sample_id`, `label_name`, `defect_details`, 파일명 문자열은 label leakage 위험이 있으므로 feature로 사용하지 않는다.
+
 #### Transformer / Modern SOTA 모델
 
 Transformer / Modern SOTA 모델은 최신 시계열 아키텍처가 부분방전 분류에 유효한지 확인하기 위한 그룹이다.
@@ -270,6 +320,8 @@ TimesNet은 시계열의 다중 주기성 및 반복 패턴을 2D 구조로 변�
 iTransformer는 변수 또는 채널 축을 token처럼 다루는 구조다. 현재 CSV의 `20`개 row를 실제 센서 채널이라고 단정할 수는 없지만, segment/pseudo-channel 간 관계를 모델링하는 실험으로 사용할 수 있다.
 
 TimeMixer는 다해상도 분해와 mixing 기반의 최신 시계열 모델이다. classification 실험 후보로 두되, Core 실험 이후 확장 단계에서 진행한다.
+
+ModernTCN은 Transformer가 아니라 최신 CNN/TCN 계열 모델이다. pulse와 local pattern이 중요한 부분방전 신호에서는 Transformer보다 안정적인 비교군이 될 수 있으므로 Extended GPU 실험에 포함한다.
 
 #### Foundation / Pretrained 모델
 
@@ -289,13 +341,13 @@ GPT4TS / One-Fits-All은 GPT-2 계열 pretrained language model을 시계열 분
 GRU -> InceptionTime -> PatchTST -> TimesNet -> MOMENT
 ```
 
-Core 실험이 끝난 뒤, 시간이 허용되면 Extended Experiments를 추가한다.
+Core 실험이 끝난 뒤, 시간이 허용되면 Extended Experiments를 추가한다. Extended 전체를 한 번에 실행하지 않는다.
 
 ```text
 iTransformer -> TCN -> TimeMixer -> UniTS -> GPT4TS -> TS2Vec -> ResNet1D
 ```
 
-MiniROCKET은 Extended 후보이지만 CPU-only classical baseline이므로, GPU 실험 결과가 어느 정도 정리된 뒤 선택적으로 비교한다.
+MiniROCKET, MultiROCKET, sktime feature-based classifiers, HYDRA, feature baseline, TabPFN은 Extended 후보이지만 CPU-only classical/feature baseline이므로, GPU 실험 결과가 어느 정도 정리된 뒤 선택적으로 비교한다.
 
 이 방식은 시계열 프로젝트 경험이 부족한 상태에서도 학습 곡선을 관리하면서, 포트폴리오에는 충분히 넓은 모델 비교를 보여줄 수 있다.
 
@@ -662,15 +714,20 @@ VLM 평가:
 1. AI-Hub 샘플 데이터를 다운로드한다.
 2. 실제 폴더명과 JSON 예시를 확인한다.
 3. JSON 파일을 기준으로 `manifest.csv`를 생성한다.
-4. CSV 시계열 파일의 컬럼 구조와 길이를 확인한다.
-5. 시계열 데이터 전처리 코드를 작성한다.
-6. 1D-CNN 또는 GRU baseline 모델을 학습한다.
-7. 시계열 요약 특징을 추출한다.
-8. 전략 A 형식의 VLM instruction dataset을 만든다.
-9. 소형 VLM을 LoRA 또는 QLoRA로 파인튜닝한다.
-10. 전략 B를 위한 시계열 그래프 이미지를 생성한다.
-11. 멀티 이미지 VLM 실험을 진행한다.
-12. 전략 A와 전략 B의 성능 및 진단 품질을 비교한다.
+4. `python ml/scripts/validate_dataset.py --fail-on-invalid`로 경로, label, CSV shape, NaN/inf, 상수 신호를 검증한다.
+5. `python ml/scripts/make_splits.py --manifest Train/manifest.csv --output Train/manifest_random_split_seed42.csv`로 고정 split manifest를 확정한다. 모델 비교에서는 동일 split을 재사용한다.
+6. `python ml/scripts/run_eda.py`로 초기 EDA를 한 번 실행한다.
+7. label 분포, metadata 분포, CSV shape, signal 통계, phase-bin pulse 분포, leakage 위험 컬럼을 확인한다.
+8. feature baseline에서 path, label text, defect 정보, `max_discharge_value`를 기본 feature에서 제외한다.
+9. feature baseline과 CPU classical baseline smoke를 먼저 검증한다.
+10. GPU neural/foundation 시계열 모델 smoke를 실행한다.
+11. 동일 metric/result schema로 GPU neural/foundation 시계열 모델을 학습한다.
+12. 시계열 요약 특징을 추출한다.
+13. 전략 A 형식의 VLM instruction dataset을 만든다.
+14. 소형 VLM을 LoRA 또는 QLoRA로 파인튜닝한다.
+15. 전략 B를 위한 시계열 그래프 이미지를 생성한다.
+16. 멀티 이미지 VLM 실험을 진행한다.
+17. 전략 A와 전략 B의 성능 및 진단 품질을 비교한다.
 
 ## 18. 성공 기준
 

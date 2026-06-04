@@ -11,6 +11,7 @@ from ml.src.models.foundation.units import UniTSModel
 from ml.src.models.non_transformer.gru import GRUModel
 from ml.src.models.non_transformer.inception_time import InceptionTimeModel
 from ml.src.models.non_transformer.minirocket import MiniROCKETModel
+from ml.src.models.non_transformer.moderntcn import ModernTCNModel
 from ml.src.models.non_transformer.resnet1d import ResNet1DModel
 from ml.src.models.non_transformer.tcn import TCNModel
 from ml.src.models.representation.ts2vec import TS2VecModel
@@ -26,6 +27,7 @@ MODEL_REGISTRY: dict[str, type[BaseTimeSeriesModel]] = {
     "inception_time": InceptionTimeModel,
     "resnet1d": ResNet1DModel,
     "minirocket": MiniROCKETModel,
+    "moderntcn": ModernTCNModel,
     "patchtst": PatchTSTModel,
     "itransformer": ITransformerModel,
     "timesnet": TimesNetModel,

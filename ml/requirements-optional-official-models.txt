@@ -8,8 +8,14 @@ fastai
 pyts
 imbalanced-learn
 
-# MiniROCKET / MiniROCKETMultivariate
+# MiniROCKET / MultiROCKET
 sktime
+
+# HYDRA optional classical TSC baseline
+aeon
+
+# Feature-level tabular foundation baseline
+tabpfn
 
 # MOMENT official package
 momentfm
@@ -34,6 +40,10 @@ scikit-learn
 # TimeMixer:
 #   git clone https://github.com/kwuking/TimeMixer external/TimeMixer
 #   set TIMEMIXER_REPO=C:\path\to\external\TimeMixer
+#
+# ModernTCN:
+#   git clone https://github.com/luodhhh/ModernTCN external/ModernTCN
+#   set MODERNTCN_REPO=C:\path\to\external\ModernTCN\ModernTCN-classification
 #
 # UniTS:
 #   git clone https://github.com/mims-harvard/UniTS external/UniTS

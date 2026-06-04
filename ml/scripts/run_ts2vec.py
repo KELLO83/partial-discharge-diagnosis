@@ -8,6 +8,10 @@ import sys
 import time
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from tqdm.auto import tqdm
@@ -92,6 +96,8 @@ def main() -> None:
             "training_mode": "official_encoder_linear_probe",
             "pretrained": False,
             "device": args.device,
+            "manifest_path": str(args.manifest),
+            "split_type": split.split_type,
             "sample_size": args.sample_size,
             "train_rows": len(split.train),
             "valid_rows": len(split.valid),
@@ -103,7 +109,17 @@ def main() -> None:
             "predict_time_sec": round(predict_time, 6),
             "valid_accuracy": metrics.accuracy,
             "valid_macro_f1": metrics.macro_f1,
+            "valid_weighted_f1": metrics.weighted_f1,
+            "valid_balanced_accuracy": metrics.balanced_accuracy,
             "valid_per_class_f1": metrics.per_class_f1,
+            "valid_per_class_precision": metrics.per_class_precision,
+            "valid_per_class_recall": metrics.per_class_recall,
+            "valid_pd_to_normal_error_count": metrics.pd_to_normal_error_count,
+            "valid_normal_recall": metrics.per_class_recall[0],
+            "valid_noise_recall": metrics.per_class_recall[1],
+            "valid_surface_recall": metrics.per_class_recall[2],
+            "valid_corona_recall": metrics.per_class_recall[3],
+            "valid_void_recall": metrics.per_class_recall[4],
             "valid_confusion_matrix": metrics.confusion_matrix,
         },
     )

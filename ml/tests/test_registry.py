@@ -23,7 +23,7 @@ def test_channel_first_models_forward_shape() -> None:
 
 
 def test_time_first_official_models_forward_shape() -> None:
-    for name in ["patchtst", "itransformer", "units"]:
+    for name in ["moderntcn", "patchtst", "itransformer", "units"]:
         model = create_model(name)
         x = torch.randn(2, 7680, 20)
         y = model(x)

@@ -13,6 +13,8 @@ class BaseTimeSeriesModel(ABC, nn.Module):
     name: str
     family: str
     input_layout: str = "channel_first"
+    training_mode: str = "from_scratch"
+    pretrained: bool = False
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         super().__init__()

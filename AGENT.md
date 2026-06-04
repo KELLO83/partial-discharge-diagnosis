@@ -8,22 +8,28 @@
 
 AI는 코드를 작성하기 전에 다음 문서를 우선순위대로 확인해야 한다.
 
-1. `docs/PRD.md`: 프로젝트 목표, 범위, 실험 단계, 성공 기준
-2. `docs/DATASET_EXPLAIN.md`: Train 데이터 구조, CSV/PNG/JSON 형태, label, manifest 규칙
-3. `docs/TIMESERIES_MODELS.md`: 실험 후보 시계열 모델, Core/Extended 구분, 모델별 입력 관점
-4. `docs/VLM_STRATEGY.md`: VLM 모델 후보, 입력/출력 설계, QLoRA 학습 전략
-5. `AGENT.md`: 코드 스타일, 실행 환경, 리소스 사용, 검증 규칙
+1. `PRD.md`: 루트 기준 프로젝트 목표, 시계열/VLM 실험 범위, 실행 규칙 요약
+2. `docs/PRD.md`: 상세 프로젝트 목표, 범위, 실험 단계, 성공 기준
+3. `docs/DATASET_EXPLAIN.md`: 통합 데이터 구조, CSV/PNG/JSON 형태, label, manifest 규칙
+4. `docs/TIMESERIES_MODELS.md`: 실험 후보 시계열 모델, Core/Extended 구분, 모델별 입력 관점
+5. `docs/VLM_STRATEGY.md`: VLM 모델 후보, 입력/출력 설계, QLoRA 학습 전략
+6. `AGENT.md`: 코드 스타일, 실행 환경, 리소스 사용, 검증 규칙
+
+
+## 데이터 구조설명
+`docs/DATASET_EXPLAIN.md` 참조
 
 ## 프로젝트 범위
 
 현재 구현 우선순위는 다음과 같다.
 
 1. Train 데이터 구조 확인 및 `manifest.csv` 기반 데이터 매핑
-2. CSV 시계열 분류 데이터셋/DataLoader 구현
-3. GRU baseline 학습 및 평가
-4. Non-Transformer, Transformer/SOTA, Foundation/Pretrained 시계열 모델 비교
-5. 시계열 실험 결과를 바탕으로 VLM 입력용 요약 feature 또는 진단 문맥 생성
-6. 소형 VLM(Qwen 계열 등)로 PRPD 이미지 + 메타데이터 + 시계열 요약을 결합한 진단 모델 개발
+2. 초기 EDA 실행 및 데이터/라벨/누수 위험 확인
+3. CSV 시계열 분류 데이터셋/DataLoader 구현
+4. GRU baseline 학습 및 평가
+5. Non-Transformer, Transformer/SOTA, Foundation/Pretrained 시계열 모델 비교
+6. 시계열 실험 결과를 바탕으로 VLM 입력용 요약 feature 또는 진단 문맥 생성
+7. 소형 VLM(Qwen 계열 등)로 PRPD 이미지 + 메타데이터 + 시계열 요약을 결합한 진단 모델 개발
 
 Forecasting은 현재 프로젝트 범위에서 제외한다. 이 프로젝트의 시계열 작업은 미래 값 예측이 아니라 `정상`, `노이즈`, `표면 방전`, `코로나 방전`, `보이드 방전` 5-class classification이다.
 
@@ -31,16 +37,26 @@ Forecasting은 현재 프로젝트 범위에서 제외한다. 이 프로젝트�
 
 Train 데이터는 `Train/manifest.csv`를 기준으로 CSV, PNG, JSON을 연결한다.
 
+현재 로컬 `Train/manifest.csv`에서 확인한 데이터 형태:
+
+- 전체 샘플 수는 `30,010`개다.
+- label 분포는 `0~4` 각 `6,002`개로 균형이다.
+- 하나의 샘플은 `timeseries_path` CSV, `image_path` PNG, `json_path` JSON으로 연결된다.
+- CSV 시계열 배열 형태는 `(20, 7680)`이다.
+- manifest 주요 컬럼은 `sample_id`, `split`, `json_path`, `image_path`, `timeseries_path`, `label_id`, `label_name`, 설비/환경 메타데이터, `max_discharge_value` 등이다.
+
 규칙:
 
 - CSV 원천 데이터는 header 없는 정수형 시계열 배열로 읽는다.
-- 현재 확인된 CSV 형태는 대략 `(20, 7680)`이다.
+- 현재 확인된 CSV 형태는 `(20, 7680)`이다.
 - `20`은 물리 센서 채널로 단정하지 않고 measurement segment 또는 pseudo-channel 차원으로 취급한다.
 - `7680`은 시간축 time point로 취급한다.
 - RNN/Transformer 입력에서는 필요에 따라 `(time, pseudo_channel) = (7680, 20)`으로 transpose한다.
 - Conv/TCN/Patch 계열 입력에서는 `(pseudo_channel, time) = (20, 7680)` 형태를 기본 후보로 둔다.
 - JSON의 `PD_type`은 정답 label로 사용한다.
+- 코드에서는 가능하면 manifest의 `label_id`를 사용하고, manifest 재생성 시에는 JSON의 `label.PD_type` 기준으로 label을 만든다.
 - VLM prompt에는 label leakage가 되는 `PD_type`, label명이 포함된 경로, 파일명 패턴을 넣지 않는다.
+- feature baseline에서도 `sample_id`, `timeseries_path`, `image_path`, `json_path`, `label_name`, `defect_details`처럼 클래스명이나 정답 정보가 섞일 수 있는 문자열 컬럼을 feature로 사용하지 않는다.
 - JSON 메타데이터는 VLM 단계에서 LLM 쪽 텍스트 문맥으로 사용할 수 있다.
 
 ## 코드 디렉터리 경계
@@ -75,7 +91,7 @@ docs/
 - 모델 wrapper는 모델별 파일로 분리한다. 예: `gru.py`, `tcn.py`, `patchtst.py`, `moment.py`.
 - GRU를 제외한 유명 논문 모델은 공식 repo, Hugging Face, PyTorch 기본 모듈, 또는 검증 라이브러리 구현을 우선 사용한다.
 - 공식 dependency가 설치되어 있지 않은 모델은 임의 fallback 구현으로 조용히 대체하지 않고, 설치/clone 방법을 안내하는 `ImportError`를 발생시킨다.
-- 공식 repo clone 연결은 환경변수로 처리한다. 예: `TSLIB_REPO`, `ITRANSFORMER_REPO`, `TIMEMIXER_REPO`, `UNITS_REPO`, `ONE_FITS_ALL_REPO`, `TS2VEC_REPO`.
+- 공식 repo clone 연결은 환경변수로 처리한다. 예: `TSLIB_REPO`, `ITRANSFORMER_REPO`, `TIMEMIXER_REPO`, `MODERNTCN_REPO`, `UNITS_REPO`, `ONE_FITS_ALL_REPO`, `TS2VEC_REPO`.
 - VLM 관련 코드나 데이터셋을 작성하기 전에는 `docs/VLM_STRATEGY.md`를 먼저 확인한다.
 - VLM은 PRPD 이미지 단독 분류 모델이 아니라, PRPD 이미지 + JSON 메타데이터 + 시계열 요약 정보를 결합한 진단 리포트 생성 모델로 구현한다.
 - VLM 학습에서 원본 CSV 전체를 프롬프트에 넣지 않는다. 시계열 모델 예측값, confidence, class probability, 통계 feature처럼 압축된 정보를 텍스트 문맥으로 제공한다.
@@ -87,20 +103,31 @@ docs/
 
 시계열 모델 실험은 다음 그룹으로 구분한다.
 
-- Non-Transformer: GRU, TCN, InceptionTime, ResNet1D, MiniROCKET
+- Non-Transformer: GRU, TCN, InceptionTime, ResNet1D, ModernTCN
 - Transformer / Modern SOTA: PatchTST, iTransformer, TimesNet, TimeMixer
 - Foundation / Pretrained: MOMENT, UniTS, GPT4TS / One-Fits-All
 - Representation Learning: TS2Vec
+- CPU-only optional baseline: MiniROCKET, MultiROCKET, sktime feature-based classifiers, ROCKET, Arsenal, HYDRA, feature baseline, TabPFN
 
 원칙:
 
 - 첫 baseline은 GRU로 시작한다.
 - 처음부터 모든 모델을 구현하지 않고, Core 모델을 먼저 완성한 뒤 Extended 모델로 확장한다.
+- Extended 중 `TimeMixer`, `UniTS`, `GPT4TS`, `TS2Vec`은 훈련 시간이 길어질 수 있으므로 full 30k 실행 전에 반드시 small subset smoke와 중간 subset을 먼저 실행한다.
+- `iTransformer`, `ModernTCN`도 긴 시퀀스 비용이 있으므로 처음에는 `seq_len` 축소 또는 `--sample-size` 제한을 사용한다.
 - 모든 모델은 동일한 split, 동일한 label mapping, 동일한 metric으로 비교한다.
-- classification metric은 accuracy, macro F1, per-class F1, confusion matrix를 기본으로 한다.
+- classification metric은 accuracy, macro F1, weighted F1, balanced accuracy, per-class precision/recall/F1, confusion matrix, 실제 방전이 정상으로 예측된 수를 기본으로 한다.
+- 모델 훈련 전 `python ml/scripts/validate_dataset.py --fail-on-invalid`로 manifest 경로, label, CSV shape, NaN/inf, 상수 신호를 검증한다.
+- manifest에 `split=train`과 `split=valid`가 있으면 모든 runner는 해당 split을 우선 사용한다. 모델 비교용 run에서는 같은 split manifest를 재사용한다.
+- feature baseline의 기본 metadata whitelist에는 `max_discharge_value`를 포함하지 않는다. 해당 값은 leakage 가능성이 있으므로 별도 ablation에서만 사용한다.
 - forecasting 전용 모델(TimesFM, Chronos, Lag-Llama 등)은 현재 범위에서 제외한다.
 - foundation model은 가능한 경우 pretrained checkpoint를 downstream classification head 또는 fine-tuning 방식으로 사용한다.
 - from-scratch 학습과 pretrained fine-tuning 결과는 leaderboard에서 구분 기록한다.
+- `sktime`이 공식/검증 classifier를 제공하는 classical TSC 모델은 직접 구현하지 않고 `sktime` runner를 사용한다. `RandomInterval`, `TSFresh`, `FreshPRINCE`, `Arsenal`은 `--allow-expensive`와 small subset 없이는 실행하지 않는다.
+- `train.py`는 GPU neural/foundation model 전용 단일 학습 CLI다. `MiniROCKET`, `MultiROCKET`, `HYDRA`, `feature_*`, `sktime_*` 같은 CPU-only baseline은 `train.py`에서 직접 학습하지 않고, `ml/scripts/run_*.py` 전용 runner를 사용한다.
+- CPU-only baseline도 한 번 실행할 때 하나의 모델만 실행한다. 각 runner는 인자 없이도 안전한 smoke 기본값을 갖는다. 예: `python ml/scripts/run_feature_baseline.py --model logistic`, `python ml/scripts/run_minirocket.py`.
+- `train.py --list-models`에 표시되는 `cpu_only` 항목은 발견/안내용 목록이며, 해당 이름을 `--model`로 넣으면 전용 runner 명령을 로그로 안내하고 종료해야 한다.
+- 현재 Train 데이터와 manifest 기준으로 초기 EDA를 한 번 실행해 label 분포, metadata 분포, CSV shape, signal 통계, phase-bin pulse 분포, leakage 위험 컬럼을 확인한다. 매 모델 훈련 전에 반복 실행할 필요는 없고, 데이터 구조, manifest 생성 방식, label mapping, feature 설계, split 정책이 바뀐 경우에만 다시 실행한다.
 
 ## Python 실행 환경 정책
 
@@ -131,13 +158,13 @@ GPU 기반 시계열/VLM 모델 훈련과 대규모 전처리는 다음 가상�
 전통 ML/CPU baseline 예외:
 
 - 현재 프로젝트의 주 실험은 딥러닝 시계열 분류이므로 LightGBM/CatBoost류 tabular baseline은 기본 실험 범위에 포함하지 않는다.
-- MiniROCKET, shapelet, sklearn classifier처럼 CPU 기반 전통 시계열 baseline을 추가하는 경우에도 기본은 `.venv`를 사용한다.
+- MiniROCKET, MultiROCKET, HYDRA, feature baseline, TabPFN, shapelet, sklearn classifier처럼 CPU 기반 전통 시계열 baseline을 추가하는 경우에도 기본은 `.venv`를 사용한다.
 - 해당 패키지가 Python 3.14를 지원하지 않으면 별도 호환 환경에서 실행하고, 실행 환경 차이를 실험 로그에 기록한다.
 - CPU fallback은 내부 멀티스레딩을 사용하므로 가능한 경우 `n_jobs=14` 또는 라이브러리별 thread 옵션을 명시한다.
 
 Neural/Transformer/Foundation 예외:
 
-- GRU, TCN, InceptionTime, ResNet1D, PatchTST, iTransformer, TimesNet, TimeMixer, MOMENT, UniTS, GPT4TS 계열은 기본적으로 GPU 학습 또는 GPU 추론을 사용한다.
+- GRU, TCN, InceptionTime, ResNet1D, ModernTCN, PatchTST, iTransformer, TimesNet, TimeMixer, MOMENT, UniTS, GPT4TS 계열은 기본적으로 GPU 학습 또는 GPU 추론을 사용한다.
 - 이 모델들은 PyTorch/CUDA/공식 pretrained checkpoint 호환성이 중요하므로 `.venv`에서 설치하고 실행한다.
 - `.venv`에 PyTorch, CUDA extension, time-series foundation model package를 소스 빌드해서 억지로 맞추지 않는다.
 - `ml/requirements.txt`는 `.venv` 기준 dependency 목록으로 취급한다.

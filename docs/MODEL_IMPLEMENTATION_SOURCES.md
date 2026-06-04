@@ -18,6 +18,18 @@
 | InceptionTime | `hfawaz/InceptionTime`, 또는 `tsai` InceptionTime | 공식/검증 라이브러리 | 높음 | 현재 `tsai` InceptionTime wrapper 사용 |
 | ResNet1D | `tsai` ResNet 계열 | 검증 라이브러리 | 높음 | 현재 `tsai` ResNet wrapper 사용 |
 | MiniROCKET | `sktime` `MiniRocketMultivariate` | 검증 라이브러리 | 높음 | Extended 후보이지만 CPU-only classical baseline으로 GPU train.py 라인업과 분리 |
+| MultiROCKET | `sktime` `MultiRocketMultivariate` | 검증 라이브러리 | 높음 | CPU-only optional runner 사용 |
+| SummaryClassifier | `sktime` `SummaryClassifier` | 검증 라이브러리 | 높음 | 빠른 feature-based TSC baseline |
+| Catch22Classifier | `sktime` `Catch22Classifier` | 검증 라이브러리 | 높음 | 22개 검증 feature 기반 빠른 baseline |
+| RandomIntervalClassifier | `sktime` `RandomIntervalClassifier` | 검증 라이브러리 | 높음 | random interval feature 기반 baseline. `--allow-expensive`와 subset 필수 |
+| TSFreshClassifier | `sktime` `TSFreshClassifier` | 검증 라이브러리 | 중간~높음 | feature가 많고 느릴 수 있어 `--allow-expensive`와 subset 필수 |
+| FreshPRINCE | `sktime` `FreshPRINCE` | 검증 라이브러리 | 중간~높음 | TSFresh 계열 ensemble, `--allow-expensive`와 subset 필수 |
+| ROCKET | `sktime` `RocketClassifier` | 검증 라이브러리 | 높음 | CPU-only optional runner 사용 |
+| Arsenal | `sktime` `Arsenal` | 검증 라이브러리 | 높음 | 매우 느릴 수 있으므로 `--allow-expensive`와 subset 필수 |
+| HYDRA | `aeon` HYDRA classifier | 검증 라이브러리 | 높음 | CPU-only optional runner 사용 |
+| Feature baseline | scikit-learn Logistic/LinearSVM/RandomForest | 검증 라이브러리 | 중간 | amplitude/pulse/cycle/phase-bin/FFT/numeric PRPD feature 추출 후 빠른 기준선으로 사용 |
+| TabPFN | `tabpfn` `TabPFNClassifier` | 공식/검증 라이브러리 | 중간 | 원본 시계열이 아니라 추출 feature 위의 optional tabular foundation baseline |
+| ModernTCN | `luodhhh/ModernTCN` | 공식 | 높음 | 공식 classification 구현 wrapper 사용 |
 | PatchTST | Hugging Face `PatchTSTForClassification`, 공식 `yuqinie98/PatchTST` | 공식/HF | 높음 | 현재 HF wrapper 방향 유지 |
 | TimesNet | `thuml/Time-Series-Library` | 공식 | 높음 | 현재 TSLib 공식 wrapper 사용 |
 | iTransformer | `thuml/iTransformer`, `thuml/Time-Series-Library` | 공식 | 중간 | 공식 구현은 forecasting 중심, classification adapter 검토 |
@@ -35,6 +47,12 @@
 - InceptionTime official: https://github.com/hfawaz/InceptionTime
 - tsai library: https://github.com/timeseriesAI/tsai
 - MiniROCKET sktime: https://www.sktime.net/en/v0.20.0/api_reference/auto_generated/sktime.transformations.panel.rocket.MiniRocket.html
+- MultiROCKET sktime: https://www.sktime.net/en/stable/api_reference/auto_generated/sktime.transformations.panel.rocket.MultiRocketMultivariate.html
+- sktime ROCKET/Arsenal classifiers: https://www.sktime.net/en/stable/api_reference/classification.html
+- sktime feature-based classifiers: https://www.sktime.net/en/stable/api_reference/classification.html
+- aeon convolution classifiers: https://www.aeon-toolkit.org/en/stable/api_reference/classification.html
+- TabPFN: https://github.com/PriorLabs/TabPFN
+- ModernTCN official: https://github.com/luodhhh/ModernTCN
 - PatchTST official: https://github.com/yuqinie98/PatchTST
 - PatchTST Hugging Face: https://huggingface.co/docs/transformers/model_doc/patchtst
 - Time-Series-Library: https://github.com/thuml/Time-Series-Library
@@ -61,6 +79,8 @@
 - `inception_time.py`: `tsai` 또는 `hfawaz/InceptionTime` adapter
 - `resnet1d.py`: `tsai` ResNet adapter
 - `minirocket.py`: `sktime` 설치 후 sklearn-style pipeline으로 연결
+- `run_sktime_classifier.py`: `sktime`의 feature-based classifiers, `RocketClassifier`, `Arsenal`을 별도 CPU runner로 연결
+- `moderntcn.py`: `luodhhh/ModernTCN`의 classification 구현 연결
 - `moment.py`: `momentfm` 설치 후 `MOMENTPipeline` 연결
 - `units.py`: `mims-harvard/UniTS` repo 연결
 - `gpt4ts.py`: `DAMO-DI-ML/One_Fits_All` repo 연결
@@ -75,9 +95,11 @@
 
 1. `PatchTST`: 이미 Hugging Face로 연결되어 있으므로 유지 및 config 정리
 2. `MOMENT`: `momentfm` 설치 가능 여부 확인 후 classification pipeline 연결
-3. `MiniROCKET`: CPU-only optional baseline으로 필요할 때 별도 runner 실행
-4. `TimesNet`: `thuml/Time-Series-Library`를 vendor/clone 또는 submodule 방식으로 연결
-5. `iTransformer`: 공식 repo 또는 TSLib 기반 adapter 검토
-6. `TimeMixer`: 공식 repo의 classification 지원 방식 확인 후 adapter 작성
-7. `TS2Vec`: 공식 encoder 학습 후 linear classifier head 연결
-8. `UniTS`, `GPT4TS`: dependency와 입력 포맷이 무거우므로 foundation extended track으로 후순위 진행
+3. `ModernTCN`: 공식 classification repo wrapper 유지
+4. `MiniROCKET`, `MultiROCKET`, `SummaryClassifier`, `Catch22Classifier`, `RandomIntervalClassifier`, `TSFreshClassifier`, `FreshPRINCE`, `ROCKET`, `Arsenal`, `HYDRA`: CPU-only optional baseline으로 필요할 때 별도 runner 실행
+5. `Feature baseline`, `TabPFN`: amplitude/pulse/cycle/phase-bin/FFT/numeric PRPD feature 추출 후 optional 비교군으로 실행
+6. `TimesNet`: `thuml/Time-Series-Library`를 vendor/clone 또는 submodule 방식으로 연결
+7. `iTransformer`: 공식 repo 또는 TSLib 기반 adapter 검토
+8. `TimeMixer`: 공식 repo의 classification 지원 방식 확인 후 adapter 작성
+9. `TS2Vec`: 공식 encoder 학습 후 linear classifier head 연결
+10. `UniTS`, `GPT4TS`: dependency와 입력 포맷이 무거우므로 foundation extended track으로 후순위 진행

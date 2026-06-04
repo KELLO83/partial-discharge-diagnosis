@@ -15,6 +15,7 @@ DEFAULT_REPO_PATHS = {
     "TSLIB_REPO": Path("external/Time-Series-Library"),
     "ITRANSFORMER_REPO": Path("external/iTransformer"),
     "TIMEMIXER_REPO": Path("external/TimeMixer"),
+    "MODERNTCN_REPO": Path("external/ModernTCN/ModernTCN-classification"),
     "UNITS_REPO": Path("external/UniTS"),
     "ONE_FITS_ALL_REPO": Path("external/One_Fits_All"),
     "TS2VEC_REPO": Path("external/ts2vec"),

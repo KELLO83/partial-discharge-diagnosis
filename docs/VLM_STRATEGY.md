@@ -1,102 +1,102 @@
-# VLM 모델 전략
+# VLM Strategy
 
-이 문서는 부분방전 프로젝트의 VLM(Vision-Language Model) 개발 방향을 정리한다.
+This document defines the VLM development direction for the partial-discharge project.
 
-이 프로젝트에서 VLM은 PRPD 이미지만 보고 방전 유형을 맞히는 단일 비전 모델이 아니다. 목표는 다음 멀티모달 정보를 결합해 현장 엔지니어가 이해할 수 있는 진단 결과를 생성하는 것이다.
+The VLM is not an image-only model that predicts a discharge type from a PRPD image alone. The goal is to combine multimodal information and generate a diagnosis that a field engineer can understand.
 
 ```text
-PRPD 이미지
-+ JSON 메타데이터
-+ 시계열 모델 예측 결과
-+ 시계열 요약 feature
--> 자연어 또는 JSON 진단 리포트
+PRPD image
++ JSON metadata
++ time-series model prediction
++ time-series summary features
+-> natural-language or JSON diagnosis report
 ```
 
-## 기본 방향
+## Default Direction
 
-비전 단독 분류 모델은 이 프로젝트의 핵심 범위가 아니다.
+Image-only classification is not the core VLM scope.
 
-제외하는 방향:
+Excluded direction:
 
 ```text
-PRPD 이미지 -> ResNet/EfficientNet -> 5-class classification
+PRPD image -> ResNet/EfficientNet -> 5-class classification
 ```
 
-추구하는 방향:
+Target direction:
 
 ```text
-PRPD 이미지 + 설비/환경 메타데이터 + 시계열 요약
+PRPD image + equipment/environment metadata + time-series summary
 -> Small VLM
--> 구조화된 진단 JSON 또는 자연어 진단문
+-> structured diagnosis JSON or natural-language diagnosis
 ```
 
-즉, VLM 단계의 핵심은 이미지 분류가 아니라 `멀티모달 진단 리포팅`이다.
+The key VLM task is multimodal diagnosis reporting, not image classification.
 
-## 추천 모델
+## Recommended Models
 
-### 1순위: Qwen3-VL-2B-Instruct
+### First Choice: Qwen3-VL-2B-Instruct
 
-초기 메인 후보로 사용한다.
+Use as the initial main candidate.
 
-추천 이유:
+Reasons:
 
-- 2B급이라 RTX 4060 Laptop 8GB에서 QLoRA 스모크 가능성이 가장 높다.
-- 이미지와 텍스트 instruction following에 강하다.
-- 한국어 프롬프트와 한국어 응답 품질이 괜찮다.
-- Hugging Face, TRL, PEFT, QLoRA 생태계에서 활용하기 좋다.
-- PRPD 이미지, JSON 메타데이터, 시계열 요약값을 함께 넣는 구조와 잘 맞는다.
+- The 2B scale is the most realistic candidate for RTX 4060 Laptop 8GB QLoRA smoke tests.
+- It is strong at image/text instruction following.
+- It is suitable for English prompts and structured JSON responses.
+- It fits well with Hugging Face, TRL, PEFT, and QLoRA tooling.
+- It matches the planned input structure: PRPD image, JSON metadata, and time-series summaries.
 
-### 안정 fallback: Qwen2.5-VL-3B-Instruct
+### Stable Fallback: Qwen2.5-VL-3B-Instruct
 
-Qwen3-VL 로컬 Transformers 지원이나 Windows 의존성이 불안정하면 사용한다.
+Use when Qwen3-VL local Transformers support or Windows dependencies are unstable.
 
-장점:
+Advantages:
 
-- 기존 문서에서 이미 메인 후보로 검토한 모델이다.
-- 3B급이라 2B보다 무겁지만 7B보다 현실적이다.
-- Qwen-VL 계열이라 현재 프롬프트/JSON 출력 목표와 잘 맞는다.
+- It was already reviewed as a main candidate in earlier planning.
+- It is heavier than 2B but more realistic than 7B on 8GB VRAM.
+- It belongs to the Qwen-VL family and fits the current prompt/JSON-output goal.
 
-### 리스크 후보: Qwen3-VL-4B-Instruct
+### Risk Candidate: Qwen3-VL-4B-Instruct
 
-2B와 3B 실험이 안정화된 뒤 비교 후보로 사용한다.
+Use only after 2B and 3B experiments are stable.
 
-주의점:
+Cautions:
 
-- RTX 4060 Laptop 8GB 환경에서는 QLoRA라도 빡빡할 수 있다.
-- batch size 1, gradient accumulation, gradient checkpointing, 4bit quantization이 필수다.
-- OOM이 발생하면 즉시 2B/3B 트랙으로 되돌린다.
+- Even with QLoRA, RTX 4060 Laptop 8GB may be tight.
+- Batch size 1, gradient accumulation, gradient checkpointing, and 4-bit quantization are required.
+- If OOM occurs, immediately return to the 2B/3B track.
 
-### 대안 후보: PaliGemma / PaliGemma 2
+### Alternative Candidate: PaliGemma / PaliGemma 2
 
-분류형 VLM fine-tuning에는 좋은 후보지만, 자연어 진단 리포트 생성과 한국어 instruction 대응은 Qwen-VL 계열이 더 프로젝트 목적에 잘 맞는다.
+PaliGemma-family models are useful for classification-style VLM fine-tuning, but Qwen-VL is a better project fit for instruction-following diagnosis reports and JSON output.
 
-## 입력 데이터 구성
+## Input Data Design
 
-VLM 입력은 이미지와 텍스트를 함께 사용한다.
+VLM input combines an image and text.
 
-이미지 입력:
+Image input:
 
 ```text
-PRPD PNG 이미지
+PRPD PNG image
 ```
 
-텍스트 입력:
+Text input:
 
 ```text
-설비 정보
-- 설비명
-- 절연체 종류
-- 정격 전압
-- 정격 전류
-- 센서 타입
+equipment information
+- equipment name
+- insulator type
+- rated voltage
+- rated current
+- sensor type
 
-환경 정보
-- 온도
-- 습도
-- 이격 거리
+environment information
+- temperature
+- humidity
+- clearance distance
 
-시계열 분석 정보
-- 시계열 모델 예측 분류 번호
+time-series analysis information
+- time-series model predicted class ID
 - confidence
 - class probability
 - RMS
@@ -106,83 +106,83 @@ PRPD PNG 이미지
 - spectral energy
 ```
 
-원본 CSV 전체를 VLM 프롬프트에 넣지 않는다. 시계열 raw signal은 별도 시계열 모델 또는 feature extractor로 압축한 뒤 텍스트 feature로 제공한다. `label_id`, `label_name`, 파일 경로, 클래스가 드러나는 파일명, 결함 상세 필드, `max_discharge_value`는 사용자 프롬프트에 넣지 않는다.
+Do not place full raw CSV data in VLM prompts. Compress raw time-series signals through a time-series model or feature extractor and provide text features. Do not include `label_id`, `label_name`, file paths, class-bearing file names, defect-detail fields, or `max_discharge_value` in user prompts.
 
-## 출력 형식
+## Output Format
 
-초기 학습은 자연어보다 JSON 출력을 우선한다. JSON은 평가와 후처리가 쉽기 때문이다.
+Initial training should prioritize JSON output over free-form natural language because JSON is easier to evaluate and post-process.
 
-권장 출력 예시:
+Recommended output example:
 
 ```json
 {
   "label_id": 1,
-  "diagnosis": "노이즈",
-  "risk_level": "낮음",
-  "reason": "PRPD 패턴과 시계열 특징이 실제 부분방전보다는 노이즈성 신호에 가깝습니다.",
-  "recommended_action": "센서 접촉 상태와 주변 전자기 간섭 여부를 점검하세요."
+  "diagnosis": "noise",
+  "risk_level": "low",
+  "reason": "The PRPD pattern and time-series features are closer to a noise-like signal than to actual partial discharge.",
+  "recommended_action": "Check sensor contact and nearby electromagnetic interference."
 }
 ```
 
-평가 항목:
+Evaluation items:
 
-- `label_id` 정확도
-- `diagnosis` 라벨명 일치율
-- JSON 파싱 성공률
-- 메타데이터 반영 여부
-- 시계열 분석 정보 반영 여부
-- hallucination 여부
-- 진단문 품질
+- `label_id` accuracy
+- `diagnosis` label-name match rate
+- JSON parse success rate
+- metadata-use checks
+- time-series-information-use checks
+- hallucination checks
+- diagnosis-text quality
 
-## 학습 방식
+## Training Method
 
-초기 학습은 QLoRA 기반 SFT를 우선한다.
+Start with QLoRA-based SFT.
 
-권장 초기 설정:
+Recommended initial settings:
 
 ```text
 base_model: Qwen3-VL-2B-Instruct
 quantization: 4bit NF4
 training: SFT
 vision_encoder: freeze
-projector: freeze 또는 일부 LoRA
+projector: freeze or partial LoRA
 LLM: LoRA
 batch_size: 1
 gradient_accumulation_steps: 8~16
 gradient_checkpointing: enabled
 ```
 
-처음부터 vision encoder 전체를 학습하지 않는다. PRPD 이미지는 VLM이 사전학습 중 직접 본 도메인 이미지가 아닐 가능성이 높지만, pretrained vision encoder는 점, 선, 밀도, 분포, 대칭성 같은 기본 시각 특징을 추출할 수 있다.
+Do not train the full vision encoder at the beginning. The PRPD domain may be unfamiliar to the pretrained VLM, but pretrained vision encoders can still extract generic visual features such as points, lines, density, distribution, and symmetry.
 
-권장 순서:
-
-```text
-1. vision encoder freeze
-2. language model 계층에 LoRA 적용
-3. 이미지 + 메타데이터 + 시계열 요약으로 정답 JSON 생성 학습
-4. 성능 부족 시 projector 또는 vision encoder 일부 LoRA 검토
-```
-
-## 데이터 규모 전략
-
-현재 `Train/` working dataset은 30,010개 샘플이다. VLM 연습과 초기 LoRA 실험에는 충분하다.
-
-권장 단계:
+Recommended order:
 
 ```text
-1. VLM smoke: 100~500개
-2. 첫 LoRA: 2,000~5,000개
-3. 메인 실험: 10,000~30,000개
-4. 최종 확장: 원본 30만 개 중 일부 또는 전체
+1. Freeze the vision encoder.
+2. Apply LoRA to language-model layers.
+3. Train JSON target generation from image + metadata + time-series summaries.
+4. If performance is insufficient, review LoRA on the projector or selected vision-encoder layers.
 ```
 
-처음부터 30만 개 전체를 사용하지 않는다. 먼저 3만 개 working dataset으로 데이터 포맷, 학습 안정성, JSON 출력 품질을 확인한다.
+## Data-Scale Strategy
 
-## 시계열 모델과의 연결
+The current `Train/` working dataset contains 30,010 samples, which is sufficient for VLM practice and early LoRA experiments.
 
-VLM 개발은 시계열 분류 모델 실험 이후 진행한다.
+Recommended stages:
 
-시계열 트랙 산출물:
+```text
+1. VLM smoke: 100~500 samples
+2. First LoRA: 2,000~5,000 samples
+3. Main experiment: 10,000~30,000 samples
+4. Final extension: part or all of the original 300k samples
+```
+
+Do not start with all 300k samples. First validate data format, training stability, and JSON-output quality on the 30k working dataset.
+
+## Connection to Time-Series Models
+
+VLM development starts after time-series classification experiments.
+
+Time-series track artifacts:
 
 ```text
 best model name
@@ -193,47 +193,47 @@ statistical features
 optional embedding
 ```
 
-VLM instruction dataset에는 위 정보를 텍스트 prompt로 포함한다.
+Include the above information in the VLM instruction prompt as text context.
 
-예시 prompt:
+Example prompt:
 
 ```text
-설비 정보:
-- 설비명: ACSR-OC
-- 절연체: 고체 / XLPE
-- 정격 전압: 22900V
-- 센서 타입: HFCT
+Equipment information:
+- equipment_name: ACSR-OC
+- insulator: solid / XLPE
+- rated_voltage: 22900V
+- sensor_type: HFCT
 
-환경 정보:
-- 온도: 19도
-- 습도: 66%
+Environment information:
+- temperature: 19 C
+- humidity: 66%
 
-시계열 모델 분석:
-- 예측 분류 번호: 1
+Time-series model analysis:
+- predicted_class_id: 1
 - confidence: 0.82
 - RMS: 0.221
 - STD: 0.140
 - abs_p99: 1.300
 - pulse_rate: 0.004
 
-첨부된 PRPD 이미지와 위 정보를 종합하여 현재 부분방전 상태를 JSON으로 진단하세요.
+Using the attached PRPD image and the information above, diagnose the current partial-discharge state as JSON.
 ```
 
-## 프로젝트 스토리라인
+## Project Storyline
 
-최종 포트폴리오 흐름은 다음과 같이 잡는다.
+Final portfolio flow:
 
 ```text
-1. CSV 시계열 분류 모델 개발
-2. 여러 시계열 모델 비교
-3. best 시계열 모델의 예측/요약값 추출
-4. PRPD 이미지 + JSON 메타데이터 + 시계열 요약을 VLM instruction dataset으로 변환
-5. Qwen3-VL-2B-Instruct QLoRA fine-tuning
-6. JSON 진단 리포트 생성 및 평가
+1. Build CSV time-series classification models.
+2. Compare multiple time-series models.
+3. Extract predictions and summaries from the best time-series model.
+4. Convert PRPD image + JSON metadata + time-series summary into a VLM instruction dataset.
+5. Fine-tune Qwen3-VL-2B-Instruct with QLoRA.
+6. Generate and evaluate JSON diagnosis reports.
 ```
 
-핵심 메시지:
+Core message:
 
 ```text
-단순 이미지 분류 모델이 아니라, 시계열 센서 분석 결과와 설비 메타데이터를 VLM에 연결한 설명 가능한 산업 설비 부분방전 진단 시스템
+This is not a simple image classifier. It is an explainable industrial partial-discharge diagnosis system that connects time-series sensor analysis and equipment metadata to a VLM.
 ```

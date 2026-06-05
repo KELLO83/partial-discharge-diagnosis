@@ -1,159 +1,157 @@
-# 시계열 모델 후보 정리
+# Time-Series Model Candidates
 
-모델별 공식 구현 소스와 wrapper 적용 방침은 `docs/MODEL_IMPLEMENTATION_SOURCES.md`를 기준으로 한다. 이 문서의 모델 설명은 실험 후보를 이해하기 위한 개념 정리이며, 실제 구현은 가능한 한 공식 repo, Hugging Face, 또는 검증 라이브러리를 import해서 사용한다.
+Official implementation sources and wrapper policies are defined in `docs/MODEL_IMPLEMENTATION_SOURCES.md`. This document explains experiment candidates conceptually. Actual implementations should import official repositories, Hugging Face models, or validated libraries whenever practical.
 
-이 문서는 부분방전 시계열 분류 트랙에서 실험할 모델 후보를 정리한다.
-
-현재 프로젝트의 시계열 태스크는 forecasting이 아니라 classification이다.
+The current time-series task is classification, not forecasting.
 
 ```text
-입력: 부분방전 CSV 시계열 (20, 7680)
-출력: 5-class 부분방전 유형
+input: partial-discharge CSV time-series (20, 7680)
+output: 5-class partial-discharge type
 ```
 
-라벨:
+Labels:
 
-| 라벨 ID | 라벨명 |
+| Label ID | Label name |
 | --- | --- |
-| 0 | 정상 |
-| 1 | 노이즈 |
-| 2 | 표면 방전 |
-| 3 | 코로나 방전 |
-| 4 | 보이드 방전 |
+| 0 | normal |
+| 1 | noise |
+| 2 | surface_discharge |
+| 3 | corona_discharge |
+| 4 | void_discharge |
 
-## 모델 그룹
+## Model Groups
 
-실험 모델은 다음 세 그룹으로 나눈다.
+Experiment models are grouped as:
 
 ```text
-1. Non-Transformer 모델
-2. Transformer / Modern SOTA 모델
-3. Foundation / Pretrained 모델
+1. Non-Transformer models
+2. Transformer / Modern SOTA models
+3. Foundation / Pretrained models
 ```
 
-처음에는 Core 모델만 실험하고, 이후 Extended 모델로 확장한다. 기본 훈련 정책은 CUDA GPU 기반이다. `train.py`는 한 번 실행할 때 정확히 하나의 모델만 훈련한다. `core`, `extended`, `all`, `cpu_only`는 실험 그룹을 설명하기 위한 이름이며 `--model` 값으로 지원하지 않는다. CPU-only classical baseline은 Extended 후보로 기록하되 GPU 훈련 라인업과 분리한다.
+Start with Core models and expand to Extended models later. The default training policy is CUDA GPU-based. `train.py` must train exactly one model per run. `core`, `extended`, `all`, and `cpu_only` are descriptive group names and are not valid `--model` values. CPU-only classical baselines are listed as Extended candidates but use separate runners.
 
 ## Core Experiments
 
-| 그룹 | 모델 | 핵심 목적 |
+| Group | Model | Main purpose |
 | --- | --- | --- |
 | Non-Transformer | GRU | RNN baseline |
-| Non-Transformer | InceptionTime | 강한 CNN 기반 시계열 분류 baseline |
-| Transformer / Modern SOTA | PatchTST | patch 기반 Transformer |
-| Transformer / Modern SOTA | TimesNet | 1D 시계열을 2D temporal variation으로 변환 |
-| Foundation / Pretrained | MOMENT | pretrained time-series foundation model fine-tuning |
+| Non-Transformer | InceptionTime | Strong CNN-based time-series baseline |
+| Transformer / Modern SOTA | PatchTST | Patch-based Transformer |
+| Transformer / Modern SOTA | TimesNet | Converts 1D time-series into 2D temporal variation |
+| Foundation / Pretrained | MOMENT | Fine-tuning a pretrained time-series foundation model |
 
 ## Extended Experiments
 
-| 그룹 | 모델 | 핵심 목적 |
+| Group | Model | Main purpose |
 | --- | --- | --- |
-| Non-Transformer | TCN | dilated causal convolution baseline |
-| Non-Transformer | ResNet1D | residual 1D CNN baseline |
-| Non-Transformer / Modern CNN | ModernTCN | modern convolution block 기반 최신 CNN/TCN 계열 비교 |
-| Transformer / Modern SOTA | iTransformer | 변수/채널축 attention |
-| Transformer / Modern SOTA | TimeMixer | 다해상도 mixing 기반 최신 시계열 모델 |
-| Foundation / Pretrained | UniTS | unified multi-task time-series model |
-| Foundation / Pretrained | GPT4TS / One-Fits-All | GPT-2 pretrained LM을 시계열에 전이 |
-| Representation Learning | TS2Vec | self-supervised 시계열 표현 학습 |
+| Non-Transformer | TCN | Dilated causal convolution baseline |
+| Non-Transformer | ResNet1D | Residual 1D CNN baseline |
+| Non-Transformer / Modern CNN | ModernTCN | Modern convolution-block CNN/TCN comparison |
+| Transformer / Modern SOTA | iTransformer | Attention over variable/channel axis |
+| Transformer / Modern SOTA | TimeMixer | Modern multi-resolution mixing model |
+| Foundation / Pretrained | UniTS | Unified multi-task time-series model |
+| Foundation / Pretrained | GPT4TS / One-Fits-All | Transfers GPT-2 pretrained LM blocks to time-series |
+| Representation Learning | TS2Vec | Self-supervised time-series representation learning |
 
-Extended 모델 중 훈련 시간이 길어질 수 있는 모델:
+Extended models that may be expensive:
 
-| 모델 | 예상 비용 | 이유 |
+| Model | Expected cost | Reason |
 | --- | --- | --- |
-| ModernTCN | 중간~높음 | 긴 sequence를 modern convolution block으로 처리 |
-| iTransformer | 중간~높음 | attention 기반 구조, 입력 길이/채널 설정에 민감 |
-| TimeMixer | 높음 | 다해상도 mixing과 긴 sequence 처리 비용 |
-| UniTS | 매우 높음 | unified/foundation 성격의 무거운 공식 구현 |
-| GPT4TS / One-Fits-All | 매우 높음 | GPT-2 계열 pretrained LM transfer 구조 |
-| TS2Vec | 매우 높음 | self-supervised representation 학습 후 downstream classifier |
+| ModernTCN | medium to high | Modern convolution blocks over long sequences |
+| iTransformer | medium to high | Attention-based structure sensitive to input length and channel settings |
+| TimeMixer | high | Multi-resolution mixing and long-sequence processing |
+| UniTS | very high | Heavy unified/foundation-style official implementation |
+| GPT4TS / One-Fits-All | very high | GPT-2-style pretrained LM transfer |
+| TS2Vec | very high | Self-supervised representation training plus downstream classifier |
 
-`TCN`, `ResNet1D`는 Extended 안에서는 상대적으로 비용이 낮은 편이지만, full 30k 실행 전 smoke와 subset 실험을 먼저 한다.
+`TCN` and `ResNet1D` are relatively cheaper within Extended models, but still require smoke and subset runs before the full 30k dataset.
 
-## Optional CPU-Only Extended Baseline
+## Optional CPU-Only Extended Baselines
 
-| 그룹 | 모델 | 핵심 목적 |
+| Group | Model | Main purpose |
 | --- | --- | --- |
-| Classical Baseline | MiniROCKET | 딥러닝 없이 random convolution feature와 RidgeClassifier로 비교하는 강한 시계열 분류 baseline |
-| Classical Baseline | MultiROCKET | MiniROCKET 확장형 convolution feature baseline |
-| sktime Feature-based | SummaryClassifier | 기본 summary feature 기반 매우 빠른 baseline |
-| sktime Feature-based | Catch22Classifier | 검증된 22개 feature 기반 빠른 baseline |
-| sktime Feature-based | RandomIntervalClassifier | random interval feature 기반 baseline. 느릴 수 있어 subset 전용 |
-| sktime Feature-based | TSFreshClassifier | 많은 자동 feature를 추출하므로 subset 전용 |
-| sktime Feature-based | FreshPRINCE | TSFresh 계열 ensemble, subset 전용 |
-| Classical Baseline | ROCKET | `sktime` 공식 `RocketClassifier` 기반 비교군 |
-| Classical Ensemble | Arsenal | `sktime` 공식 ROCKET ensemble. 느릴 수 있으므로 subset 전용 |
-| Classical Baseline | HYDRA | dictionary + convolution 계열 classical TSC baseline |
-| Feature Baseline | Logistic / SVM / RandomForest | 통계, amplitude, FFT feature 기반 빠른 기준선 |
-| Feature Foundation | TabPFN | 추출 feature 위에 tabular foundation classifier 적용 |
+| Classical Baseline | MiniROCKET | Strong random-convolution feature baseline with RidgeClassifier |
+| Classical Baseline | MultiROCKET | Extended MiniROCKET-style convolution feature baseline |
+| sktime Feature-based | SummaryClassifier | Very fast summary-feature baseline |
+| sktime Feature-based | Catch22Classifier | Fast baseline using 22 validated features |
+| sktime Feature-based | RandomIntervalClassifier | Random-interval feature baseline; subset only if expensive |
+| sktime Feature-based | TSFreshClassifier | Automated feature extraction; subset only |
+| sktime Feature-based | FreshPRINCE | TSFresh-family ensemble; subset only |
+| Classical Baseline | ROCKET | Official `sktime` `RocketClassifier` comparison |
+| Classical Ensemble | Arsenal | Official `sktime` ROCKET ensemble; subset only because it can be slow |
+| Classical Baseline | HYDRA | Dictionary + convolution classical TSC baseline |
+| Feature Baseline | Logistic / SVM / RandomForest | Fast interpretable baseline from statistical, amplitude, and FFT features |
+| Feature Foundation | TabPFN | Tabular foundation classifier on extracted features |
 
-Feature baseline은 raw 시계열 모델이 아니라 다음 구조의 tabular classifier다.
+The feature baseline is a tabular classifier, not a raw time-series model:
 
 ```text
-HFCT CSV 시계열
--> amplitude / pulse / cycle / phase-bin / FFT / numeric PRPD histogram feature
+HFCT CSV time-series
+-> amplitude / pulse / cycle / phase-bin / FFT / numeric PRPD histogram features
 -> Logistic / Linear SVM / RandomForest / TabPFN
 -> 5-class classification
 ```
 
-현재 구현은 기본적으로 CSV 신호만 사용한다. 메타데이터는 `--include-metadata`를 켰을 때만 안전한 숫자 whitelist를 붙인다. 파일 경로, sample id, label text, defect detail처럼 클래스명이 섞일 수 있는 값은 feature로 쓰지 않는다.
+The current implementation uses CSV signals by default. Metadata is attached only when `--include-metadata` is enabled, and only through a safe numeric whitelist. Do not use class-bearing values such as file paths, sample IDs, label text, or defect details as features.
 
-## 입력 형태
+## Input Shape
 
-현재 CSV 한 개는 다음 형태다.
+Each CSV has:
 
 ```text
 raw CSV shape = (20, 7680)
 ```
 
-여기서 `20`축을 실제 센서 채널 수로 단정하지 않는다. JSON의 `recording_time_length`가 20이고 센서 타입은 보통 `HFCT` 또는 `UHF`로 기록되어 있으므로, 현재 단계에서는 다음처럼 해석한다.
+Do not assume the `20` axis is physical sensor channels. Because JSON `recording_time_length` is 20 and sensor type is usually `HFCT` or `UHF`, interpret it as:
 
 ```text
-20 rows = 20개 측정 구간 또는 segment
-7680 columns = 각 segment의 time points
+20 rows = 20 measurement segments or pseudo-channels
+7680 columns = time points for each segment
 ```
 
-따라서 모델 입력에서는 `20`축을 실제 physical channel이 아니라 `pseudo-channel` 또는 `segment dimension`으로 사용한다.
+Model input uses the `20` axis as `pseudo-channel` or `segment dimension`.
 
-모델별로 요구하는 입력 형태가 다를 수 있다.
+Common input formats:
 
 ```text
-Conv/TCN 계열:
+Conv/TCN family:
 (batch, pseudo_channels, time) = (B, 20, 7680)
 
-RNN/Hugging Face PatchTST/일부 Transformer 계열:
+RNN/Hugging Face PatchTST/some Transformer models:
 (batch, time, pseudo_channels) = (B, 7680, 20)
 ```
 
-따라서 dataloader에서 모델별 `transpose` 처리가 필요하다.
+The DataLoader or wrapper must transpose per model.
 
 ## 1. GRU
 
-그룹:
+Group:
 
 ```text
 Non-Transformer / RNN baseline
 ```
 
-GRU(Gated Recurrent Unit)는 LSTM을 간소화한 RNN 계열 모델이다. reset gate와 update gate를 사용해 과거 정보를 유지하거나 갱신한다.
+GRU is a simplified RNN family model with reset and update gates.
 
-우리 프로젝트에서의 역할:
+Project role:
 
 ```text
-가장 기본적인 딥러닝 시계열 분류 baseline
+The first deep-learning time-series classification baseline.
 ```
 
-장점:
+Advantages:
 
-- LSTM보다 구조가 단순하다.
-- 파라미터 수가 적고 학습이 빠르다.
-- 첫 시계열 baseline으로 구현하기 좋다.
+- Simpler than LSTM.
+- Fewer parameters and faster training.
+- Good first baseline.
 
-주의점:
+Cautions:
 
-- 길이 `7680`의 긴 시계열을 순차 처리하므로 학습이 느릴 수 있다.
-- long-range dependency를 완벽히 잡기 어렵다.
+- Sequential processing over length `7680` can be slow.
+- Long-range dependency modeling may be limited.
 
-예상 입력:
+Expected input:
 
 ```text
 (B, 7680, 20)
@@ -161,32 +159,32 @@ GRU(Gated Recurrent Unit)는 LSTM을 간소화한 RNN 계열 모델이다. reset
 
 ## 2. InceptionTime
 
-그룹:
+Group:
 
 ```text
-Non-Transformer / CNN 기반 강한 baseline
+Non-Transformer / strong CNN baseline
 ```
 
-InceptionTime은 이미지 분야의 Inception 구조를 시계열 분류에 적용한 모델이다. 여러 크기의 1D convolution filter를 병렬로 사용해 다양한 시간 스케일의 패턴을 포착한다.
+InceptionTime adapts the Inception idea to time-series classification by applying multiple 1D convolution filter sizes in parallel.
 
-우리 프로젝트에서의 역할:
+Project role:
 
 ```text
-GRU보다 강한 non-Transformer 시계열 분류 baseline
+Stronger non-Transformer baseline than GRU.
 ```
 
-장점:
+Advantages:
 
-- 시계열 분류에서 널리 쓰이는 강한 baseline이다.
-- local pattern, peak, short-term variation 포착에 강하다.
-- RNN보다 병렬화가 쉽다.
+- Strong known baseline for time-series classification.
+- Effective for local patterns, peaks, and short-term variation.
+- Easier to parallelize than RNNs.
 
-주의점:
+Cautions:
 
-- 긴 전역 의존성은 Transformer 계열보다 약할 수 있다.
-- kernel size와 depth에 따라 메모리 사용량이 달라진다.
+- Weaker than Transformers for global dependency modeling.
+- Memory use depends on kernel sizes and depth.
 
-예상 입력:
+Expected input:
 
 ```text
 (B, 7680, 20)
@@ -194,32 +192,32 @@ GRU보다 강한 non-Transformer 시계열 분류 baseline
 
 ## 3. PatchTST
 
-그룹:
+Group:
 
 ```text
 Transformer / Modern SOTA
 ```
 
-PatchTST는 긴 시계열을 작은 patch 단위로 나누고, 각 patch를 token처럼 Transformer에 입력하는 모델이다. ViT가 이미지를 patch로 나누는 것과 유사한 아이디어를 시계열에 적용한다.
+PatchTST splits long time-series into patches and feeds them as tokens into a Transformer, similar to how ViT patches images.
 
-우리 프로젝트에서의 역할:
+Project role:
 
 ```text
-긴 부분방전 시계열에 적합한 Transformer baseline
+Transformer baseline suited for long partial-discharge signals.
 ```
 
-장점:
+Advantages:
 
-- 길이 `7680`의 긴 시계열을 patch로 줄여 효율적으로 처리할 수 있다.
-- Transformer 기반 모델 중 실험 가치가 높다.
-- channel-independent 전략을 적용하기 쉽다.
+- Reduces long sequence length through patching.
+- Strong experiment candidate among Transformer models.
+- Channel-independent strategies are natural.
 
-주의점:
+Cautions:
 
-- patch length, stride 설정이 중요하다.
-- classification head를 별도로 구성해야 할 수 있다.
+- Patch length and stride matter.
+- A classification head may need wrapper-specific handling.
 
-예상 입력:
+Expected input:
 
 ```text
 (B, 20, 7680)
@@ -227,32 +225,32 @@ PatchTST는 긴 시계열을 작은 patch 단위로 나누고, 각 patch를 toke
 
 ## 4. TimesNet
 
-그룹:
+Group:
 
 ```text
 Transformer / Modern SOTA
 ```
 
-TimesNet은 1D 시계열을 2D temporal variation 형태로 변환한 뒤, 2D convolution 기반 구조로 시계열 패턴을 학습한다. 시계열의 다중 주기성과 반복 패턴을 포착하는 것이 핵심이다.
+TimesNet converts 1D time-series into 2D temporal variation and uses 2D convolution-style structures to learn periodic and repeated patterns.
 
-우리 프로젝트에서의 역할:
+Project role:
 
 ```text
-부분방전 신호의 반복 피크, 주기성, 위상성 패턴을 포착하는 SOTA 계열 모델
+SOTA-style model for repeated peaks, periodicity, and phase patterns in partial-discharge signals.
 ```
 
-장점:
+Advantages:
 
-- 주기적 패턴이 있는 시계열에 강하다.
-- 1D 신호를 2D 구조로 변환해 더 풍부한 패턴을 볼 수 있다.
-- THU Time-Series-Library에서 여러 task로 자주 사용된다.
+- Strong for periodic time-series patterns.
+- The 2D representation can expose richer structure.
+- Commonly used in THU Time-Series-Library tasks.
 
-주의점:
+Cautions:
 
-- 구현체에 따라 입력 shape과 task 설정이 까다로울 수 있다.
-- classification 설정을 명확히 맞춰야 한다.
+- Input shape and task settings can be implementation-sensitive.
+- Classification configuration must be explicit.
 
-예상 입력:
+Expected input:
 
 ```text
 (B, 7680, 20)
@@ -260,66 +258,49 @@ TimesNet은 1D 시계열을 2D temporal variation 형태로 변환한 뒤, 2D co
 
 ## 5. MOMENT
 
-그룹:
+Group:
 
 ```text
 Foundation / Pretrained
 ```
 
-MOMENT는 대규모 시계열 데이터로 사전학습된 time-series foundation model이다. masked patch reconstruction 방식으로 사전학습된 backbone을 사용하고, downstream task에 맞는 head를 붙여 fine-tuning할 수 있다.
+MOMENT is a time-series foundation model pretrained with masked patch reconstruction and adapted through downstream heads.
 
-우리 프로젝트에서의 역할:
+Project role:
 
 ```text
-DINOv2처럼 pretrained representation을 부분방전 분류에 전이하는 핵심 foundation model
+Core foundation-model experiment that transfers pretrained representation to partial-discharge classification.
 ```
 
-장점:
+Advantages:
 
-- classification task에 사용할 수 있다.
-- pretrained backbone을 활용할 수 있다.
-- head-only training, partial fine-tuning, full fine-tuning 등 전략을 비교할 수 있다.
+- Supports classification tasks.
+- Uses a pretrained backbone.
+- Enables head-only training, partial fine-tuning, and full fine-tuning comparisons.
 
-주의점:
+Cautions:
 
-- 모델이 기대하는 patch length, sequence length, channel 설정을 맞춰야 한다.
-- 전체 fine-tuning은 GPU 메모리를 더 많이 사용한다.
+- Patch length, sequence length, and channel settings must match model expectations.
+- Full fine-tuning uses more GPU memory.
 
-예상 입력:
+Expected input:
 
 ```text
 (B, 20, 7680)
-또는 MOMENT processor/config가 요구하는 형태
+or the shape required by MOMENT processor/config
 ```
 
 ## 6. TCN
 
-그룹:
+TCN uses dilated causal convolutions to build a long receptive field without sequential RNN computation.
+
+Project role:
 
 ```text
-Non-Transformer / CNN baseline
+Convolutional baseline compared against GRU.
 ```
 
-TCN(Temporal Convolutional Network)은 dilated causal convolution을 사용해 긴 receptive field를 확보하는 시계열 모델이다. RNN처럼 순차적으로 계산하지 않아 병렬화가 쉽다.
-
-우리 프로젝트에서의 역할:
-
-```text
-GRU와 비교할 convolution 기반 baseline
-```
-
-장점:
-
-- 긴 시계열에 효율적이다.
-- 병렬 계산이 가능하다.
-- RNN보다 안정적으로 학습될 수 있다.
-
-주의점:
-
-- dilation, kernel size, layer 수에 따라 receptive field가 달라진다.
-- causal 구조가 꼭 필요한 태스크는 아니므로 classification용 pooling 설계가 필요하다.
-
-예상 입력:
+Expected input:
 
 ```text
 (B, 20, 7680)
@@ -327,32 +308,15 @@ GRU와 비교할 convolution 기반 baseline
 
 ## 7. ResNet1D
 
-그룹:
+ResNet1D applies residual blocks to 1D convolutions.
+
+Project role:
 
 ```text
-Non-Transformer / CNN baseline
+Simple and stable 1D CNN baseline.
 ```
 
-ResNet1D는 residual block을 1D convolution에 적용한 모델이다. 이미지 ResNet의 skip connection 아이디어를 시계열 신호에 적용한다.
-
-우리 프로젝트에서의 역할:
-
-```text
-단순하고 안정적인 1D CNN baseline
-```
-
-장점:
-
-- 구현이 비교적 단순하다.
-- residual connection 덕분에 깊은 CNN 학습이 안정적이다.
-- 부분방전 신호의 local pattern을 포착하기 좋다.
-
-주의점:
-
-- Transformer 계열보다 전역 의존성 모델링은 약할 수 있다.
-- downsampling 설계에 따라 정보 손실이 발생할 수 있다.
-
-예상 입력:
+Expected input:
 
 ```text
 (B, 20, 7680)
@@ -360,68 +324,37 @@ ResNet1D는 residual block을 1D convolution에 적용한 모델이다. 이미�
 
 ## 8. MiniROCKET
 
-그룹:
+MiniROCKET extracts random convolution features and trains a simple classifier such as RidgeClassifier.
+
+Project role:
 
 ```text
-Non-Transformer / classical strong baseline
+Strong classical baseline for checking whether deep learning is necessary.
 ```
 
-MiniROCKET은 랜덤 convolution kernel을 사용해 시계열 feature를 빠르게 추출한 뒤, RidgeClassifier 같은 간단한 classifier로 분류하는 방법이다.
+Cautions:
 
-우리 프로젝트에서의 역할:
+- Not an end-to-end neural model.
+- Usually CPU-based through `sktime/sklearn`.
+- Excluded from default GPU `train.py` training.
 
-```text
-딥러닝 모델이 정말 필요한지 확인하는 강력한 classical baseline
-```
-
-장점:
-
-- 매우 빠르다.
-- 시계열 분류에서 강력한 baseline으로 알려져 있다.
-- 학습 비용이 낮다.
-
-주의점:
-
-- end-to-end deep learning 모델은 아니다.
-- feature extractor와 classifier가 분리된다.
-- 일반적인 공식 구현은 `sktime/sklearn` 기반 CPU pipeline이다.
-- GPU-only 훈련 대상은 아니므로 기본 `train.py` 훈련 대상에서는 제외한다.
-- VLM으로 연결할 embedding 활용성은 deep model보다 낮을 수 있다.
-
-예상 입력:
+Expected input:
 
 ```text
-MiniROCKET 구현체에 맞게 (samples, channels, time) 형태로 변환
+(samples, channels, time), depending on the implementation
 ```
 
 ## 9. iTransformer
 
-그룹:
+iTransformer uses inverted attention over variables or channels instead of the usual time axis.
+
+Project role:
 
 ```text
-Transformer / Modern SOTA
+Transformer experiment for relationships among the 20 segments or pseudo-channels.
 ```
 
-iTransformer는 일반적인 Transformer와 달리 시간축이 아니라 변수 또는 채널 축을 token처럼 다루는 inverted attention 구조를 사용한다.
-
-우리 프로젝트에서의 역할:
-
-```text
-20개 segment/pseudo-channel 간 관계를 모델링하는 Transformer 계열 실험
-```
-
-장점:
-
-- multivariate time series에 적합하다.
-- segment/pseudo-channel 간 상관관계를 모델링하기 좋다.
-- 우리 데이터의 `(20, 7680)` 구조와 잘 맞을 가능성이 있다.
-
-주의점:
-
-- 기존 forecasting 중심 구현체를 classification에 맞게 설정해야 할 수 있다.
-- 데이터 shape 변환이 중요하다.
-
-예상 입력:
+Expected input:
 
 ```text
 (B, 7680, 20)
@@ -429,143 +362,73 @@ iTransformer는 일반적인 Transformer와 달리 시간축이 아니라 변수
 
 ## 10. TimeMixer
 
-그룹:
+TimeMixer uses multi-resolution decomposition and mixing, closer to MLP/mixing approaches than attention.
+
+Project role:
 
 ```text
-Transformer / Modern SOTA
+Modern SOTA comparison outside standard attention-based Transformers.
 ```
 
-TimeMixer는 다해상도 분해와 mixing 구조를 활용하는 최신 시계열 모델이다. Transformer attention보다는 MLP/mixing 기반 접근에 가깝다.
-
-우리 프로젝트에서의 역할:
+Expected input:
 
 ```text
-Transformer 외 최신 SOTA 계열 모델 비교
-```
-
-장점:
-
-- 다해상도 패턴을 다루기 좋다.
-- attention 기반 모델과 다른 inductive bias를 가진다.
-- 최신 시계열 모델군과 비교하는 의미가 있다.
-
-주의점:
-
-- 원래 forecasting 중심 구현체인 경우 classification 설정을 맞춰야 한다.
-- Core 실험 이후 확장 후보로 둔다.
-
-예상 입력:
-
-```text
-구현체에 따라 (B, 7680, 20) 또는 (B, 20, 7680)
+(B, 7680, 20) or (B, 20, 7680), depending on implementation
 ```
 
 ## 11. UniTS
 
-그룹:
+UniTS is a unified model for multiple time-series tasks such as forecasting, classification, imputation, and anomaly detection.
+
+Project role:
 
 ```text
-Foundation / Pretrained
+Unified foundation-style model comparison for classification.
 ```
 
-UniTS는 forecasting, classification, imputation, anomaly detection 등 여러 시계열 태스크를 하나의 모델 구조로 처리하려는 unified time-series model이다. 태스크별 prompt를 사용해 모델이 수행할 작업을 구분한다.
-
-우리 프로젝트에서의 역할:
-
-```text
-classification task를 지원하는 unified foundation-style model 비교
-```
-
-장점:
-
-- classification task를 지원한다.
-- 멀티태스크 구조라 확장성이 있다.
-- MOMENT 이후 foundation 계열 비교 대상으로 좋다.
-
-주의점:
-
-- MOMENT보다 적용 난이도가 높을 수 있다.
-- task prompt, dataloader, config 설정을 맞춰야 한다.
-- 새로운 데이터셋 포맷 변환 작업이 필요할 수 있다.
-
-예상 입력:
+Expected input:
 
 ```text
 (B, 7680, 20)
-또는 UniTS dataloader/config가 요구하는 형태
+or the shape required by UniTS dataloader/config
 ```
 
 ## 12. GPT4TS / One-Fits-All
 
-그룹:
+GPT4TS / One-Fits-All reuses GPT-2-style pretrained language-model Transformer blocks for time-series analysis, adapting with input/output projections and normalization layers.
+
+Project role:
 
 ```text
-Foundation / Pretrained / LLM transfer
+Experiment in transferring pretrained LLM-style representations to time-series classification.
 ```
 
-GPT4TS 또는 One-Fits-All은 GPT-2 같은 pretrained language model의 Transformer block을 시계열 분석에 재활용하는 접근이다. 입력/출력 projection과 일부 normalization 계층만 학습해 시계열 task에 적응시키는 것이 핵심이다.
-
-우리 프로젝트에서의 역할:
+Expected input:
 
 ```text
-LLM 사전학습 표현을 시계열 분류에 전이하는 실험
-```
-
-장점:
-
-- LLM 계열 representation transfer를 경험할 수 있다.
-- 학습 파라미터 수를 줄이는 실험이 가능하다.
-- VLM/LLM 프로젝트 경험과 연결되는 흥미로운 시계열 실험이다.
-
-주의점:
-
-- 시계열 전용 foundation model은 아니다.
-- 채널 독립 처리로 다변량 상관을 충분히 포착하지 못할 수 있다.
-- 구현 난이도가 있다.
-
-예상 입력:
-
-```text
-patch/token embedding 후 GPT 계열 backbone 입력
+patch/token embeddings passed into a GPT-style backbone
 ```
 
 ## 13. TS2Vec
 
-그룹:
+TS2Vec learns time-series representations through self-supervision and attaches a downstream classifier.
+
+Project role:
 
 ```text
-Representation Learning
+Representation-learning experiment with reduced direct label dependence.
 ```
 
-TS2Vec은 self-supervised 방식으로 시계열 representation을 학습한 뒤, downstream task에 classifier를 붙이는 모델이다.
-
-우리 프로젝트에서의 역할:
-
-```text
-라벨 의존도를 줄인 representation learning 실험
-```
-
-장점:
-
-- self-supervised 시계열 표현 학습을 경험할 수 있다.
-- 사전학습 후 분류 head를 붙여 downstream classification을 수행할 수 있다.
-- foundation model 전 단계의 representation learning 실험으로 좋다.
-
-주의점:
-
-- end-to-end supervised classifier보다 실험 단계가 늘어난다.
-- representation 품질 평가 방식이 필요하다.
-
-예상 입력:
+Expected input:
 
 ```text
 (B, 7680, 20)
-또는 구현체 요구 형태
+or implementation-specific shape
 ```
 
-## 추천 실험 순서
+## Recommended Experiment Order
 
-처음에는 Core 실험만 진행한다.
+Start with Core experiments:
 
 ```text
 1. GRU
@@ -575,7 +438,7 @@ TS2Vec은 self-supervised 방식으로 시계열 representation을 학습한 뒤
 5. MOMENT
 ```
 
-이후 확장 실험은 다음 순서로 진행한다.
+Then extend:
 
 ```text
 1. iTransformer
@@ -588,32 +451,32 @@ TS2Vec은 self-supervised 방식으로 시계열 representation을 학습한 뒤
 8. ResNet1D
 9. MiniROCKET / MultiROCKET / sktime feature-based / ROCKET / HYDRA (optional CPU-only classical baseline)
 10. Feature baseline / TabPFN (optional CPU-only feature baseline)
-
-`sktime`이 공식 classifier를 제공하는 classical TSC 모델은 직접 구현하지 않고 `ml/scripts/run_sktime_classifier.py` 또는 전용 runner를 사용한다. `Catch22Classifier`와 `SummaryClassifier`는 빠른 baseline으로 우선 실험하고, `RandomIntervalClassifier`, `TSFreshClassifier`, `FreshPRINCE`, `Arsenal`은 전체 데이터에 바로 실행하지 않는다.
 ```
 
-## 최종 목표
+Use `ml/scripts/run_sktime_classifier.py` or a dedicated runner for classical TSC models provided by `sktime`. Prioritize `Catch22Classifier` and `SummaryClassifier` as fast baselines. Do not run `RandomIntervalClassifier`, `TSFreshClassifier`, `FreshPRINCE`, or `Arsenal` on the full dataset immediately.
 
-시계열 분류 트랙의 최종 목표는 모델별 성능을 비교하고, 가장 좋은 시계열 모델의 결과를 VLM 단계에 연결하는 것이다.
+## Final Goal
 
-VLM에 전달할 수 있는 정보:
+The time-series track should compare model performance and connect the best time-series model results to the VLM stage.
+
+Information that can be passed to the VLM:
 
 ```text
-시계열 모델 예측 라벨
-시계열 모델 confidence
+time-series model predicted label
+time-series model confidence
 class probability
 hidden embedding
-통계 feature
-phase-bin feature
-pulse/cycle feature
+statistical features
+phase-bin features
+pulse/cycle features
 numeric PRPD histogram summary
 ```
 
-VLM 입력 예시:
+VLM input example:
 
 ```text
-PRPD 이미지
-+ JSON 메타데이터
-+ 시계열 모델 예측 결과
-+ 시계열 요약 feature
+PRPD image
++ JSON metadata
++ time-series model prediction
++ time-series summary features
 ```

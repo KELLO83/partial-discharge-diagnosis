@@ -1,86 +1,86 @@
-# VLM 구현 계획
+# VLM Implementation Plan
 
-## 목표
+## Goal
 
-부분방전 프로젝트의 VLM 단계는 PRPD 이미지 단독 분류가 아니라, 다음 정보를 함께 입력받아 구조화된 진단 JSON을 생성하는 모델을 개발하는 것이다.
+The VLM stage is not PRPD image-only classification. The goal is to build a model that receives the following inputs and generates structured diagnosis JSON:
 
 ```text
-PRPD 이미지
-+ 안전한 설비/환경 메타데이터
-+ 시계열 모델 예측 결과
-+ 시계열 요약 feature
--> 경량 pretrained VLM
--> 진단 JSON
+PRPD image
++ safe equipment/environment metadata
++ time-series model prediction
++ time-series summary features
+-> lightweight pretrained VLM
+-> diagnosis JSON
 ```
 
-GPU는 RTX 4060 Laptop 8GB 기준이므로 대형 VLM full fine-tuning은 제외하고, 경량 pretrained VLM에 LoRA/QLoRA 방식으로 미세조정한다.
+The target GPU is an RTX 4060 Laptop with 8GB VRAM. Full fine-tuning of large VLMs is excluded. Fine-tune a lightweight pretrained VLM with LoRA/QLoRA.
 
-## 모델 선택
+## Model Selection
 
-### 1순위: Qwen/Qwen3-VL-2B-Instruct
+### First Choice: Qwen/Qwen3-VL-2B-Instruct
 
-8GB GPU에서 가장 먼저 검증할 모델이다.
+This is the first model to validate on the 8GB GPU.
 
-선택 이유:
+Reasons:
 
-- 2B급이라 8GB 환경에서 가장 현실적이다.
-- image-text-to-text VLM으로 PRPD 이미지 + 텍스트 메타데이터 입력 구조와 맞는다.
-- Qwen 계열은 instruction following과 JSON 출력 형식에 비교적 강하다.
-- LoRA/QLoRA SFT 실험 대상으로 적합하다.
+- The 2B scale is the most realistic for 8GB VRAM.
+- It is an image-text-to-text VLM, matching the PRPD image + text metadata input design.
+- Qwen-family models are generally strong at instruction following and JSON-style output.
+- It is suitable for LoRA/QLoRA SFT experiments.
 
-### 안정 대안: Qwen/Qwen2.5-VL-3B-Instruct
+### Stable Alternative: Qwen/Qwen2.5-VL-3B-Instruct
 
-Qwen3-VL-2B가 로컬 환경에서 불안정하거나 품질이 부족할 때 비교할 후보이다.
+Use as a comparison candidate if Qwen3-VL-2B is unstable locally or quality is insufficient.
 
-주의:
+Cautions:
 
-- 3B급이라 8GB에서 더 빡빡하다.
-- 반드시 4bit QLoRA, batch size 1, gradient accumulation, gradient checkpointing을 사용한다.
+- The 3B scale is tighter on 8GB VRAM.
+- Use 4-bit QLoRA, batch size 1, gradient accumulation, and gradient checkpointing.
 
-### 후순위 위험 후보: Qwen/Qwen3-VL-4B-Instruct
+### Lower-Priority Risk Candidate: Qwen/Qwen3-VL-4B-Instruct
 
-2B/3B smoke가 통과한 뒤에만 검토한다.
+Review only after 2B/3B smoke tests pass.
 
-주의:
+Cautions:
 
-- 8GB에서는 OOM 가능성이 높다.
-- 첫 구현 대상이 아니다.
-- 4bit QLoRA, 낮은 LoRA rank, 이미지 해상도 제한이 필요하다.
+- OOM risk is high on 8GB VRAM.
+- It is not the first implementation target.
+- 4-bit QLoRA, low LoRA rank, and image-resolution limits are required.
 
-### fallback 후보
+### Fallback Candidates
 
-- `HuggingFaceTB/SmolVLM2-2.2B-Instruct`: Qwen 계열이 메모리나 설치 문제로 막힐 때 사용
-- `google/paligemma2-3b-mix-224`: 이미지-텍스트 전이 후보지만 한국어 JSON 진단 목적에는 Qwen 계열을 우선
-- `llava-hf/llava-onevision-qwen2-0.5b-si-hf`: 파이프라인 sanity check 전용
+- `HuggingFaceTB/SmolVLM2-2.2B-Instruct`: use if Qwen-family models are blocked by memory or installation issues.
+- `google/paligemma2-3b-mix-224`: possible image-text transfer candidate, but Qwen-family models remain the priority for JSON diagnosis output.
+- `llava-hf/llava-onevision-qwen2-0.5b-si-hf`: pipeline sanity-check candidate only.
 
-## 입력 데이터 설계
+## Input Data Design
 
-VLM에는 raw CSV를 직접 넣지 않는다. 입력은 이미지 1개와 텍스트 context 1개로 구성한다.
+Do not feed raw CSV directly into the VLM. Use one image and one text context.
 
-### Strategy A: 기본 입력
+### Strategy A: Default Input
 
 ```text
 image:
-  manifest.image_path의 PRPD PNG
+  PRPD PNG from manifest.image_path
 
 text:
-  설비 정보
-  환경 정보
-  시계열 모델 분석 결과
-  JSON 출력 지시문
+  equipment information
+  environment information
+  time-series model analysis
+  JSON-output instruction
 ```
 
-### 이미지 입력
+### Image Input
 
 ```text
-Train/manifest.csv의 image_path
+image_path from Train/manifest.csv
 -> PRPD PNG
--> VLM processor의 image input
+-> VLM processor image input
 ```
 
-`image_path` 문자열 자체는 prompt text에 넣지 않는다. 파일 경로나 파일명에 라벨명이 포함될 수 있기 때문이다.
+Do not include the `image_path` string itself in prompt text because file paths or file names may contain labels.
 
-### 텍스트 입력에 포함할 안전한 메타데이터
+### Safe Metadata for Text Input
 
 ```text
 equipment_name
@@ -93,9 +93,9 @@ humidity
 clearance_distance
 ```
 
-### 텍스트 입력에 포함할 시계열 모델 정보
+### Time-Series Model Information for Text Input
 
-시계열 모델 실험이 끝난 뒤 다음 정보를 별도 CSV로 export해서 VLM dataset builder에서 join한다.
+After time-series experiments are complete, export the following information into a separate CSV and join it in the VLM dataset builder:
 
 ```text
 sample_id
@@ -114,42 +114,42 @@ pulse_rate
 spectral_energy
 ```
 
-시계열 모델 결과가 아직 없을 때는 smoke dataset에서 “시계열 모델 결과 없음”으로 명시하고, feature-only context만 사용한다.
+If time-series model results are unavailable, the smoke dataset should explicitly state that the time-series model result is unavailable and use feature-only context.
 
-### prompt에 넣으면 안 되는 항목
+### Fields Forbidden in Prompts
 
 ```text
 label_id
 label_name
 PD_type
 sample_id
-image_path 문자열
-timeseries_path 문자열
-json_path 문자열
-파일명
+image_path string
+timeseries_path string
+json_path string
+file name
 defect_details
 defect_nums
 max_discharge_value
-raw CSV 값 전체
+full raw CSV values
 ```
 
-`label_id`는 정답 target과 평가에는 사용하지만, user prompt text에는 절대 넣지 않는다.
+`label_id` is used for targets and evaluation, but never in user prompt text.
 
-## 출력 형식
+## Output Format
 
-초기 VLM은 자연어보다 strict JSON 출력을 우선한다.
+Initial VLM output should be strict JSON rather than free-form natural language.
 
 ```json
 {
   "label_id": 3,
-  "diagnosis": "코로나방전",
-  "risk_level": "주의",
-  "reason": "PRPD 패턴과 시계열 요약 특징이 코로나 방전 특성과 일치합니다.",
-  "recommended_action": "고전압 절연 부위를 점검하고 방전 신호 증가 여부를 모니터링하세요."
+  "diagnosis": "corona_discharge",
+  "risk_level": "caution",
+  "reason": "The PRPD pattern and time-series summary features are consistent with corona discharge.",
+  "recommended_action": "Inspect high-voltage insulation areas and monitor whether discharge signals increase."
 }
 ```
 
-평가 항목:
+Evaluation items:
 
 - JSON parse success rate
 - schema validity
@@ -159,18 +159,18 @@ raw CSV 값 전체
 - hallucinated field count
 - forbidden prompt field leakage count
 
-## 학습 방식
+## Training Method
 
-### 기본 방식
+### Default Method
 
 ```text
 pretrained VLM
--> 4bit QLoRA
+-> 4-bit QLoRA
 -> SFT
 -> strict JSON diagnosis generation
 ```
 
-### 8GB 기본 설정
+### Default 8GB Settings
 
 ```yaml
 model_id: Qwen/Qwen3-VL-2B-Instruct
@@ -189,13 +189,13 @@ image_max_pixels: 512x512
 flash_attention: false
 ```
 
-처음에는 vision tower를 학습하지 않는다. PRPD 이미지는 pretrained vision encoder가 기본적인 점, 선, 밀도, 분포 패턴을 추출하도록 두고, language layer에 LoRA를 적용해 JSON 진단 형식을 학습시킨다.
+Do not train the vision tower at first. Let the pretrained vision encoder extract generic points, lines, density, and distribution patterns from PRPD images, and apply LoRA to language layers to learn the JSON diagnosis format.
 
-## 구현 순서
+## Implementation Order
 
-### 1. VLM 입력 계약 정의
+### 1. Define the VLM Input Contract
 
-생성 파일:
+Files:
 
 ```text
 vlm/src/schema.py
@@ -203,31 +203,31 @@ vlm/src/prompts.py
 vlm/tests/test_prompts.py
 ```
 
-할 일:
+Tasks:
 
-- safe metadata whitelist 정의
-- forbidden prompt field 정의
-- target JSON schema 정의
-- image + text message format 정의
-- prompt leakage test 작성
+- Define the safe metadata whitelist.
+- Define forbidden prompt fields.
+- Define the target JSON schema.
+- Define the image + text message format.
+- Add prompt leakage tests.
 
-### 2. 시계열 context export
+### 2. Export Time-Series Context
 
-생성 파일:
+File:
 
 ```text
 vlm/scripts/export_ts_context.py
 ```
 
-할 일:
+Tasks:
 
-- `Train/manifest.csv` 기준으로 sample별 feature/context 생성
-- 시계열 모델 결과가 있으면 prediction/probability join
-- raw CSV 배열과 path 문자열은 export하지 않음
+- Generate per-sample feature/context from `Train/manifest.csv`.
+- Join prediction/probability columns if time-series model results exist.
+- Do not export raw CSV arrays or path strings.
 
-### 3. VLM instruction dataset 생성
+### 3. Build the VLM Instruction Dataset
 
-생성 파일:
+Files:
 
 ```text
 vlm/scripts/build_instruction_dataset.py
@@ -235,7 +235,7 @@ vlm/scripts/validate_instruction_dataset.py
 vlm/tests/test_instruction_dataset.py
 ```
 
-출력:
+Outputs:
 
 ```text
 results/vlm/instruction_smoke/train.jsonl
@@ -243,7 +243,7 @@ results/vlm/instruction_smoke/valid.jsonl
 results/vlm/instruction_smoke/summary.json
 ```
 
-JSONL row 구조:
+JSONL row shape:
 
 ```json
 {
@@ -255,26 +255,26 @@ JSONL row 구조:
       "role": "user",
       "content": [
         {"type": "image", "image": "Train/.../sample.png"},
-        {"type": "text", "text": "...JSON만 출력하세요..."}
+        {"type": "text", "text": "...Output JSON only..."}
       ]
     },
     {
       "role": "assistant",
-      "content": "{\"label_id\":3,\"diagnosis\":\"코로나방전\",...}"
+      "content": "{\"label_id\":3,\"diagnosis\":\"corona_discharge\",...}"
     }
   ]
 }
 ```
 
-### 4. Qwen3-VL-2B inference smoke
+### 4. Qwen3-VL-2B Inference Smoke
 
-생성 파일:
+File:
 
 ```text
 vlm/scripts/run_inference.py
 ```
 
-검증 명령:
+Validation command:
 
 ```powershell
 python vlm/scripts/run_inference.py `
@@ -285,24 +285,24 @@ python vlm/scripts/run_inference.py `
   --output results/vlm/inference_smoke.json
 ```
 
-성공 기준:
+Success criteria:
 
-- 모델 로드 성공
-- 이미지 + 텍스트 입력 처리 성공
-- raw output 저장
-- JSON parse 성공 또는 parse error 명확히 기록
-- CUDA peak memory 기록
+- Model loads successfully.
+- Image + text input is processed successfully.
+- Raw output is saved.
+- JSON parses successfully or parse errors are recorded clearly.
+- CUDA peak memory is recorded.
 
-### 5. QLoRA SFT smoke
+### 5. QLoRA SFT Smoke
 
-생성 파일:
+Files:
 
 ```text
 vlm/scripts/train_sft.py
 vlm/configs/qwen3_vl_2b_smoke.yaml
 ```
 
-검증 명령:
+Validation command:
 
 ```powershell
 python vlm/scripts/train_sft.py `
@@ -310,22 +310,22 @@ python vlm/scripts/train_sft.py `
   --max-steps 10
 ```
 
-성공 기준:
+Success criteria:
 
-- 10 step smoke training 완료
-- adapter checkpoint 저장
-- training summary 저장
-- OOM 발생 시 8GB fallback 설정 기록
+- 10-step smoke training completes.
+- Adapter checkpoint is saved.
+- Training summary is saved.
+- If OOM occurs, 8GB fallback settings are recorded.
 
-### 6. JSON 평가
+### 6. JSON Evaluation
 
-생성 파일:
+File:
 
 ```text
 vlm/scripts/evaluate_outputs.py
 ```
 
-평가 명령:
+Evaluation command:
 
 ```powershell
 python vlm/scripts/evaluate_outputs.py `
@@ -333,7 +333,7 @@ python vlm/scripts/evaluate_outputs.py `
   --output results/vlm/eval_smoke.json
 ```
 
-필수 metric:
+Required metrics:
 
 ```text
 json_parse_success_rate
@@ -345,108 +345,108 @@ forbidden_field_hit_count
 hallucinated_field_count
 ```
 
-## 실험 단계
+## Experiment Stages
 
-### Stage 0: zero-shot / few-shot
+### Stage 0: Zero-Shot / Few-Shot
 
 ```text
-sample: 20개
-training: 없음
-목적: processor, prompt, JSON output 가능성 확인
+sample: 20
+training: none
+purpose: validate processor, prompt, and JSON-output feasibility
 ```
 
-### Stage 1: LoRA smoke
+### Stage 1: LoRA Smoke
 
 ```text
-sample: 10~100개
+sample: 10~100
 model: Qwen3-VL-2B
 training: LoRA SFT
-목적: 8GB에서 학습 루프 동작 확인
+purpose: confirm the training loop works on 8GB VRAM
 ```
 
-### Stage 2: QLoRA small
+### Stage 2: QLoRA Small
 
 ```text
-sample: 500~2,000개
+sample: 500~2,000
 model: Qwen3-VL-2B
-training: 4bit QLoRA SFT
-목적: JSON parse rate와 label accuracy 확인
+training: 4-bit QLoRA SFT
+purpose: check JSON parse rate and label accuracy
 ```
 
-### Stage 3: Qwen2.5-VL-3B 비교
+### Stage 3: Qwen2.5-VL-3B Comparison
 
 ```text
-sample: 500~2,000개
+sample: 500~2,000
 model: Qwen2.5-VL-3B
-training: 4bit QLoRA SFT
-조건: 2B가 안정적으로 돌아간 뒤
+training: 4-bit QLoRA SFT
+condition: only after 2B runs stably
 ```
 
-### Stage 4: main
+### Stage 4: Main
 
 ```text
-sample: 5,000~10,000개
-model: 더 안정적인 모델 선택
-조건: JSON parse success와 VRAM 안정성 확인 후
+sample: 5,000~10,000
+model: choose the more stable model
+condition: after confirming JSON parse success and VRAM stability
 ```
 
 ### Stage 5: Strategy B
 
 ```text
 input: PRPD PNG + waveform/spectrogram PNG
-조건: Strategy A가 먼저 성공한 뒤
+condition: only after Strategy A succeeds
 ```
 
 ## Strategy A/B
 
-### Strategy A: 우선 구현
+### Strategy A: Implement First
 
 ```text
-PRPD 이미지 1장
+1 PRPD image
 + safe metadata
 + time-series summary
 -> VLM
 -> JSON diagnosis
 ```
 
-이 전략이 기본이다.
+This is the default strategy.
 
-### Strategy B: 후순위
+### Strategy B: Lower Priority
 
 ```text
-PRPD 이미지 1장
-+ 시계열 waveform/spectrogram 이미지 1장
+1 PRPD image
++ 1 time-series waveform/spectrogram image
 + safe metadata
 + time-series summary
 -> VLM
 -> JSON diagnosis
 ```
 
-주의:
+Cautions:
 
-- 이미지가 2장이 되면 visual token 부담이 커진다.
-- 8GB에서는 OOM 위험이 커진다.
-- Strategy A가 동작한 뒤에만 시도한다.
+- Two images increase visual-token cost.
+- OOM risk is higher on 8GB VRAM.
+- Try only after Strategy A works.
 
-## 최종 구현 체크리스트
+## Final Implementation Checklist
 
-- [ ] `vlm/` 디렉터리 생성
-- [ ] prompt/schema 구현
-- [ ] forbidden field leakage test 구현
-- [ ] time-series context export 구현
-- [ ] instruction dataset builder 구현
-- [ ] instruction dataset validator 구현
-- [ ] Qwen3-VL-2B inference smoke 구현
-- [ ] QLoRA SFT smoke 구현
-- [ ] JSON evaluation 구현
-- [ ] `docs/VLM_STRATEGY.md`의 모델 우선순위 업데이트
-- [ ] `docs/VLM_DEVELOPMENT_RUNBOOK.md` 작성
+- [ ] Create the `vlm/` directory.
+- [ ] Implement prompt/schema code.
+- [ ] Implement forbidden-field leakage tests.
+- [ ] Implement time-series context export.
+- [ ] Implement instruction dataset builder.
+- [ ] Implement instruction dataset validator.
+- [ ] Implement Qwen3-VL-2B inference smoke.
+- [ ] Implement QLoRA SFT smoke.
+- [ ] Implement JSON evaluation.
+- [ ] Update model priority in `docs/VLM_STRATEGY.md`.
+- [ ] Write `docs/VLM_DEVELOPMENT_RUNBOOK.md`.
 
-## 성공 기준
+## Success Criteria
 
-- VLM 입력이 PRPD 이미지 + safe metadata + 시계열 요약으로 구성된다.
-- raw CSV와 label leakage field가 prompt에 들어가지 않는다.
-- Qwen3-VL-2B inference smoke가 가능하다.
-- 8GB에서 LoRA/QLoRA smoke training이 가능하거나 명확한 fallback이 기록된다.
-- 출력 JSON을 자동으로 parse/evaluate할 수 있다.
-- Strategy A가 먼저 검증되고, Strategy B는 후순위로 남는다.
+- VLM input consists of PRPD image + safe metadata + time-series summary.
+- Raw CSV and label-leakage fields are absent from prompts.
+- Qwen3-VL-2B inference smoke is possible.
+- LoRA/QLoRA smoke training works on 8GB VRAM, or clear fallback settings are recorded.
+- Output JSON can be parsed and evaluated automatically.
+- Strategy A is validated first, and Strategy B remains lower priority.

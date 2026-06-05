@@ -1,114 +1,91 @@
-﻿# 데이터셋 설명
+# Dataset Explanation
 
-## 1. 데이터셋 개요
+## 1. Dataset Overview
 
-본 프로젝트는 AI-Hub의 `산업 설비 전기 화재 사고 예방 부분방전 데이터`를 사용한다.
+This project uses the AI-Hub industrial electrical fire prevention partial-discharge dataset.
 
-- 데이터셋명: 산업 설비 전기 화재 사고 예방 부분방전 데이터
-- 영문명: Industrial Electrical Fire Prevention Partial Discharge Dataset
-- 출처: AI-Hub
-- 데이터 페이지: https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&dataSetSn=71682&topMenu=100
-- 도메인: 산업 안전, 전력 설비 진단, 부분방전 진단
-- 데이터 유형: 센서 시계열 CSV + PRPD 이미지 PNG + 라벨/메타데이터 JSON
+- Dataset name: Industrial Electrical Fire Prevention Partial Discharge Dataset
+- Source: AI-Hub
+- Data page: https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&dataSetSn=71682&topMenu=100
+- Domain: industrial safety, power-equipment diagnosis, partial-discharge diagnosis
+- Data type: sensor time-series CSV + PRPD PNG image + label/metadata JSON
 
-하나의 샘플은 다음 세 파일이 1:1로 매칭되는 구조다.
+Each sample is a 1:1 match between three files:
 
 ```text
-하나의 부분방전 샘플
-├── PRPD 이미지 (*.png)
-├── 부분방전 시계열 데이터 (*.csv)
-└── 라벨 및 메타데이터 (*.json)
+one partial-discharge sample
+├── PRPD image (*.png)
+├── partial-discharge time-series data (*.csv)
+└── label and metadata (*.json)
 ```
 
-이 프로젝트의 1차 모델링 목표는 PRPD 이미지 단독 비전 분류가 아니라, CSV 시계열 기반 5-class classification이다. 2차 목표는 PRPD 이미지, JSON 메타데이터, 시계열 요약 정보를 결합한 소형 VLM 진단 모델이다.
+The primary modeling target is 5-class CSV time-series classification, not PRPD image-only vision classification. The secondary target is a small VLM diagnosis model using PRPD image, JSON metadata, and time-series summary information.
 
-Forecasting은 현재 범위에서 제외한다. 하나의 측정 CSV 파일을 입력받아 현재 부분방전 상태를 분류하는 supervised time-series classification 문제로 다룬다.
+Forecasting is out of scope. Treat this as supervised time-series classification: one measurement CSV is used to classify the current partial-discharge state.
 
-## 2. 데이터 규모
+## 2. Dataset Scale
 
-AI-Hub 데이터 페이지 기준 전체 원천 데이터는 300,000건이다.
+The AI-Hub page describes 300,000 final dataset samples:
 
-| 구분 | 개수 | 비율 |
+| Split | Count | Ratio |
 | --- | ---: | ---: |
-| 학습 데이터 | 239,980 | 80% |
-| 검증 데이터 | 30,010 | 10% |
-| 테스트 데이터 | 30,010 | 10% |
-| 전체 | 300,000 | 100% |
+| Training data | 239,980 | 80% |
+| Validation data | 30,010 | 10% |
+| Test data | 30,010 | 10% |
+| Total | 300,000 | 100% |
 
-AI-Hub 페이지에는 원시 수집 데이터도 함께 설명되어 있다.
+It also describes raw collected data:
 
-| 원시 데이터 | 파일 형식 | 개수 |
+| Raw data | File format | Count |
 | --- | --- | ---: |
-| PRPD 이미지 데이터 | `.BMP` | 861,150 |
-| 부분방전 시계열 데이터 | `.CSV` | 861,150 |
-| 복합센서 데이터 | `.XLSX` | 256 |
-| 수집환경 데이터 | `.XLSX` | 256 |
+| PRPD image data | `.BMP` | 861,150 |
+| Partial-discharge time-series data | `.CSV` | 861,150 |
+| Composite sensor data | `.XLSX` | 256 |
+| Collection-environment data | `.XLSX` | 256 |
 
-현재 프로젝트에서는 우선 해제된 `Train/` 폴더의 `.png`, `.csv`, `.json` 원천/라벨 파일을 기준으로 개발한다.
+This project starts from the extracted local `Train/` folder with `.png`, `.csv`, and `.json` source/label files.
 
-## 3. 현재 로컬 Train 데이터
+## 3. Current Local Train Data
 
-현재 로컬 `Train/` 데이터 기준 파일 수는 다음과 같다.
+Current local `Train/` counts:
 
-| 파일 형식 | 개수 | 위치 |
+| File type | Count | Location |
 | --- | ---: | --- |
-| `.png` | 30,010 | `Train/01.원천데이터` |
-| `.csv` | 30,010 | `Train/01.원천데이터` |
-| `.json` | 30,010 | `Train/02.라벨링데이터` |
+| `.png` | 30,010 | `Train/01_source_data` equivalent source folder |
+| `.csv` | 30,010 | `Train/01_source_data` equivalent source folder |
+| `.json` | 30,010 | `Train/02_label_data` equivalent label folder |
 
-현재 `Train/manifest.csv` 기준:
+Current `Train/manifest.csv` summary:
 
-- 전체 샘플 수: `30,010`
-- label `0~4` 각각 `6,002`개로 균형
+- Total samples: `30,010`
+- Labels `0` through `4` are balanced with `6,002` samples each
 - CSV shape: `(20, 7680)`
-- 하나의 row는 `json_path`, `image_path`, `timeseries_path`, `label_id`, 설비/환경 메타데이터를 연결한다.
+- Each row connects `json_path`, `image_path`, `timeseries_path`, `label_id`, and equipment/environment metadata
 
-Train 폴더 구조는 원천데이터와 라벨링데이터가 분리되어 있다.
+The Train folder separates source data and label data. In the original AI-Hub extraction, folder names may contain non-English class and equipment names. Do not use folder-name strings as model features.
 
-```text
-Train/
-├── 01.원천데이터/
-│   ├── VS_노이즈_고체_ACSR-OC/
-│   ├── VS_노이즈_고체_CNCV-W/
-│   ├── ...
-│   └── VS_표면방전_액체_전력용유입변압기/
-└── 02.라벨링데이터/
-    ├── VL_노이즈_고체_ACSR-OC/
-    ├── VL_노이즈_고체_CNCV-W/
-    ├── ...
-    └── VL_표면방전_액체_전력용유입변압기/
-```
-
-`VS_`는 원천데이터, `VL_`은 라벨링데이터로 해석한다. 하위 폴더명은 대체로 다음 조합이다.
+`VS_` is treated as a source-data prefix and `VL_` as a label-data prefix. Subfolders generally encode:
 
 ```text
-VS_{방전유형}_{절연체종류}_{설비명}
-VL_{방전유형}_{절연체종류}_{설비명}
+VS_{discharge_type}_{insulator_type}_{equipment_name}
+VL_{discharge_type}_{insulator_type}_{equipment_name}
 ```
 
-## 4. 클래스 정의
+## 4. Class Definitions
 
-JSON 라벨의 `label.PD_type` 값을 정답 라벨로 사용한다.
+Use JSON `label.PD_type` as the target label.
 
-| PD_type | 한글 라벨 | 영문 라벨 | 설명 |
-| ---: | --- | --- | --- |
-| 0 | 정상 | normal | 부분방전이 없는 정상 상태 |
-| 1 | 노이즈 | noise | 방전 신호가 아닌 잡음성 신호 |
-| 2 | 표면방전 | surface_discharge | 절연체 표면을 따라 발생하는 방전 |
-| 3 | 코로나방전 | corona_discharge | 전계 집중 부근에서 발생하는 코로나성 방전 |
-| 4 | 보이드방전 | void_discharge | 절연체 내부 void/cavity에서 발생하는 방전 |
+| PD_type | English label | Description |
+| ---: | --- | --- |
+| 0 | normal | Normal state without partial discharge |
+| 1 | noise | Noise-like signal rather than a discharge signal |
+| 2 | surface_discharge | Discharge along an insulator surface |
+| 3 | corona_discharge | Corona-like discharge near electric-field concentration |
+| 4 | void_discharge | Discharge inside an internal void or cavity of insulation |
 
-코드에서는 다음 매핑을 고정한다.
+Use this fixed mapping in code:
 
 ```python
-PD_LABELS_KO = {
-    0: "정상",
-    1: "노이즈",
-    2: "표면방전",
-    3: "코로나방전",
-    4: "보이드방전",
-}
-
 PD_LABELS_EN = {
     0: "normal",
     1: "noise",
@@ -118,117 +95,117 @@ PD_LABELS_EN = {
 }
 ```
 
-현재 로컬 Train 라벨 분포는 다음과 같다.
+Current local Train label distribution:
 
-| 라벨 ID | 라벨명 | 개수 |
+| Label ID | Label name | Count |
 | --- | --- | ---: |
-| 0 | 정상 | 6,002 |
-| 1 | 노이즈 | 6,002 |
-| 2 | 표면 방전 | 6,002 |
-| 3 | 코로나 방전 | 6,002 |
-| 4 | 보이드 방전 | 6,002 |
-| 전체 | - | 30,010 |
+| 0 | normal | 6,002 |
+| 1 | noise | 6,002 |
+| 2 | surface_discharge | 6,002 |
+| 3 | corona_discharge | 6,002 |
+| 4 | void_discharge | 6,002 |
+| Total | - | 30,010 |
 
-주의: 파일명과 폴더명에 클래스명이 포함될 수 있다. 학습 라벨은 반드시 JSON의 `label.PD_type` 또는 이를 기반으로 생성한 manifest의 `label_id`를 사용한다. `image_path`, `timeseries_path`, 폴더명, 파일명 문자열을 feature로 사용하면 안 된다.
+Warning: file and folder names can contain class names. Training labels must come only from JSON `label.PD_type` or manifest `label_id`. Do not use `image_path`, `timeseries_path`, folder names, or file-name strings as features.
 
-## 5. 로컬 파일 매칭 규칙
+## 5. Local File Matching Rules
 
-현재 로컬 Train 데이터에서는 `.csv`, `.png`, `.json` 파일의 base filename이 일치한다.
+In the local Train data, `.csv`, `.png`, and `.json` files share the same base filename.
 
-예시:
-
-```text
-원천 CSV:
-Train/01.원천데이터/VS_노이즈_고체_ACSR-OC/
-└── 노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.csv
-
-원천 PNG:
-Train/01.원천데이터/VS_노이즈_고체_ACSR-OC/
-└── 노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.png
-
-라벨 JSON:
-Train/02.라벨링데이터/VL_노이즈_고체_ACSR-OC/
-└── 노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.json
-```
-
-manifest 생성은 JSON 파일 기준으로 수행한다.
+Example pattern:
 
 ```text
-1. JSON 파일을 순회한다.
-2. JSON 파일 stem을 sample_id로 사용한다.
-3. 같은 stem을 가진 PNG와 CSV를 원천데이터 폴더에서 찾는다.
-4. JSON의 label.PD_type과 metadata를 함께 추출한다.
+source CSV:
+Train/source/VS_noise_solid_ACSR-OC/
+└── noise_solid_ACSR-OC_230910_195222_HFCT_1000.csv
+
+source PNG:
+Train/source/VS_noise_solid_ACSR-OC/
+└── noise_solid_ACSR-OC_230910_195222_HFCT_1000.png
+
+label JSON:
+Train/labels/VL_noise_solid_ACSR-OC/
+└── noise_solid_ACSR-OC_230910_195222_HFCT_1000.json
 ```
 
-JSON 내부의 `label.image_path`, `label.timeseries_path`는 AI-Hub 논리 경로일 수 있다. 현재 로컬 경로는 `Train/01.원천데이터/VS_...` 형태이므로 JSON 내부 경로를 그대로 쓰기보다 파일명 기준으로 실제 경로를 매칭하는 편이 안전하다.
-
-## 6. 파일명 규칙
-
-현재 확인된 원천 파일명은 다음 형태를 따른다.
+Generate the manifest from JSON files:
 
 ```text
-{방전유형}_{절연체종류}_{설비명}_{측정일자}_{측정시간}_{센서종류}_{이격거리}.csv
-{방전유형}_{절연체종류}_{설비명}_{측정일자}_{측정시간}_{센서종류}_{이격거리}.png
-{방전유형}_{절연체종류}_{설비명}_{측정일자}_{측정시간}_{센서종류}_{이격거리}.json
+1. Walk JSON files.
+2. Use the JSON file stem as sample_id.
+3. Find the PNG and CSV with the same stem in the source-data folders.
+4. Extract JSON label.PD_type and metadata.
 ```
 
-예시:
+JSON-internal `label.image_path` and `label.timeseries_path` may be AI-Hub logical paths. Local paths are safer when matched by filename stem.
+
+## 6. Filename Rules
+
+Observed source filenames follow this conceptual pattern:
 
 ```text
-노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.csv
+{discharge_type}_{insulator_type}_{equipment_name}_{date}_{time}_{sensor_type}_{clearance_distance}.csv
+{discharge_type}_{insulator_type}_{equipment_name}_{date}_{time}_{sensor_type}_{clearance_distance}.png
+{discharge_type}_{insulator_type}_{equipment_name}_{date}_{time}_{sensor_type}_{clearance_distance}.json
 ```
 
-| 부분 | 값 | 의미 |
+Example:
+
+```text
+noise_solid_ACSR-OC_230910_195222_HFCT_1000.csv
+```
+
+| Part | Example | Meaning |
 | --- | --- | --- |
-| 방전유형 | 노이즈 | 라벨명 |
-| 절연체종류 | 고체 | 절연체 분류 |
-| 설비명 | ACSR-OC | 전력 설비명 |
-| 측정일자 | 230910 | 2023-09-10 형식으로 해석 가능 |
-| 측정시간 | 195222 | 19:52:22 형식으로 해석 가능 |
-| 센서종류 | HFCT | 센서 |
-| 이격거리 | 1000 | 센서 이격 거리로 추정 |
+| discharge_type | noise | label name |
+| insulator_type | solid | insulator category |
+| equipment_name | ACSR-OC | power-equipment name |
+| date | 230910 | interpretable as 2023-09-10 |
+| time | 195222 | interpretable as 19:52:22 |
+| sensor_type | HFCT | sensor type |
+| clearance_distance | 1000 | presumed sensor clearance distance |
 
-최종 학습용 메타데이터는 파일명 파싱보다 JSON 값을 우선한다.
+Final training metadata should prefer JSON values over filename parsing.
 
-## 7. CSV 시계열 데이터 형태
+## 7. CSV Time-Series Format
 
-현재 Train 샘플 기준 CSV 파일은 헤더가 없는 숫자 행렬이다.
+Current Train CSV samples are headerless numeric matrices.
 
-| 항목 | 값 |
+| Item | Value |
 | --- | ---: |
-| 행 수 | 20 |
-| 열 수 | 7,680 |
-| 헤더 | 없음 |
-| 구분자 | comma `,` |
-| 값 형태 | 정수형 센서 값 |
-| 파일 크기 | 약 460KB |
+| Rows | 20 |
+| Columns | 7,680 |
+| Header | none |
+| Delimiter | comma `,` |
+| Values | integer sensor values |
+| File size | about 460KB |
 
-즉, 하나의 CSV는 다음 2차원 배열로 로드된다.
+One CSV loads as:
 
 ```text
 shape = (20, 7680)
 ```
 
-해석:
+Interpretation:
 
 ```text
-20 rows = 20개 측정 구간 또는 segment
-7680 columns = 각 구간의 time points
+20 rows = 20 measurement segments or pseudo-channels
+7680 columns = time points per segment
 ```
 
-`20`축을 실제 물리 센서 채널 수로 단정하지 않는다. JSON의 `recording_time_length`가 20이고 센서 타입은 보통 `HFCT` 또는 `UHF`로 기록되어 있으므로, 모델 입력에서는 `20`축을 pseudo-channel 또는 segment dimension으로 취급한다.
+Do not assume the `20` axis is physical sensor channels. JSON `recording_time_length` is 20 and sensor type is usually `HFCT` or `UHF`, so the modeling code treats this axis as a pseudo-channel or segment dimension.
 
-CSV 파일 1개를 하나의 학습 샘플로 취급한다.
+One CSV file is one training sample:
 
 ```text
 1 CSV file = 1 sample = 1 label
 ```
 
-동일 CSV 내부의 20개 row를 서로 다른 샘플로 쪼개 train/test에 나누면 data leakage가 발생할 수 있다.
+Splitting the 20 rows from one CSV across train/test would cause data leakage.
 
-## 8. 모델 입력 형태
+## 8. Model Input Shapes
 
-Raw time-series model 기본 입력:
+Raw time-series model input:
 
 ```text
 x.shape = [C, T]
@@ -236,34 +213,34 @@ C = 20
 T = 7680
 ```
 
-PyTorch batch 입력:
+PyTorch batch input:
 
 ```text
 x.shape = [B, C, T]
 ```
 
-모델별 입력 관례:
+Model conventions:
 
 | Model family | Input convention |
 | --- | --- |
 | 1D-CNN / ResNet1D / InceptionTime | `[B, C, T]` |
-| TCN / 일부 CNN 계열 | `[B, C, T]` |
-| GRU / 일부 Transformer 계열 | `[B, T, C]` |
-| PatchTST / iTransformer / 일부 공식 구현 | 구현체 wrapper에 맞춰 `[B, T, C]` 또는 `[B, C, T]` |
+| TCN / some CNN models | `[B, C, T]` |
+| GRU / some Transformer models | `[B, T, C]` |
+| PatchTST / iTransformer / some official implementations | wrapper-specific `[B, T, C]` or `[B, C, T]` |
 | MiniROCKET / MultiROCKET | `[N, C, T]` |
 | Feature ML model | `[N, F]` |
 
-단순 flatten 입력은 비추천한다.
+Flattening is discouraged:
 
 ```text
-20 × 7680 = 153,600 dimensional vector
+20 x 7680 = 153,600-dimensional vector
 ```
 
-차원이 너무 크고 phase/cycle 구조를 잃기 쉽다.
+It is too high-dimensional and can destroy phase/cycle structure.
 
-## 9. 60Hz phase/cycle 기반 해석
+## 9. 60Hz Phase/Cycle Interpretation
 
-JSON metadata에는 전원 주파수 `60Hz`가 기록되어 있다. CSV의 한 row를 1초 구간으로 가정하면 다음 계산이 가능하다.
+JSON metadata records `60Hz` power frequency. If one CSV row is interpreted as a 1-second segment:
 
 ```text
 sampling_per_second = 7680
@@ -271,36 +248,36 @@ power_frequency = 60Hz
 samples_per_cycle = 7680 / 60 = 128
 ```
 
-따라서 한 cycle은 약 128 sample이며, sample index를 phase로 변환할 수 있다.
+Cycle phase:
 
 ```python
 samples_per_cycle = 128
 phase_degree = (sample_index % samples_per_cycle) / samples_per_cycle * 360.0
 ```
 
-이 phase 정보는 PRPD 이미지를 만들지 않고도 numeric feature로 사용할 수 있다.
+This phase information can be used as numeric features without creating PRPD images.
 
 ```text
-phase bin 32개 × amplitude bin 16개 = 512차원 PRPD numeric histogram
+32 phase bins x 16 amplitude bins = 512-dimensional numeric PRPD histogram
 ```
 
-단, `row = 1초` 해석은 현재 샘플과 metadata를 기준으로 한 프로젝트 가정이다. 전체 데이터에 대해 동일한 구조인지 shape validation을 유지해야 한다.
+The `row = 1 second` interpretation is a project assumption based on the current samples and metadata. Keep shape validation for the full dataset.
 
-## 10. PNG 이미지 데이터 형태
+## 10. PNG Image Format
 
-현재 확인한 PRPD PNG 샘플은 다음 형태다.
+Current PRPD PNG samples:
 
-| 항목 | 값 |
+| Item | Value |
 | --- | --- |
-| 해상도 | 256 x 256 |
-| 색상 포맷 | RGB |
+| Resolution | 256 x 256 |
+| Color format | RGB |
 | Pixel format | 24-bit RGB |
 
-VLM 입력으로 사용할 때는 대부분의 processor가 내부적으로 resize/normalize를 수행한다. 원본 PRPD 이미지는 256x256 RGB 이미지로 보고 시작한다.
+Most VLM processors resize and normalize images internally. Start from the assumption that source PRPD images are 256x256 RGB.
 
-## 11. JSON 어노테이션 구조
+## 11. JSON Annotation Structure
 
-JSON 파일은 크게 `label`과 `metadata`로 구성된다.
+JSON files contain `label` and `metadata` sections.
 
 ```text
 json
@@ -315,7 +292,7 @@ json
     └── discharge_evaluation_factors
 ```
 
-JSON 파일은 UTF-8 BOM이 포함될 수 있으므로 Python에서 읽을 때는 `utf-8-sig`를 사용한다.
+JSON may include a UTF-8 BOM, so read with `utf-8-sig`.
 
 ```python
 import json
@@ -324,46 +301,46 @@ from pathlib import Path
 data = json.loads(Path("sample.json").read_text(encoding="utf-8-sig"))
 ```
 
-주요 필드:
+Important fields:
 
-| Field | 사용 여부 | 설명 |
+| Field | Usage | Description |
 | --- | --- | --- |
-| `label.PD_type` | 필수 | 모델 정답 라벨 |
-| `label.image_path` | 참조 | 매칭되는 PRPD 이미지 경로 |
-| `label.timeseries_path` | 참조 | 매칭되는 CSV 시계열 경로 |
-| `metadata.equipment_information.insulator_type` | 선택 | 절연체 종류 |
-| `metadata.equipment_information.insulator_name` | 선택 | 절연체명 |
-| `metadata.equipment_information.equipment_name` | 선택 | 전력 설비명 |
-| `metadata.equipment_information.equipment_manufacturer` | 선택 | 제조사명 |
-| `metadata.equipment_information.equipment_id` | 비추천 | 설비 고유 식별자. split leakage 가능성 있음 |
-| `metadata.equipment_information.equipment_rated_voltage` | 선택 | 정격 전압 |
-| `metadata.equipment_information.equipment_rated_current` | 선택 | 정격 전류 |
-| `metadata.environment.recording_time` | split 주의 | 측정 시각. group split에는 유용하나 feature 사용은 주의 |
-| `metadata.environment.recording_time_length` | 참조 | 측정 길이. 현재 20 |
-| `metadata.environment.power_supply_frequency` | 참조 | 전원 주파수. 현재 60Hz |
-| `metadata.environment.sensor_type` | 선택 | 센서 타입. 대부분 HFCT, 일부 UHF |
-| `metadata.environment.temperature` | 선택 | 온도 |
-| `metadata.environment.humidity` | 선택 | 습도 |
-| `metadata.environment.clearance_distance` | 선택 | 센서 이격 거리 |
-| `metadata.discharge_information.defect_nums` | 비추천 | label leakage 가능성 있음 |
-| `metadata.discharge_information.defect_details` | 비추천 | label leakage 가능성 있음 |
-| `metadata.discharge_evaluation_factors.max_discharge_value` | 주의 | 실제 추론 시 얻을 수 있을 때만 사용 |
+| `label.PD_type` | required | target label |
+| `label.image_path` | reference | matching PRPD image path |
+| `label.timeseries_path` | reference | matching CSV path |
+| `metadata.equipment_information.insulator_type` | optional | insulator type |
+| `metadata.equipment_information.insulator_name` | optional | insulator name |
+| `metadata.equipment_information.equipment_name` | optional | power-equipment name |
+| `metadata.equipment_information.equipment_manufacturer` | optional | manufacturer |
+| `metadata.equipment_information.equipment_id` | discouraged | equipment identifier; possible split leakage |
+| `metadata.equipment_information.equipment_rated_voltage` | optional | rated voltage |
+| `metadata.equipment_information.equipment_rated_current` | optional | rated current |
+| `metadata.environment.recording_time` | split caution | useful for group split, risky as a feature |
+| `metadata.environment.recording_time_length` | reference | current value is 20 |
+| `metadata.environment.power_supply_frequency` | reference | current value is 60Hz |
+| `metadata.environment.sensor_type` | optional | mostly HFCT, some UHF |
+| `metadata.environment.temperature` | optional | temperature |
+| `metadata.environment.humidity` | optional | humidity |
+| `metadata.environment.clearance_distance` | optional | sensor clearance distance |
+| `metadata.discharge_information.defect_nums` | discouraged | possible label leakage |
+| `metadata.discharge_information.defect_details` | discouraged | possible label leakage |
+| `metadata.discharge_evaluation_factors.max_discharge_value` | caution | use only if available at inference time |
 
-실제 JSON 예시:
+Example with English placeholder values:
 
 ```json
 {
   "label": {
     "PD_type": 1,
-    "image_path": "./원천데이터/노이즈/고체/ACSR-OC/노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.png",
-    "timeseries_path": "./원천데이터/노이즈/고체/ACSR-OC/노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.csv"
+    "image_path": "./source_data/noise/solid/ACSR-OC/noise_solid_ACSR-OC_230910_195222_HFCT_1000.png",
+    "timeseries_path": "./source_data/noise/solid/ACSR-OC/noise_solid_ACSR-OC_230910_195222_HFCT_1000.csv"
   },
   "metadata": {
     "equipment_information": {
-      "insulator_type": "고체",
+      "insulator_type": "solid",
       "insulator_name": "XLPE",
       "equipment_name": "ACSR-OC",
-      "equipment_manufacturer": "금화전선",
+      "equipment_manufacturer": "manufacturer",
       "equipment_id": "-",
       "equipment_rated_voltage": "22900V",
       "equipment_rated_current": "268A"
@@ -388,42 +365,42 @@ data = json.loads(Path("sample.json").read_text(encoding="utf-8-sig"))
 }
 ```
 
-## 12. 전력 설비 및 메타데이터 분포
+## 12. Equipment and Metadata Distribution
 
-데이터셋은 고체, 액체, 기체 절연체에 해당하는 9가지 전력 설비를 포함한다.
+The dataset includes equipment across solid, liquid, and gas insulation categories.
 
-| 절연체 종류 | 전력 설비 |
+| Insulator type | Equipment |
 | --- | --- |
-| 고체 절연체 | TFR-CV, CNCV-W, ACSR-OC |
-| 액체 절연체 | 단상 유입변압기, 전력용 유입변압기, 계기용 변압기 |
-| 기체 절연체 | 7.2kV 배전반, 22.9kV 배전반, 25.8kV GIS |
+| Solid insulation | TFR-CV, CNCV-W, ACSR-OC |
+| Liquid insulation | single-phase oil-immersed transformer, power oil-immersed transformer, instrument transformer |
+| Gas insulation | 7.2kV switchgear, 22.9kV switchgear, 25.8kV GIS |
 
-현재 로컬 Train 기준 분포:
+Current local Train distribution:
 
-| 항목 | 분포 |
+| Item | Distribution |
 | --- | --- |
-| 절연체 종류 | 고체 10,005 / 액체 10,005 / 기체 10,000 |
-| 센서 종류 | HFCT 29,010 / UHF 1,000 |
+| Insulator type | solid 10,005 / liquid 10,005 / gas 10,000 |
+| Sensor type | HFCT 29,010 / UHF 1,000 |
 
-설비 종류별 분포:
+Equipment distribution:
 
-| 설비명 | 개수 |
+| Equipment | Count |
 | --- | ---: |
 | ACSR-OC | 3,335 |
 | CNCV-W | 3,335 |
 | TFR-CV | 3,335 |
-| 계기용 변압기 | 3,335 |
-| 단상 유입변압기 | 3,335 |
-| 전력용 유입변압기 | 3,335 |
-| 7.2kV 배전반 | 2,500 |
-| 22.9kV 배전반 | 2,500 |
+| instrument transformer | 3,335 |
+| single-phase oil-immersed transformer | 3,335 |
+| power oil-immersed transformer | 3,335 |
+| 7.2kV switchgear | 2,500 |
+| 22.9kV switchgear | 2,500 |
 | 25.8kV GIS | 5,000 |
 
-## 13. 권장 manifest 형식
+## 13. Recommended Manifest Format
 
-모델 학습 전에 전체 파일 매칭 정보를 하나의 manifest 파일로 정리한다.
+Store all matched file information in one manifest before training.
 
-현재 manifest 주요 컬럼:
+Current main columns:
 
 ```text
 sample_id
@@ -451,15 +428,15 @@ json_image_path
 json_timeseries_path
 ```
 
-최소 필수 컬럼:
+Minimum required columns:
 
 ```text
 sample_id,json_path,image_path,timeseries_path,label_id,label_name
 ```
 
-## 14. 전처리 규칙
+## 14. Preprocessing Rules
 
-### 14.1 기본 로딩
+### 14.1 Basic Loading
 
 ```python
 import json
@@ -477,9 +454,9 @@ def load_timeseries(csv_path):
     return x.astype(np.float32)
 ```
 
-### 14.2 Shape validation
+### 14.2 Shape Validation
 
-학습 전에 모든 CSV에 대해 shape을 확인한다.
+Validate every CSV before training:
 
 ```python
 assert x.ndim == 2
@@ -487,11 +464,11 @@ assert x.shape[0] == 20
 assert x.shape[1] == 7680
 ```
 
-shape이 다른 파일이 있으면 제외, padding/truncation, resampling, 별도 split 관리 중 하나를 선택한다.
+If a file has a different shape, choose one explicit policy: exclude it, pad/truncate it, resample it, or manage it in a separate split.
 
 ### 14.3 Normalization
 
-권장 후보:
+Candidates:
 
 ```text
 1. sample-wise z-score
@@ -500,18 +477,18 @@ shape이 다른 파일이 있으면 제외, padding/truncation, resampling, 별�
 4. median/IQR robust scaling
 ```
 
-부분방전에서는 amplitude 크기 자체가 중요한 feature일 수 있으므로 normalization ablation을 권장한다.
+Amplitude magnitude may itself be informative for partial discharge, so run normalization ablations:
 
 ```text
-A. raw amplitude 유지
+A. preserve raw amplitude
 B. sample-wise z-score
 C. channel-wise z-score
 D. log / robust scaling
 ```
 
-## 15. Feature 기반 분류용 feature 설계
+## 15. Feature Design for Feature-Based Classification
 
-`feature_logistic`, `feature_svm`, `feature_random_forest`, `feature_tabpfn`은 raw CSV를 직접 받는 모델이 아니라, CSV에서 추출한 feature vector를 입력으로 받는 tabular classifier다.
+`feature_logistic`, `feature_svm`, `feature_random_forest`, and `feature_tabpfn` consume extracted feature vectors, not raw CSV tensors.
 
 ```text
 CSV time-series
@@ -521,94 +498,72 @@ CSV time-series
 -> 5-class prediction
 ```
 
-현재 코드의 feature extractor는 `--feature-set` 옵션으로 column 수를 조절한다. 기본값은 `small`이다.
+Feature sets:
 
-| Feature set | CSV feature columns | Metadata 포함 시 | 설명 |
+| Feature set | CSV feature columns | With metadata | Description |
 | --- | ---: | ---: | --- |
-| `small` | 64 | 74 | 가장 빠른 baseline. global/stat, FFT, amplitude histogram, pulse, cycle, half-cycle 사용 |
-| `medium` | 128 | 138 | balanced baseline. phase-bin count/max 포함 |
-| `full` | 182 | 192 | compact numeric PRPD histogram 96개 포함 |
+| `small` | 64 | 74 | Fast baseline with global/stat, FFT, amplitude histogram, pulse, cycle, and half-cycle features |
+| `medium` | 128 | 138 | Balanced baseline with phase-bin count/max |
+| `full` | 182 | 192 | Includes a compact 96-bin numeric PRPD histogram |
 
-`small` 기준 feature extractor는 다음 그룹을 만든다.
+The default is `small`.
 
-| Feature group | Examples |
-| --- | --- |
-| global amplitude/stat | mean, std, median, MAD, min/max, percentile, IQR, RMS |
-| fixed FFT/spectral | 고정 band power ratio, spectral centroid/bandwidth/entropy/flatness |
-| amplitude histogram | absolute amplitude 12-bin histogram |
-| pulse feature | robust threshold 기반 pulse count/rate/peak/interval |
-| cycle feature | 60Hz cycle별 peak/RMS/pulse count |
-| half-cycle/circular | 양/음 반주기 pulse 차이, phase entropy/concentration |
+## 16. Features That Must Not Be Used
 
-`medium`은 `small`보다 amplitude histogram을 줄이고 24개 phase bin별 count/max를 추가한다. 실제 구현에서는 segment summary를 18개로 압축해 총 128개를 맞춘다.
-
-`full`은 phase 12 bin x amplitude 8 bin의 compact numeric PRPD histogram 96개를 포함해 총 182개 feature를 만든다.
-
-기본 feature-only baseline:
-
-```text
-feature_logistic --feature-set small
-feature_svm --feature-set small
-feature_random_forest --feature-set small
-feature_tabpfn --feature-set small
-```
-
-## 16. 사용하면 안 되는 feature
-
-다음 정보는 label leakage를 만들 수 있으므로 학습 feature로 사용하지 않는다.
+These fields can cause label leakage and must not be used as training features:
 
 ```text
 label.PD_type
 label.image_path
 label.timeseries_path
 sample_id
-파일명 문자열
-폴더명 문자열
-방전 유형명이 들어간 path token
+file-name string
+folder-name string
+path token containing discharge type
 label_name
 metadata.discharge_information.defect_nums
 metadata.discharge_information.defect_details
 metadata.discharge_evaluation_factors.max_discharge_value
 ```
 
-`metadata.discharge_evaluation_factors.max_discharge_value`는 주의가 필요하다. 실제 추론 시점에도 얻을 수 있는 센서 기반 평가값이면 사용할 수 있지만, 라벨링 과정에서 생성된 사후 평가값이면 leakage가 될 수 있다. 기본 실험에서는 제외하고 별도 ablation에서만 사용한다.
+`max_discharge_value` requires caution. It may be usable if it is available at inference time as a sensor-derived value, but it may also be a post-labeling value. Exclude it from default experiments and use it only in a separate ablation.
 
-## 17. Train / Validation / Test split
+## 17. Train / Validation / Test Split
 
-가장 권장되는 방식은 AI-Hub 공식 train/validation/test split을 그대로 사용하는 것이다.
+Prefer the official AI-Hub train/validation/test split when available.
 
-직접 split을 구성할 경우 단순 random split만 사용하면 같은 설비, 같은 날짜, 같은 측정 조건이 train과 test에 동시에 들어갈 수 있다. 이 경우 실제 일반화 성능보다 과대평가될 수 있다.
+If creating a custom split, a naive random split can place the same equipment, date, and measurement conditions in both train and test, inflating generalization performance.
 
-권장 split 기준:
+Recommended split criteria:
 
 ```text
 1. file-level split
 2. equipment-level group split
 3. recording date/time group split
-4. voltage / sensor distance group split
-5. insulator type group split
+4. voltage / sensor-distance group split
+5. insulator-type group split
 ```
 
-최소 규칙:
+Minimum rules:
 
 ```text
-동일 CSV 파일 내부 row를 서로 다른 split으로 나누지 않는다.
-같은 JSON/CSV/PNG sample이 train/test에 동시에 들어가지 않게 한다.
-파일명, 경로 기반 leakage를 제거한다.
-모델별 성능 비교에서는 manifest의 split 컬럼을 고정하고 재사용한다.
+Do not split rows from the same CSV into different splits.
+Do not place the same JSON/CSV/PNG sample in both train and test.
+Remove filename/path-based leakage.
+Use and reuse a fixed manifest split for model comparisons.
 ```
 
-현재 학습 runner는 manifest에 `split=train`과 `split=valid`가 함께 있으면 해당 split을 우선 사용한다. `split` 컬럼이 없거나 valid 행이 없으면 기존처럼 label stratified random split을 만든다.
+Current runners use manifest `split=train` and `split=valid` when both are present. If no valid split exists, they fall back to a label-stratified random split.
 
-1차 모델 비교용 고정 split은 다음 명령으로 생성한다.
+Fixed split command:
 
 ```powershell
 python ml/scripts/make_splits.py --manifest Train/manifest.csv --output Train/manifest_random_split_seed42.csv --valid-ratio 0.2 --seed 42
 ```
 
-## 18. 평가 지표
+## 18. Evaluation Metrics
 
-Accuracy만 사용하면 class imbalance나 특정 방전 유형 실패를 놓칠 수 있다. 다음 metric을 함께 기록한다.
+Accuracy alone can hide class imbalance and dangerous failures. Record:
 
 ```text
 accuracy
@@ -621,20 +576,11 @@ confusion_matrix
 pd_to_normal_error_count
 ```
 
-특히 현장 진단에서는 실제 부분방전 클래스 recall을 반드시 확인한다.
+For field diagnosis, explicitly inspect recall for actual discharge classes and the number of true discharge samples predicted as normal.
 
-```text
-normal recall
-noise recall
-surface_discharge recall
-corona_discharge recall
-void_discharge recall
-실제 방전인데 정상으로 예측한 개수
-```
+## 19. Recommended Baselines
 
-## 19. 추천 baseline 구성
-
-### 19.1 Feature-only baseline
+### 19.1 Feature-Only Baseline
 
 ```text
 feature_logistic
@@ -643,13 +589,13 @@ feature_random_forest
 feature_tabpfn
 ```
 
-입력:
+Input:
 
 ```text
-stat feature + pulse feature + phase-bin feature + FFT feature + numeric PRPD histogram
+stat features + pulse features + phase-bin features + FFT features + numeric PRPD histogram
 ```
 
-### 19.2 Raw time-series baseline
+### 19.2 Raw Time-Series Baseline
 
 ```text
 GRU
@@ -661,14 +607,14 @@ ModernTCN
 MiniROCKET / MultiROCKET
 ```
 
-입력:
+Input:
 
 ```text
 [B, 20, 7680]
-또는 모델 wrapper에 따라 [B, 7680, 20]
+or [B, 7680, 20], depending on the model wrapper
 ```
 
-### 19.3 Hybrid model
+### 19.3 Hybrid Model
 
 ```text
 raw time-series encoder embedding + hand-crafted feature embedding
@@ -676,7 +622,7 @@ raw time-series encoder embedding + hand-crafted feature embedding
 -> classifier
 ```
 
-### 19.4 Late fusion / stacking
+### 19.4 Late Fusion / Stacking
 
 ```text
 feature model probability

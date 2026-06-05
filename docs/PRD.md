@@ -1,206 +1,191 @@
-# PRD: 부분방전 시계열 및 소형 VLM 진단 프로젝트
+# PRD: Partial-Discharge Time-Series and Small VLM Diagnosis Project
 
-## 1. 프로젝트 개요
+## 1. Project Overview
 
-이 프로젝트는 AI-Hub의 `산업 설비 전기 화재 사고 예방 부분방전 데이터`를 활용하여 부분방전 상태를 진단하는 모델을 개발하는 것을 목표로 한다.
+This project uses the AI-Hub industrial electrical fire prevention partial-discharge dataset to build diagnosis models for partial-discharge states.
 
-핵심 방향은 단일 비전 모델 개발이 아니라, 다음 두 가지를 연습하고 구현하는 것이다.
+The core direction is not single-image vision classification. The project focuses on:
 
-1. 부분방전 시계열 데이터 기반 분류 모델
-2. PRPD 이미지, 메타데이터, 시계열 정보를 결합한 소형 VLM 기반 진단 모델
+1. Classification from partial-discharge time-series data.
+2. A small VLM diagnosis model that combines PRPD images, metadata, and time-series information.
 
-이미 비전 모델 개발 경험이 충분하다는 전제에서, ResNet/EfficientNet 같은 단일 이미지 분류 모델 개발은 핵심 범위에서 제외한다. 대신 시계열 모델링과 VLM 멀티모달 정렬(Alignment)에 집중한다.
+Because image-classification experience is assumed, ResNet/EfficientNet-style single-image classifiers are excluded from the core scope. The focus is time-series modeling and multimodal VLM alignment.
 
-## 2. 문제 정의
+## 2. Problem Definition
 
-산업 전력 설비에서 발생하는 부분방전은 전기 화재나 절연 파괴의 주요 전조 현상이다. 이 프로젝트는 PRPD 이미지와 부분방전 시계열 신호, 설비/환경 메타데이터를 활용하여 현재 설비 상태를 진단한다.
+Partial discharge in industrial power equipment is an important precursor to electrical fire and insulation failure. This project uses PRPD images, partial-discharge time-series signals, and equipment/environment metadata to diagnose the current equipment state.
 
-기본 분류 대상은 다음 5개 클래스다.
+The basic classification target has five classes:
 
-| 라벨 ID | 라벨명 |
+| Label ID | Label name |
 | --- | --- |
-| 0 | 정상 |
-| 1 | 노이즈 |
-| 2 | 표면 방전 |
-| 3 | 코로나 방전 |
-| 4 | 보이드 방전 |
+| 0 | normal |
+| 1 | noise |
+| 2 | surface_discharge |
+| 3 | corona_discharge |
+| 4 | void_discharge |
 
-최종 VLM 모델은 단순 라벨만 출력하는 것이 아니라, 현장 엔지니어가 이해할 수 있는 자연어 진단 결과 또는 구조화된 JSON 진단 결과를 출력하는 것을 목표로 한다.
+The final VLM should output either natural-language diagnosis or structured JSON diagnosis that a field engineer can understand, not only a class index.
 
-## 3. 프로젝트 목표
+## 3. Goals
 
-### 3.1 1차 목표
+### 3.1 Primary Goals
 
-- AI-Hub 데이터의 `.PNG`, `.CSV`, `.JSON` 매칭 구조를 파악한다.
-- JSON을 기준으로 `manifest.csv`를 생성한다.
-- 부분방전 시계열 CSV를 로드하고 기본 통계 및 시퀀스 구조를 분석한다.
-- 시계열 baseline 모델을 학습한다.
-- 시계열 모델의 분류 성능을 측정한다.
+- Understand the `.PNG`, `.CSV`, and `.JSON` matching structure.
+- Generate `manifest.csv` from JSON labels.
+- Load partial-discharge time-series CSV files and analyze basic statistics and sequence structure.
+- Train time-series baseline models.
+- Measure time-series classification performance.
 
-### 3.2 2차 목표
+### 3.2 Secondary Goals
 
-- PRPD 이미지, JSON 메타데이터, 시계열 요약 특징을 결합한 VLM 학습 데이터셋을 생성한다.
-- 소형 VLM을 LoRA 또는 QLoRA 방식으로 파인튜닝한다.
-- VLM이 부분방전 유형을 자연어 또는 JSON 형식으로 진단하도록 학습한다.
+- Build a VLM instruction dataset from PRPD images, JSON metadata, and time-series summary features.
+- Fine-tune a small VLM using LoRA or QLoRA.
+- Train the VLM to diagnose partial-discharge types in natural language or JSON.
 
-### 3.3 확장 목표
+### 3.3 Extended Goals
 
-- 시계열 CSV를 그래프 이미지로 변환하고, PRPD 이미지와 함께 멀티 이미지 VLM 입력으로 사용한다.
-- 전략 A와 전략 B의 성능 및 진단 품질을 비교한다.
-- classification accuracy와 생성형 진단 품질을 함께 평가한다.
+- Convert time-series CSV files into graph images and use them with PRPD images as multi-image VLM input.
+- Compare Strategy A and Strategy B.
+- Evaluate both classification accuracy and generated diagnosis quality.
 
-## 4. 범위
+## 4. Scope
 
-### 포함 범위
+In scope:
 
-- 데이터 구조 분석
-- manifest 생성
-- 시계열 전처리
-- 시계열 분류 모델 개발
-- 시계열 특징 추출
-- VLM instruction dataset 생성
-- 소형 VLM LoRA/QLoRA 파인튜닝
-- 자연어 진단 결과 생성
-- 구조화된 JSON 진단 결과 생성
+- Data-structure analysis
+- Manifest generation
+- Time-series preprocessing
+- Time-series classification model development
+- Time-series feature extraction
+- VLM instruction dataset generation
+- Small VLM LoRA/QLoRA fine-tuning
+- Natural-language diagnosis generation
+- Structured JSON diagnosis generation
 
-### 제외 범위
+Out of scope:
 
-- ResNet, EfficientNet 등 단일 비전 모델을 처음부터 개발하는 작업
-- PRPD 이미지 단독 분류 모델을 메인 성과로 삼는 작업
-- 시계열 forecasting 문제. 즉, 과거 구간으로 미래 파형을 예측하는 작업
-- 원본 CSV 전체를 VLM 프롬프트에 그대로 넣는 방식
-- 대형 VLM 또는 70B급 모델 학습
-- 실제 산업 현장 배포 시스템 구축
+- Building single-image vision models such as ResNet or EfficientNet as the main outcome
+- Treating PRPD image-only classification as the primary result
+- Time-series forecasting or future-waveform prediction
+- Placing full raw CSV data directly in VLM prompts
+- Training large VLMs or 70B-scale models
+- Building a production deployment system for industrial sites
 
-## 5. 사용자 시나리오
+## 5. User Scenarios
 
-### 시나리오 1: 시계열 기반 부분방전 분류
+### Scenario 1: Time-Series Classification
 
-사용자는 부분방전 시계열 CSV 파일을 입력한다. 모델은 해당 신호를 분석하여 정상, 노이즈, 표면 방전, 코로나 방전, 보이드 방전 중 하나로 분류한다.
+The user provides a partial-discharge time-series CSV file. The model analyzes the signal and classifies it as one of `normal`, `noise`, `surface_discharge`, `corona_discharge`, or `void_discharge`.
 
-예상 출력:
+Expected output:
 
 ```json
 {
   "label_id": 3,
-  "label_name": "코로나 방전",
+  "label_name": "corona_discharge",
   "confidence": 0.87
 }
 ```
 
-### 시나리오 2: VLM 기반 자연어 진단
+### Scenario 2: VLM Natural-Language Diagnosis
 
-사용자는 PRPD 이미지, 설비 메타데이터, 환경 메타데이터, 시계열 요약 특징을 입력한다. VLM은 이를 종합하여 진단 결과를 자연어로 출력한다.
+The user provides a PRPD image, equipment metadata, environment metadata, and time-series summary features. The VLM combines them and outputs a diagnosis in text.
 
-예상 출력:
+Expected output:
 
 ```text
-진단 결과는 코로나 방전입니다. PRPD 이미지에서 특정 위상 구간의 방전 패턴이 관찰되며,
-시계열 신호에서도 반복적인 피크가 나타납니다. 절연 상태 점검과 지속적인 모니터링이 필요합니다.
+The diagnosis is corona discharge. The PRPD image shows discharge patterns concentrated in specific phase regions, and the time-series signal contains repeated peaks. Insulation inspection and continued monitoring are recommended.
 ```
 
-### 시나리오 3: VLM 기반 구조화 진단
+### Scenario 3: VLM Structured Diagnosis
 
-VLM은 자연어 대신 시스템 연동이 쉬운 JSON 형식으로 결과를 출력한다.
+The VLM outputs JSON for easier system integration.
 
-예상 출력:
+Expected output:
 
 ```json
 {
-  "diagnosis": "코로나 방전",
+  "diagnosis": "corona_discharge",
   "label_id": 3,
-  "risk_level": "주의",
-  "reason": "PRPD 패턴과 시계열 요약 특징이 코로나 방전 특성과 일치합니다.",
-  "recommended_action": "고전압 절연 부위를 점검하고 방전 신호 증가 여부를 모니터링하세요."
+  "risk_level": "caution",
+  "reason": "The PRPD pattern and time-series summary features are consistent with corona discharge.",
+  "recommended_action": "Inspect high-voltage insulation areas and monitor whether discharge signals increase."
 }
 ```
 
-## 6. 모델 개발 전략
+## 6. Development Strategy
 
-이 프로젝트는 다음 순서로 진행한다.
+Project sequence:
 
 ```text
-1단계: 데이터 구조 확인 및 manifest 생성
-2단계: 시계열 단독 모델 개발
-3단계: 시계열 요약 특징 추출
-4단계: 전략 A 기반 VLM baseline 구축
-5단계: 전략 B 기반 멀티 이미지 VLM 확장 실험
-6단계: 전략 A와 전략 B 비교
+Stage 1: Inspect data structure and generate the manifest
+Stage 2: Build time-series-only models
+Stage 3: Extract time-series summary features
+Stage 4: Build a Strategy A VLM baseline
+Stage 5: Extend to Strategy B multi-image VLM experiments
+Stage 6: Compare Strategy A and Strategy B
 ```
 
-## 7. 시계열 모델 전략
+## 7. Time-Series Model Strategy
 
-입력:
+Input:
 
 ```text
-부분방전 시계열 CSV
+partial-discharge time-series CSV
 ```
 
-출력:
+Output:
 
 ```text
-부분방전 유형 라벨 0~4
+partial-discharge class label 0 through 4
 ```
 
-이 프로젝트의 시계열 모델 트랙은 forecasting이 아니라 classification이다.
+This track is classification, not forecasting.
 
 ```text
-Forecasting 아님:
-과거 시계열 -> 미래 시계열 예측
+Not forecasting:
+past time-series -> future time-series prediction
 
 Classification:
-전체 부분방전 시계열 -> 방전 유형 5-class 분류
+full partial-discharge time-series -> 5-class discharge type
 ```
 
-따라서 TimesFM, Chronos, Lag-Llama처럼 미래 파형 예측에 특화된 foundation model은 프로젝트 범위에서 제외한다. 대신 부분방전 유형 분류에 직접 사용할 수 있는 시계열 분류 모델과 downstream fine-tuning이 가능한 시계열 foundation model을 우선한다.
+Forecasting-oriented foundation models such as TimesFM, Chronos, and Lag-Llama are excluded. Prioritize time-series classification models and time-series foundation models that support downstream classification.
 
-현재 Train 데이터 기준 CSV 하나의 입력 형태는 다음과 같다.
+Current CSV shape:
 
 ```text
 sample shape = (20, 7680)
 ```
 
-여기서 `20`축은 실제 센서 채널 수라고 단정하지 않는다. JSON의 `recording_time_length`가 20이고 센서 타입은 `HFCT` 또는 `UHF`로 기록되어 있으므로, 초기 해석은 다음과 같이 둔다.
+Interpretation:
 
 ```text
-20 rows = 20개 측정 구간 또는 segment
-7680 columns = 각 segment의 time points
+20 rows = 20 measurement segments or pseudo-channels
+7680 columns = time points for each segment
 ```
 
-따라서 모델 입력에서는 `20`축을 `pseudo-channel` 또는 `segment dimension`으로 취급한다. 이 결정은 모델 구현을 위한 실용적 가정이며, 추후 데이터 명세를 추가 확인하면 더 정확히 보정한다.
+Do not assume the `20` axis is physical sensor channels. Treat it as a practical pseudo-channel or segment dimension until dataset documentation confirms otherwise.
 
-모델 구현에서는 일반적으로 다음 두 형태 중 하나로 변환해 사용한다.
-
-```text
-Conv/TCN 계열: (batch, pseudo_channels, time) = (B, 20, 7680)
-RNN/Hugging Face PatchTST/일부 Transformer 계열: (batch, time, pseudo_channels) = (B, 7680, 20)
-```
-
-### 시계열 모델 실험 라인업
-
-이 프로젝트에서는 VLM 개발 전에 시계열 분류 모델만 먼저 실험한다. 사용자는 시계열 프로젝트 경험이 많지 않으므로, 처음부터 너무 많은 모델을 동시에 구현하지 않는다. 먼저 핵심 모델을 통해 시계열 분류 파이프라인을 완성하고, 이후 확장 실험으로 넓혀간다.
-
-모델은 다음 세 그룹으로 구분한다.
+Common model input shapes:
 
 ```text
-1. Non-Transformer 모델
-2. Transformer / Modern SOTA 모델
-3. Foundation / Pretrained 모델
+Conv/TCN family: (batch, pseudo_channels, time) = (B, 20, 7680)
+RNN/Hugging Face PatchTST/some Transformer family: (batch, time, pseudo_channels) = (B, 7680, 20)
 ```
 
 ### Core Experiments
 
-처음 구현할 핵심 실험 세트다. 이 5개 모델만 제대로 비교해도 RNN, CNN, Transformer, SOTA, Foundation 흐름을 모두 경험할 수 있다.
-
-| 그룹 | 모델 | 목적 |
+| Group | Model | Purpose |
 | --- | --- | --- |
-| Non-Transformer | GRU | RNN 계열 기본 baseline |
-| Non-Transformer | InceptionTime | 시계열 분류에서 강한 CNN/Inception 계열 baseline |
-| Transformer / Modern SOTA | PatchTST | patch 기반 Transformer 분류 모델 |
-| Transformer / Modern SOTA | TimesNet | 1D 시계열을 2D temporal variation으로 변환하는 SOTA 계열 모델 |
-| Foundation / Pretrained | MOMENT | 사전학습된 시계열 foundation model을 downstream classification에 fine-tuning |
+| Non-Transformer | GRU | Basic RNN baseline |
+| Non-Transformer | InceptionTime | Strong CNN/Inception baseline for time-series classification |
+| Transformer / Modern SOTA | PatchTST | Patch-based Transformer classifier |
+| Transformer / Modern SOTA | TimesNet | Converts 1D time-series into 2D temporal variation |
+| Foundation / Pretrained | MOMENT | Fine-tune a pretrained time-series foundation model |
 
-Core 실험 순서:
+Core order:
 
 ```text
 1. GRU Classifier
@@ -212,410 +197,208 @@ Core 실험 순서:
 
 ### Extended Experiments
 
-Core 실험이 안정적으로 끝난 뒤 추가로 실험할 후보들이다. 처음부터 모두 구현하지 않고, 시간과 GPU 여유가 있을 때 확장한다.
+Run these only after the Core pipeline is stable.
 
-이 프로젝트의 기본 훈련 정책은 CUDA GPU 기반이다. 또한 `AGENT.md`의 실행 단위 정책에 따라 `train.py`는 한 번 실행할 때 정확히 하나의 모델만 훈련해야 한다. 따라서 `core`, `extended`, `all`, `cpu_only` 같은 그룹명은 `--model` 값으로 지원하지 않고, 실제 훈련 명령에는 `gru`, `patchtst`, `moment`처럼 구체적인 단일 모델명만 사용한다. `MiniROCKET`, `MultiROCKET`, `HYDRA`, `feature_*`, `sktime_*`는 Extended 성격의 추가 실험 후보가 맞지만, `sktime/sklearn/aeon` 기반 CPU classical baseline이므로 GPU 학습 라인업과 분리해 전용 runner로 실행한다.
-
-| 그룹 | 모델 | 목적 |
+| Group | Model | Purpose |
 | --- | --- | --- |
-| Non-Transformer | TCN | dilated causal convolution 기반의 RNN 대체 baseline |
-| Non-Transformer | ResNet1D | 1D residual convolution 기반 baseline |
-| Non-Transformer / Modern CNN | ModernTCN | modern convolution block 기반 최신 CNN/TCN 계열 classification 비교 |
-| Transformer / Modern SOTA | iTransformer | 변수/채널축을 token처럼 다루는 inverted attention 모델 |
-| Transformer / Modern SOTA | TimeMixer | 다해상도 분해와 mixing 기반 최신 시계열 모델 |
-| Foundation / Pretrained | UniTS | classification을 포함한 다중 시계열 task를 지원하는 unified model |
-| Foundation / Pretrained | GPT4TS / One-Fits-All | GPT-2 계열 pretrained LM을 시계열 분석에 재활용하는 모델 |
-| Representation Learning | TS2Vec | self-supervised 시계열 representation 학습 후 downstream classifier 적용 |
+| Non-Transformer | TCN | Dilated causal convolution baseline |
+| Non-Transformer | ResNet1D | 1D residual convolution baseline |
+| Non-Transformer / Modern CNN | ModernTCN | Modern convolution-block classifier |
+| Transformer / Modern SOTA | iTransformer | Inverted attention over variable/channel axis |
+| Transformer / Modern SOTA | TimeMixer | Multi-resolution decomposition and mixing |
+| Foundation / Pretrained | UniTS | Unified model that supports classification among other tasks |
+| Foundation / Pretrained | GPT4TS / One-Fits-All | Reuses GPT-2-style pretrained language-model blocks for time-series |
+| Representation Learning | TS2Vec | Self-supervised representation learning plus downstream classifier |
 
-Extended 모델별 훈련 비용 주의:
+CPU-only baselines such as MiniROCKET, MultiROCKET, HYDRA, feature baselines, and `sktime` classifiers are optional comparisons and must use dedicated runners rather than the GPU `train.py` path.
 
-| 모델 | 예상 비용 | 운영 원칙 |
-| --- | --- | --- |
-| TCN | 중간 | small smoke 후 필요하면 full 실행 |
-| ResNet1D | 중간 | small smoke 후 필요하면 full 실행 |
-| ModernTCN | 중간~높음 | `seq_len`과 batch size를 제한해 subset부터 실행 |
-| iTransformer | 중간~높음 | attention 비용이 있으므로 subset부터 실행 |
-| TimeMixer | 높음 | full 실행 전 100/1000/5000 단계 확인 |
-| UniTS | 매우 높음 | foundation/unified model이므로 subset 검증 후 결정 |
-| GPT4TS / One-Fits-All | 매우 높음 | LM transfer 계열이므로 subset 검증 후 결정 |
-| TS2Vec | 매우 높음 | self-supervised encoder 학습 + classifier라 full 실행 전 subset 필수 |
+### Model Notes
 
-Optional CPU-only Extended baseline:
+Non-Transformer models establish strong baselines. GRU is the first simple baseline; InceptionTime, TCN, ResNet1D, and ModernTCN test convolutional approaches for local pulse and waveform patterns.
 
-| 그룹 | 모델 | 목적 |
-| --- | --- | --- |
-| Classical Baseline | MiniROCKET | 딥러닝 없이 random convolution feature와 RidgeClassifier로 비교하는 강한 시계열 분류 baseline |
-| Classical Baseline | MultiROCKET | MiniROCKET 확장형 convolution feature baseline |
-| sktime Feature-based | SummaryClassifier | 기본 summary feature 기반 매우 빠른 baseline |
-| sktime Feature-based | Catch22Classifier | 검증된 22개 feature 기반 빠른 baseline |
-| sktime Feature-based | RandomIntervalClassifier | random interval feature 기반 baseline. 느릴 수 있어 subset 전용 |
-| sktime Feature-based | TSFreshClassifier | 자동 feature가 많아 subset 전용 |
-| sktime Feature-based | FreshPRINCE | TSFresh 계열 ensemble, subset 전용 |
-| Classical Baseline | HYDRA | dictionary + convolution 계열의 강한 classical TSC baseline |
-| Feature Baseline | Logistic / SVM / RandomForest | 통계, amplitude, FFT feature 기반 가장 해석 쉬운 기준선 |
-| Feature Foundation | TabPFN | tabular foundation classifier를 추출 feature 위에 적용하는 optional 비교군 |
+Transformer / Modern SOTA models test whether patching, temporal variation modeling, inverted attention, or mixing architectures help classify long partial-discharge signals.
 
-CPU-only baseline 실행 예:
+Foundation / Pretrained models test whether pretrained time-series representations can transfer to partial-discharge downstream classification.
 
-```powershell
-python ml/scripts/run_feature_baseline.py --model logistic
-python ml/scripts/run_minirocket.py
-python ml/scripts/run_multirocket.py
-python ml/scripts/run_sktime_classifier.py --model catch22
-```
+### Final Time-Series Strategy
 
-Extended 실험 우선순위:
-
-```text
-1. iTransformer
-2. TCN
-3. ModernTCN
-4. TimeMixer
-5. UniTS
-6. GPT4TS / One-Fits-All
-7. TS2Vec
-8. ResNet1D
-9. MiniROCKET / MultiROCKET / sktime feature-based / HYDRA (optional CPU-only classical baseline)
-10. Feature baseline / TabPFN (optional CPU-only feature baseline)
-```
-
-### 모델 그룹별 설명
-
-#### Non-Transformer 모델
-
-Non-Transformer 모델은 시계열 분류의 기본기와 강한 전통적 baseline을 확인하기 위한 그룹이다.
-
-GRU는 첫 baseline으로 사용한다. LSTM과 비슷한 목적을 가지지만 파라미터 수가 적고 학습이 빠르기 때문에, 초기 기준 성능을 만들기에 적합하다.
-
-InceptionTime은 시계열 분류에서 널리 쓰이는 강한 deep learning baseline이다. 여러 크기의 convolution filter를 병렬로 사용해 다양한 시간 스케일의 패턴을 포착한다.
-
-TCN은 RNN 대체 baseline이다. `7680` 길이의 긴 시계열을 순차적으로 처리하는 RNN보다 convolution 기반 접근이 더 안정적일 수 있다.
-
-MiniROCKET은 딥러닝 모델은 아니지만 시계열 분류에서 매우 강력한 baseline으로 알려져 있다. 랜덤 convolution kernel로 feature를 추출하고 간단한 classifier로 분류한다. 다만 GPU에서 backpropagation으로 학습하는 neural model이 아니므로 기본 GPU 실험 라인업에서는 제외하고, CPU-only optional 비교 실험으로 둔다.
-
-MultiROCKET과 HYDRA도 같은 이유로 CPU-only optional baseline으로 둔다. 이들은 신경망 훈련 코드가 아니라 `sktime` 또는 `aeon` 기반 classical TSC classifier로 실행한다.
-
-통계/FFT feature baseline과 TabPFN은 원본 시계열을 직접 deep model에 넣기 전, hand-crafted feature만으로 어느 정도 분리가 가능한지 확인하는 용도다. TabPFN은 tabular foundation classifier이므로 원본 시계열 foundation model이 아니라, 추출 feature 위의 optional 비교군으로만 취급한다.
-
-현재 feature baseline extractor는 세 가지 feature set을 제공한다.
-
-| Feature set | CSV feature count | 목적 |
-| --- | ---: | --- |
-| `small` | 64 | 가장 빠른 baseline. global/stat, FFT, amplitude histogram, pulse, cycle, half-cycle 사용 |
-| `medium` | 128 | balanced baseline. phase-bin count/max 포함 |
-| `full` | 182 | phase 12 bin x amplitude 8 bin numeric PRPD histogram 96개 포함 |
-
-기본값은 `small`이다. `full`에서도 numeric PRPD histogram은 96개로 제한하며, 기존처럼 512차원 histogram을 기본 feature로 만들지 않는다.
-
-메타데이터는 기본적으로 사용하지 않는다. `--include-metadata`를 명시한 경우에도 `temperature`, `humidity`, `recording_time_length`, 정격 전압/전류, 주파수, ramping time, cutoff current, clearance distance처럼 숫자로 파싱 가능한 whitelist만 추가한다. `max_discharge_value`는 label proxy 가능성이 있으므로 기본 whitelist에서 제외하고 별도 ablation에서만 사용한다. `timeseries_path`, `image_path`, `sample_id`, `label_name`, `defect_details`, 파일명 문자열은 label leakage 위험이 있으므로 feature로 사용하지 않는다.
-
-#### Transformer / Modern SOTA 모델
-
-Transformer / Modern SOTA 모델은 최신 시계열 아키텍처가 부분방전 분류에 유효한지 확인하기 위한 그룹이다.
-
-PatchTST는 긴 시계열을 patch 단위로 token화하기 때문에 현재 데이터처럼 길이가 긴 센서 신호에 적합하다.
-
-TimesNet은 시계열의 다중 주기성 및 반복 패턴을 2D 구조로 변환해 학습한다. 부분방전 신호에 반복 피크나 위상성 패턴이 있을 수 있으므로 실험 가치가 높다.
-
-iTransformer는 변수 또는 채널 축을 token처럼 다루는 구조다. 현재 CSV의 `20`개 row를 실제 센서 채널이라고 단정할 수는 없지만, segment/pseudo-channel 간 관계를 모델링하는 실험으로 사용할 수 있다.
-
-TimeMixer는 다해상도 분해와 mixing 기반의 최신 시계열 모델이다. classification 실험 후보로 두되, Core 실험 이후 확장 단계에서 진행한다.
-
-ModernTCN은 Transformer가 아니라 최신 CNN/TCN 계열 모델이다. pulse와 local pattern이 중요한 부분방전 신호에서는 Transformer보다 안정적인 비교군이 될 수 있으므로 Extended GPU 실험에 포함한다.
-
-#### Foundation / Pretrained 모델
-
-Foundation / Pretrained 모델은 비전 분야의 DINOv2처럼, 대규모 데이터로 사전학습된 시계열 표현을 부분방전 downstream classification에 전이하는 실험이다.
-
-MOMENT는 가장 먼저 사용할 foundation model이다. classification task를 지원하고, pretrained backbone 위에 classification head를 붙여 fine-tuning하는 구조가 비교적 명확하다.
-
-UniTS는 여러 시계열 task를 하나의 모델로 처리하는 unified time-series model이다. classification task를 지원하므로 MOMENT 이후 확장 실험 후보로 둔다.
-
-GPT4TS / One-Fits-All은 GPT-2 계열 pretrained language model을 시계열 분석에 재활용하는 접근이다. 순수 시계열 foundation model은 아니지만, LLM 기반 representation transfer 실험으로 의미가 있다.
-
-### 최종 실험 전략
-
-초기에는 Core Experiments만 구현한다.
+Implement Core experiments first:
 
 ```text
 GRU -> InceptionTime -> PatchTST -> TimesNet -> MOMENT
 ```
 
-Core 실험이 끝난 뒤, 시간이 허용되면 Extended Experiments를 추가한다. Extended 전체를 한 번에 실행하지 않는다.
+Then selectively add Extended experiments:
 
 ```text
 iTransformer -> TCN -> TimeMixer -> UniTS -> GPT4TS -> TS2Vec -> ResNet1D
 ```
 
-MiniROCKET, MultiROCKET, sktime feature-based classifiers, HYDRA, feature baseline, TabPFN은 Extended 후보이지만 CPU-only classical/feature baseline이므로, GPU 실험 결과가 어느 정도 정리된 뒤 선택적으로 비교한다.
+Optional CPU-only classical/feature baselines should be compared after GPU results are organized.
 
-이 방식은 시계열 프로젝트 경험이 부족한 상태에서도 학습 곡선을 관리하면서, 포트폴리오에는 충분히 넓은 모델 비교를 보여줄 수 있다.
+## 8. VLM Model Strategy
 
-시계열 전처리에서 확인할 내용:
-
-- CSV 컬럼 구조
-- 샘플별 시퀀스 길이
-- 결측치 여부
-- 값의 스케일
-- 정규화 필요 여부
-- padding 또는 truncation 필요 여부
-- train/valid/test split 유지 여부
-
-추출할 수 있는 시계열 특징:
-
-- 평균
-- 표준편차
-- 최솟값
-- 최댓값
-- peak-to-peak
-- RMS
-- FFT 기반 dominant frequency
-- spectral energy
-- 시계열 모델 예측 라벨
-- 시계열 모델 confidence score
-
-예시:
-
-```json
-{
-  "ts_mean": 0.013,
-  "ts_std": 0.219,
-  "ts_max": 1.83,
-  "ts_min": -1.76,
-  "ts_rms": 0.221,
-  "dominant_frequency": 60.0,
-  "ts_model_prediction": "코로나 방전",
-  "ts_model_confidence": 0.87
-}
-```
-
-위 요약 특징은 시계열 분류 모델 자체의 학습 입력으로 필수는 아니다. 이후 VLM 단계에서 LLM 프롬프트에 제공할 보조 정보로 사용할 수 있다.
-
-### 제외 또는 후순위 모델
-
-다음 모델들은 유명한 시계열 foundation/forecasting 모델이지만, 현재 목표가 미래 파형 예측이 아니라 방전 유형 분류이므로 프로젝트 범위에서는 제외한다.
-
-| 모델 | 제외/후순위 이유 |
-| --- | --- |
-| TimesFM | Google의 forecasting foundation model. 미래 시계열 예측에는 적합하지만 5-class 분류에는 직접적이지 않음 |
-| Chronos | 값 양자화 기반 forecasting foundation model. 분류보다는 zero-shot forecasting 중심 |
-| Lag-Llama | LLaMA 구조 기반 forecasting 모델. 분류 fine-tuning보다는 예측 태스크에 가까움 |
-| Moirai | Salesforce 계열 universal forecasting foundation model. 현재 분류 트랙에는 직접적이지 않음 |
-| TTM | IBM의 경량 forecasting foundation model. 미래 예측 중심이라 초기 분류 트랙에서 제외 |
-| Time-MoE | MoE 기반 forecasting foundation model. zero/few-shot forecasting 중심 |
-| Timer | generative pretrained time-series transformer. forecasting/generative task 중심 |
-| Informer | long-term forecasting 중심 Transformer |
-| Autoformer | seasonal-trend decomposition 기반 forecasting 모델 |
-| FEDformer | frequency-domain forecasting 모델 |
-| Pyraformer | long sequence forecasting 중심 Transformer |
-
-이 모델들은 나중에 별도 forecasting 트랙을 만들 때만 검토한다. 현재 프로젝트에서는 forecasting 트랙을 만들지 않는다.
-
-## 8. VLM 모델 전략
-
-입력:
+Input:
 
 ```text
-PRPD 이미지
-+ 설비 메타데이터
-+ 환경 메타데이터
-+ 시계열 요약 특징
+PRPD image
++ equipment metadata
++ environment metadata
++ time-series summary features
 ```
 
-출력:
+Output:
 
 ```text
-자연어 진단 결과 또는 구조화된 JSON 진단 결과
+natural-language diagnosis or structured JSON diagnosis
 ```
 
-후보 모델:
+Candidate models:
 
-- Qwen2-VL-2B-Instruct
-- Qwen2-VL-7B-Instruct
+- Qwen3-VL-2B-Instruct
 - Qwen2.5-VL-3B-Instruct
-- Qwen2.5-VL-7B-Instruct
+- Qwen3-VL-4B-Instruct
+- SmolVLM2-2.2B-Instruct
 - PaliGemma / PaliGemma 2
-- LLaVA 계열 소형 VLM
+- Small LLaVA-family VLMs
 
-초기 실험은 Qwen2-VL 또는 Qwen2.5-VL의 2B~3B급 모델을 우선 고려한다. GPU 여유가 있으면 7B급으로 확장한다.
+Start with 2B to 3B models because the target GPU is an RTX 4060 Laptop with 8GB VRAM.
 
-## 9. 기존 분류 모델과 VLM의 학습 방식 차이
+## 9. Difference Between Classifiers and VLM Training
 
-이 프로젝트에서 VLM을 사용하는 가장 큰 차별점은 단순히 모델 종류가 바뀌는 것이 아니다. 학습 목표와 손실 함수의 개념이 바뀐다.
+The main difference is not just the model family. The training objective changes.
 
-기존 비전 분류 모델은 이미지를 보고 5개 클래스 중 하나의 인덱스를 맞히도록 학습한다. 반면 VLM은 이미지, 메타데이터, 시계열 요약 문맥을 입력받고, 그 다음에 생성해야 할 텍스트 토큰을 순차적으로 예측하도록 학습한다.
+Traditional image/time-series classifiers predict one class index. A VLM receives image, metadata, and time-series context, then autoregressively predicts the next text tokens for a target answer.
 
-| 구분 | 기존 비전/시계열 분류 모델 | 소형 VLM 모델 |
+| Item | Traditional classifier | Small VLM |
 | --- | --- | --- |
-| 입력 | 이미지 또는 시계열 | PRPD 이미지 + 메타데이터 + 시계열 요약 정보 |
-| 출력 | 클래스 확률 벡터 | 자연어 또는 JSON 형식 텍스트 |
-| 출력 예시 | `[0.1, 0.0, 0.8, 0.1, 0.0]` | `진단 결과는 표면 방전입니다.` |
-| 학습 목표 | 정답 클래스 인덱스 예측 | 정답 문장의 다음 토큰 예측 |
-| 손실 함수 | Multi-class Cross Entropy Loss | Autoregressive Token-level Cross Entropy Loss |
-| 평가 방식 | accuracy, F1-score | 라벨 일치율, JSON 파싱 성공률, 진단문 품질 |
+| Input | Image or time-series | PRPD image + metadata + time-series summary |
+| Output | Class probability vector | Natural-language or JSON text |
+| Example output | `[0.1, 0.0, 0.8, 0.1, 0.0]` | `The diagnosis is surface discharge.` |
+| Objective | Predict target class index | Predict next tokens in the target answer |
+| Loss | Multi-class cross entropy | Autoregressive token-level cross entropy |
+| Evaluation | Accuracy, F1 | Label match, JSON parse rate, diagnosis quality |
 
-기존 분류 모델의 학습 구조:
-
-```text
-입력 데이터
-  └── Encoder
-      └── Classification Head
-          └── 5개 클래스 확률
-              └── Cross Entropy Loss
-```
-
-VLM의 학습 구조:
+Classifier structure:
 
 ```text
-PRPD 이미지 + 텍스트 문맥
-  └── Vision Encoder + LLM
-      └── 다음 토큰 예측
-          └── Token-level Cross Entropy Loss
+input data
+  -> encoder
+  -> classification head
+  -> 5-class probabilities
+  -> cross entropy loss
 ```
 
-예를 들어 정답 문장이 다음과 같다면:
+VLM structure:
 
 ```text
-진단 결과는 코로나 방전입니다.
+PRPD image + text context
+  -> vision encoder + LLM
+  -> next-token prediction
+  -> token-level cross entropy loss
 ```
 
-VLM은 이 문장을 한 번에 분류값으로 맞히는 것이 아니라, 다음 토큰을 순서대로 예측한다.
+This reframes partial-discharge diagnosis from plain classification into explainable text generation.
+
+## 10. How to Feed Time-Series Information to the VLM
+
+VLMs primarily consume images and text. Full raw CSV prompts are inappropriate. Convert time-series data into VLM-friendly representations.
+
+Two strategies are compared:
+
+## 11. Strategy A: Time-Series Summary Text + PRPD Image
+
+This is the recommended first implementation.
+
+Extract key features from the CSV and include them in the text prompt. Use the PRPD image as the image input. Add equipment metadata and time-series summaries as text.
+
+Structure:
 
 ```text
-진단 -> 결과는 -> 코로나 -> 방전입니다
+PRPD image
+  -> vision encoder
+
+time-series summary features + equipment metadata + environment metadata
+  -> text prompt
+
+vision output + text prompt
+  -> small VLM
+  -> natural-language or JSON diagnosis
 ```
 
-따라서 VLM 프로젝트의 핵심은 단순한 클래스 분류가 아니라, 부분방전 진단을 설명 가능한 텍스트 생성 문제로 재정의하는 것이다. 이 점이 기존 ResNet, EfficientNet, LSTM 기반 프로젝트와 가장 큰 차별점이다.
-
-## 10. VLM에 시계열 데이터를 넣는 방식
-
-VLM은 이미지와 텍스트를 주 입력으로 사용하는 모델이다. 따라서 원본 CSV 전체를 VLM 프롬프트에 넣는 방식은 적절하지 않다. 시계열 CSV는 VLM이 이해하기 쉬운 형태로 변환해야 한다.
-
-이 프로젝트에서는 두 가지 전략을 비교한다.
-
-## 11. 전략 A: 시계열 요약 텍스트 + PRPD 이미지
-
-가장 먼저 구현할 추천 방식이다.
-
-시계열 CSV에서 핵심 특징을 추출한 뒤, 해당 값을 텍스트 프롬프트에 포함한다. PRPD 이미지는 VLM의 이미지 입력으로 넣고, 시계열 요약값과 설비 메타데이터는 텍스트로 함께 넣는다.
-
-구조:
+Example prompt:
 
 ```text
-PRPD 이미지
-  └── Vision Encoder
+Equipment name: 22.9kV switchgear.
+Insulator type: gas insulation.
+Temperature: 25 C.
+Humidity: 60%.
+Time-series summary: RMS=0.221, max=1.83, min=-1.76, dominant_frequency=60.0Hz.
+Time-series model prediction: corona_discharge, confidence=0.87.
 
-시계열 요약 특징 + 설비 메타데이터 + 환경 메타데이터
-  └── Text Prompt
-
-Vision Encoder 출력 + Text Prompt
-  └── Small VLM
-      └── 자연어 진단 또는 JSON 진단 출력
+Using the attached PRPD image and the above information, diagnose the current partial-discharge state.
 ```
 
-예시 프롬프트:
+Advantages:
+
+- Lower implementation complexity.
+- Small VLMs can often use numeric text features effectively.
+- Time-series model results connect naturally to the VLM.
+- Dataset generation is simple.
+- Classification accuracy and diagnosis quality can both be evaluated.
+
+Limitations:
+
+- Fine waveform details are compressed.
+- VLM performance depends on feature-engineering quality.
+
+## 12. Strategy B: Time-Series Graph Image + PRPD Image
+
+Convert the time-series CSV into a graph image and pass it with the PRPD image as multi-image input.
+
+Structure:
 
 ```text
-설비명: 22.9kV 배전반.
-절연체 종류: 기체 절연체.
-온도: 25도.
-습도: 60%.
-시계열 요약: RMS=0.221, max=1.83, min=-1.76, dominant_frequency=60.0Hz.
-시계열 모델 예측 결과: 코로나 방전, confidence=0.87.
+PRPD image
+  -> vision encoder
 
-첨부된 PRPD 이미지와 위 정보를 종합하여 현재 부분방전 상태를 진단해줘.
+time-series waveform image
+  -> vision encoder
+
+equipment metadata + environment metadata
+  -> text prompt
+
+visual features from both images + text prompt
+  -> small VLM
+  -> natural-language or JSON diagnosis
 ```
 
-장점:
+Advantages:
 
-- 구현 난이도가 낮다.
-- 소형 VLM이 텍스트 수치 정보를 비교적 잘 활용할 수 있다.
-- 시계열 모델 개발 결과를 VLM에 자연스럽게 연결할 수 있다.
-- 학습 데이터셋 생성이 단순하다.
-- 분류 정확도와 자연어 진단 품질을 함께 평가하기 좋다.
+- Preserves raw waveform shape visually.
+- Uses multi-image VLM capabilities.
+- Reduces manual feature-engineering requirements.
 
-단점:
+Limitations:
 
-- 시계열 원신호의 세부 파형 형태는 일부 손실된다.
-- feature engineering 품질에 따라 VLM 성능이 달라질 수 있다.
+- The graph style, axis range, resolution, and normalization must be fixed.
+- Two images increase GPU memory usage.
+- Model and training code must properly support multi-image input.
 
-## 12. 전략 B: 시계열 그래프 이미지 + PRPD 이미지
+## 13. Strategy Comparison
 
-두 번째 방식은 시계열 CSV를 그래프 이미지로 변환한 뒤, PRPD 이미지와 함께 VLM에 멀티 이미지 입력으로 넣는 방식이다.
-
-구조:
-
-```text
-PRPD 이미지
-  └── Vision Encoder
-
-시계열 파형 그래프 이미지
-  └── Vision Encoder
-
-설비 메타데이터 + 환경 메타데이터
-  └── Text Prompt
-
-두 이미지의 시각 특징 + Text Prompt
-  └── Small VLM
-      └── 자연어 진단 또는 JSON 진단 출력
-```
-
-데이터 가공 방식:
-
-```text
-CSV 시계열 파일
-  └── matplotlib 또는 seaborn으로 plot 생성
-      └── timeseries_plot.png 저장
-```
-
-VLM 입력 예시:
-
-```json
-{
-  "images": [
-    "path/to/prpd.png",
-    "path/to/timeseries_plot.png"
-  ],
-  "messages": [
-    {
-      "role": "user",
-      "content": "첫 번째 이미지는 PRPD 패턴이고, 두 번째 이미지는 부분방전 시계열 파형입니다. 설비명은 22.9kV 배전반이고 온도는 25도, 습도는 60%입니다. 두 이미지를 함께 분석하여 부분방전 상태를 진단해줘."
-    },
-    {
-      "role": "assistant",
-      "content": "진단 결과는 코로나 방전입니다. PRPD 이미지에서 특정 위상 구간의 방전 분포가 관찰되며, 시계열 파형에서도 반복적인 피크 패턴이 나타납니다."
-    }
-  ]
-}
-```
-
-장점:
-
-- 원시 시계열의 파형 형태를 시각적으로 보존할 수 있다.
-- 멀티 이미지 입력을 지원하는 VLM의 장점을 활용할 수 있다.
-- 시계열 특징을 수동으로 많이 정의하지 않아도 된다.
-
-단점:
-
-- 시계열 그래프 생성 방식에 따라 모델이 보는 정보가 달라진다.
-- 그래프 스타일, 축 범위, 해상도, 정규화 기준을 고정해야 한다.
-- 이미지가 2장이 되므로 GPU 메모리 사용량이 증가한다.
-- 모델과 학습 코드가 멀티 이미지 입력을 제대로 지원해야 한다.
-
-## 13. 전략 A와 전략 B 비교
-
-| 항목 | 전략 A: 시계열 요약 텍스트 | 전략 B: 시계열 그래프 이미지 |
+| Item | Strategy A: summary text | Strategy B: graph image |
 | --- | --- | --- |
-| 구현 난이도 | 낮음 | 중간 |
-| GPU 메모리 | 상대적으로 적음 | 더 많이 필요 |
-| 시계열 원형 보존 | 낮음 | 높음 |
-| feature engineering 의존도 | 높음 | 낮음 |
-| VLM 멀티 이미지 의존도 | 낮음 | 높음 |
-| 추천 순서 | 1차 실험 | 2차 확장 실험 |
+| Implementation complexity | Low | Medium |
+| GPU memory | Lower | Higher |
+| Raw time-series preservation | Lower | Higher |
+| Feature-engineering dependency | Higher | Lower |
+| Multi-image VLM dependency | Lower | Higher |
+| Recommended order | First experiment | Second-stage extension |
 
-## 14. VLM 학습 데이터 형태
+## 14. VLM Training Data Format
 
-전략 A 기준 학습 데이터 예시:
+Strategy A example:
 
 ```json
 {
@@ -623,139 +406,118 @@ VLM 입력 예시:
   "messages": [
     {
       "role": "user",
-      "content": "설비명: 22.9kV 배전반. 절연체 종류: 기체 절연체. 온도: 25도. 습도: 60%. 시계열 요약: RMS=0.221, max=1.83, dominant_frequency=60.0Hz. PRPD 이미지와 메타데이터를 바탕으로 부분방전 상태를 진단해줘."
+      "content": "Equipment name: 22.9kV switchgear. Insulator type: gas insulation. Temperature: 25 C. Humidity: 60%. Time-series summary: RMS=0.221, max=1.83, dominant_frequency=60.0Hz. Diagnose the partial-discharge state from the PRPD image and metadata."
     },
     {
       "role": "assistant",
-      "content": "진단 결과는 코로나 방전입니다. PRPD 이미지와 설비 운전 조건을 종합했을 때 코로나 방전 패턴이 나타납니다. 고전압 절연 부위 점검과 지속적인 모니터링이 필요합니다."
+      "content": "The diagnosis is corona discharge. The PRPD image and operating conditions indicate a corona-discharge pattern. Inspect high-voltage insulation and continue monitoring."
     }
   ]
 }
 ```
 
-전략 B 기준 학습 데이터 예시:
+Structured output example:
 
 ```json
 {
-  "images": [
-    "path/to/prpd.png",
-    "path/to/timeseries_plot.png"
-  ],
-  "messages": [
-    {
-      "role": "user",
-      "content": "첫 번째 이미지는 PRPD 패턴이고, 두 번째 이미지는 부분방전 시계열 파형입니다. 설비 메타데이터와 두 이미지를 함께 분석하여 부분방전 상태를 진단해줘."
-    },
-    {
-      "role": "assistant",
-      "content": "진단 결과는 코로나 방전입니다. PRPD 이미지의 방전 분포와 시계열 파형의 반복 피크가 코로나 방전 특성과 일치합니다."
-    }
-  ]
-}
-```
-
-구조화된 출력 예시:
-
-```json
-{
-  "diagnosis": "코로나 방전",
+  "diagnosis": "corona_discharge",
   "label_id": 3,
-  "risk_level": "주의",
-  "reason": "PRPD 패턴과 시계열 요약 특징이 코로나 방전 특성과 일치합니다.",
-  "recommended_action": "고전압 절연 부위를 점검하고 방전 신호 증가 여부를 모니터링하세요."
+  "risk_level": "caution",
+  "reason": "The PRPD pattern and time-series summary features are consistent with corona discharge.",
+  "recommended_action": "Inspect high-voltage insulation areas and monitor whether discharge signals increase."
 }
 ```
 
-## 15. 학습 방식
+## 15. Training Method
 
-VLM 전체를 full fine-tuning하는 것은 비용이 크므로 PEFT 기반 학습을 우선한다.
+Full VLM fine-tuning is expensive, so prioritize PEFT.
 
-우선순위:
+Priority:
 
-1. LLM 계층에 LoRA 적용
-2. projection layer 학습 또는 LoRA 적용
-3. GPU 여유가 있으면 vision encoder 일부 attention layer에 LoRA 적용
+1. Apply LoRA to LLM layers.
+2. Train the projection layer or apply LoRA to it.
+3. If memory allows, apply LoRA to selected vision-encoder attention layers.
 
-메모리 제약이 큰 경우:
-
-```text
-vision encoder freeze
-+ language/projection 계층 LoRA
-```
-
-메모리 여유가 있는 경우:
+Memory-constrained setup:
 
 ```text
-vision encoder 일부 LoRA
-+ projection layer 학습
-+ language 계층 LoRA
+freeze vision encoder
++ LoRA on language/projection layers
 ```
 
-## 16. 평가 지표
+Less constrained setup:
 
-시계열 모델 평가:
+```text
+partial vision-encoder LoRA
++ train projection layer
++ LoRA on language layers
+```
+
+## 16. Evaluation Metrics
+
+Time-series model evaluation:
 
 - Accuracy
 - F1-score
-- Confusion Matrix
-- 클래스별 Precision/Recall
+- Confusion matrix
+- Per-class precision/recall
 
-VLM 평가:
+VLM evaluation:
 
-- 라벨 추출 후 Accuracy 계산
-- JSON 출력 파싱 성공률
-- label_id 일치율
-- 진단 문장 품질 수동 평가
-- hallucination 여부 확인
-- 메타데이터 반영 여부 확인
+- Accuracy after extracting labels from output
+- JSON parse success rate
+- `label_id` match rate
+- Manual diagnosis quality review
+- Hallucination checks
+- Metadata-use checks
 
-## 17. 초기 개발 순서
+## 17. Initial Development Order
 
-1. AI-Hub 샘플 데이터를 다운로드한다.
-2. 실제 폴더명과 JSON 예시를 확인한다.
-3. JSON 파일을 기준으로 `manifest.csv`를 생성한다.
-4. `python ml/scripts/validate_dataset.py --fail-on-invalid`로 경로, label, CSV shape, NaN/inf, 상수 신호를 검증한다.
-5. `python ml/scripts/make_splits.py --manifest Train/manifest.csv --output Train/manifest_random_split_seed42.csv`로 고정 split manifest를 확정한다. 모델 비교에서는 동일 split을 재사용한다.
-6. `python ml/scripts/run_eda.py`로 초기 EDA를 한 번 실행한다.
-7. label 분포, metadata 분포, CSV shape, signal 통계, phase-bin pulse 분포, leakage 위험 컬럼을 확인한다.
-8. feature baseline에서 path, label text, defect 정보, `max_discharge_value`를 기본 feature에서 제외한다.
-9. feature baseline과 CPU classical baseline smoke를 먼저 검증한다.
-10. GPU neural/foundation 시계열 모델 smoke를 실행한다.
-11. 동일 metric/result schema로 GPU neural/foundation 시계열 모델을 학습한다.
-12. 시계열 요약 특징을 추출한다.
-13. 전략 A 형식의 VLM instruction dataset을 만든다.
-14. 소형 VLM을 LoRA 또는 QLoRA로 파인튜닝한다.
-15. 전략 B를 위한 시계열 그래프 이미지를 생성한다.
-16. 멀티 이미지 VLM 실험을 진행한다.
-17. 전략 A와 전략 B의 성능 및 진단 품질을 비교한다.
+1. Download AI-Hub sample data.
+2. Inspect real folder names and JSON examples.
+3. Generate `manifest.csv` from JSON files.
+4. Run `python ml/scripts/validate_dataset.py --fail-on-invalid`.
+5. Generate a fixed split manifest with `python ml/scripts/make_splits.py --manifest Train/manifest.csv --output Train/manifest_random_split_seed42.csv`.
+6. Run initial EDA with `python ml/scripts/run_eda.py`.
+7. Check label distribution, metadata distribution, CSV shapes, signal statistics, phase-bin pulse distribution, and leakage-risk columns.
+8. Exclude paths, label text, defect information, and `max_discharge_value` from default feature baselines.
+9. Validate feature baselines and CPU classical baselines with smoke runs.
+10. Run GPU neural/foundation time-series smoke tests.
+11. Train GPU neural/foundation models with a shared metric/result schema.
+12. Extract time-series summary features.
+13. Build a Strategy A VLM instruction dataset.
+14. Fine-tune a small VLM with LoRA or QLoRA.
+15. Generate time-series graph images for Strategy B.
+16. Run multi-image VLM experiments.
+17. Compare Strategy A and Strategy B.
 
-## 18. 성공 기준
+## 18. Success Criteria
 
-1차 성공 기준:
+Primary success:
 
-- 실제 데이터 구조를 기반으로 manifest 생성 완료
-- 시계열 CSV 로딩 및 전처리 가능
-- 시계열 baseline 모델 학습 가능
-- validation accuracy 측정 가능
+- Manifest generation works on the real data structure.
+- Time-series CSV loading and preprocessing work.
+- A time-series baseline model can train.
+- Validation accuracy can be measured.
 
-2차 성공 기준:
+Secondary success:
 
-- VLM instruction dataset 생성 완료
-- 소형 VLM LoRA 학습 가능
-- PRPD 이미지와 시계열 요약 정보를 함께 사용해 진단 출력 가능
-- 출력에서 라벨 ID 또는 라벨명을 안정적으로 추출 가능
+- VLM instruction dataset generation works.
+- Small VLM LoRA training works.
+- The VLM can use PRPD images and time-series summaries to output diagnosis.
+- Label ID or label name can be extracted reliably from output.
 
-확장 성공 기준:
+Extended success:
 
-- 시계열 그래프 이미지 생성 가능
-- PRPD 이미지와 시계열 그래프 이미지를 동시에 입력하는 VLM 실험 가능
-- 전략 A와 전략 B의 결과 비교 가능
+- Time-series graph images can be generated.
+- VLM experiments can consume PRPD image and time-series graph image together.
+- Strategy A and Strategy B results can be compared.
 
-## 19. 설계 메모
+## 19. Design Notes
 
-- VLM의 vision encoder가 PRPD 이미지를 처음부터 잘 이해한다고 가정하면 안 된다.
-- 다만 pretrained vision encoder는 점, 선, 밀도, 분포, 대칭성 같은 기본 시각 특징을 이미 추출할 수 있다.
-- PRPD 도메인에 맞게 LoRA/PEFT로 가볍게 적응시키는 전략이 적합하다.
-- 원본 CSV 전체를 VLM 프롬프트에 넣지 않는다.
-- 시계열 데이터는 별도 모델 또는 feature extractor로 압축한 뒤 VLM에 제공한다.
-- 이 프로젝트의 핵심은 단일 비전 모델 개발이 아니라 시계열 모델링과 VLM 기반 설명 가능한 진단이다.
+- Do not assume the VLM vision encoder understands PRPD images perfectly out of the box.
+- A pretrained vision encoder can still extract generic visual features such as points, lines, density, distribution, and symmetry.
+- Lightweight LoRA/PEFT adaptation is appropriate for the PRPD domain.
+- Do not place full raw CSV data in VLM prompts.
+- Compress time-series data through a separate model or feature extractor before passing it to the VLM.
+- The core contribution is time-series modeling plus VLM-based explainable diagnosis, not single-image classification.

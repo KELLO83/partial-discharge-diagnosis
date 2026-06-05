@@ -2,13 +2,13 @@
 
 ## Goal
 
-VLM 실험은 시계열 분류 실험과 별도 트랙이다. 입력은 PRPD 이미지, 누수 없는 설비/환경 메타데이터, 시계열 요약값이고 출력은 구조화된 진단 JSON이다.
+VLM experiments are a separate track from time-series classification experiments. The input is a PRPD image, leakage-safe equipment/environment metadata, and time-series summary values. The output is structured diagnosis JSON.
 
 ## Model Order
 
-1. `Qwen/Qwen3-VL-2B-Instruct`: 8GB RTX 4060 Laptop의 첫 QLoRA 대상.
-2. `Qwen/Qwen2.5-VL-3B-Instruct`: Qwen3-VL 로컬 지원이 불안정하면 stable fallback.
-3. `Qwen/Qwen3-VL-4B-Instruct`: 2B/3B 스모크 성공 후 VRAM 측정이 있을 때만 시도.
+1. `Qwen/Qwen3-VL-2B-Instruct`: first QLoRA target for RTX 4060 Laptop 8GB.
+2. `Qwen/Qwen2.5-VL-3B-Instruct`: stable fallback if local Qwen3-VL support is unstable.
+3. `Qwen/Qwen3-VL-4B-Instruct`: try only after 2B/3B smoke tests succeed and VRAM usage is measured.
 
 ## Build Data
 
@@ -28,7 +28,7 @@ python vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-
 
 ## Real Training
 
-Install the VLM dependencies first:
+Install VLM dependencies first:
 
 ```bash
 pip install -r vlm/requirements.txt
@@ -56,11 +56,11 @@ Dry-run inference echoes assistant targets and is only for validating JSON parsi
 ## Prompt Shape
 
 ```text
-당신은 산업 전력설비 부분방전 진단 보조 모델입니다.
-제공된 PRPD 이미지와 텍스트 정보만 사용하세요.
-추측하지 말고 반드시 JSON만 출력하세요.
+You are an assistant model for partial-discharge diagnosis in industrial power equipment.
+Use only the provided PRPD image and text information.
+Do not guess. Output JSON only.
 
-[설비 및 환경 정보]
+[Equipment and environment information]
 equipment_name: ACSR-OC
 equipment_rated_voltage: 22900V
 equipment_rated_current: 268A
@@ -68,7 +68,7 @@ sensor_type: HFCT
 temperature: 19
 humidity: 66
 
-[시계열 모델 분석]
+[Time-series model analysis]
 ts_model_name: feature_summary_untrained
 ts_pred_class: unavailable
 ts_confidence: unavailable

@@ -1,0 +1,8 @@
+transformers
+accelerate
+trl
+peft
+bitsandbytes
+qwen-vl-utils
+pillow
+pyyaml

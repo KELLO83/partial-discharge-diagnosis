@@ -34,36 +34,37 @@ PRPD 이미지 + 설비/환경 메타데이터 + 시계열 요약
 
 ## 추천 모델
 
-### 1순위: Qwen2.5-VL-3B-Instruct
+### 1순위: Qwen3-VL-2B-Instruct
 
 초기 메인 후보로 사용한다.
 
 추천 이유:
 
-- 3B급이라 로컬 단일 GPU 실험 가능성이 비교적 높다.
+- 2B급이라 RTX 4060 Laptop 8GB에서 QLoRA 스모크 가능성이 가장 높다.
 - 이미지와 텍스트 instruction following에 강하다.
 - 한국어 프롬프트와 한국어 응답 품질이 괜찮다.
 - Hugging Face, TRL, PEFT, QLoRA 생태계에서 활용하기 좋다.
 - PRPD 이미지, JSON 메타데이터, 시계열 요약값을 함께 넣는 구조와 잘 맞는다.
 
-### Smoke 후보: Qwen2-VL-2B-Instruct
+### 안정 fallback: Qwen2.5-VL-3B-Instruct
 
-VLM 데이터셋 생성, processor, SFT pipeline 검증용으로 사용한다.
+Qwen3-VL 로컬 Transformers 지원이나 Windows 의존성이 불안정하면 사용한다.
 
 장점:
 
-- 더 가볍다.
-- 빠르게 forward, LoRA smoke training을 확인하기 좋다.
-- 코드 파이프라인 검증에 적합하다.
+- 기존 문서에서 이미 메인 후보로 검토한 모델이다.
+- 3B급이라 2B보다 무겁지만 7B보다 현실적이다.
+- Qwen-VL 계열이라 현재 프롬프트/JSON 출력 목표와 잘 맞는다.
 
-### 확장 후보: Qwen2.5-VL-7B-Instruct
+### 리스크 후보: Qwen3-VL-4B-Instruct
 
-3B 실험이 안정화된 뒤 비교 후보로 사용한다.
+2B와 3B 실험이 안정화된 뒤 비교 후보로 사용한다.
 
 주의점:
 
 - RTX 4060 Laptop 8GB 환경에서는 QLoRA라도 빡빡할 수 있다.
-- batch size 1, gradient accumulation, gradient checkpointing, 4bit quantization이 필요할 가능성이 높다.
+- batch size 1, gradient accumulation, gradient checkpointing, 4bit quantization이 필수다.
+- OOM이 발생하면 즉시 2B/3B 트랙으로 되돌린다.
 
 ### 대안 후보: PaliGemma / PaliGemma 2
 
@@ -95,17 +96,17 @@ PRPD PNG 이미지
 - 이격 거리
 
 시계열 분석 정보
-- 시계열 모델 예측 라벨
+- 시계열 모델 예측 분류 번호
 - confidence
 - class probability
 - RMS
-- max / min
-- peak-to-peak
-- dominant frequency
+- std
+- abs_p99
+- pulse_rate
 - spectral energy
 ```
 
-원본 CSV 전체를 VLM 프롬프트에 넣지 않는다. 시계열 raw signal은 별도 시계열 모델 또는 feature extractor로 압축한 뒤 텍스트 feature로 제공한다.
+원본 CSV 전체를 VLM 프롬프트에 넣지 않는다. 시계열 raw signal은 별도 시계열 모델 또는 feature extractor로 압축한 뒤 텍스트 feature로 제공한다. `label_id`, `label_name`, 파일 경로, 클래스가 드러나는 파일명, 결함 상세 필드, `max_discharge_value`는 사용자 프롬프트에 넣지 않는다.
 
 ## 출력 형식
 
@@ -140,7 +141,7 @@ PRPD PNG 이미지
 권장 초기 설정:
 
 ```text
-base_model: Qwen2.5-VL-3B-Instruct
+base_model: Qwen3-VL-2B-Instruct
 quantization: 4bit NF4
 training: SFT
 vision_encoder: freeze
@@ -208,10 +209,12 @@ VLM instruction dataset에는 위 정보를 텍스트 prompt로 포함한다.
 - 습도: 66%
 
 시계열 모델 분석:
-- 예측 라벨: 노이즈
+- 예측 분류 번호: 1
 - confidence: 0.82
-- max_discharge_value: 82
 - RMS: 0.221
+- STD: 0.140
+- abs_p99: 1.300
+- pulse_rate: 0.004
 
 첨부된 PRPD 이미지와 위 정보를 종합하여 현재 부분방전 상태를 JSON으로 진단하세요.
 ```
@@ -225,7 +228,7 @@ VLM instruction dataset에는 위 정보를 텍스트 prompt로 포함한다.
 2. 여러 시계열 모델 비교
 3. best 시계열 모델의 예측/요약값 추출
 4. PRPD 이미지 + JSON 메타데이터 + 시계열 요약을 VLM instruction dataset으로 변환
-5. Qwen2.5-VL-3B-Instruct QLoRA fine-tuning
+5. Qwen3-VL-2B-Instruct QLoRA fine-tuning
 6. JSON 진단 리포트 생성 및 평가
 ```
 

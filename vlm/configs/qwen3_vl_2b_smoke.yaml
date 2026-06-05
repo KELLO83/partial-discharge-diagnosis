@@ -1,0 +1,15 @@
+model_id: Qwen/Qwen3-VL-2B-Instruct
+quantization: 4bit_nf4
+lora_r: 8
+lora_alpha: 16
+lora_dropout: 0.05
+target_modules: all-linear
+train_vision_tower: false
+train_projector: false
+batch_size: 1
+gradient_accumulation_steps: 8
+gradient_checkpointing: true
+max_length: null
+image_max_pixels: 512x512
+flash_attention: false
+max_steps: 10

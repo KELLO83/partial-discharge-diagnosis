@@ -11,6 +11,20 @@ checkpoints/
 runs/
 wandb/
 mlruns/
+reports/
+
+# Model/data artifacts
+*.ckpt
+*.h5
+*.joblib
+*.npy
+*.npz
+*.onnx
+*.parquet
+*.pkl
+*.pt
+*.pth
+*.safetensors
 
 # Python
 __pycache__/
@@ -21,11 +35,34 @@ __pycache__/
 .venv/
 .venv*/
 
+# JavaScript / frontend
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Logs
+*.log
+logs/
+
 # Environment and secrets
 .env
 .env.*
 *.pem
 *.key
+
+# Generated media / screenshots
+*.bmp
+*.gif
+*.jpeg
+*.jpg
+*.png
+*.svg
+*.tif
+*.tiff
+*.webp
 
 # OS / editor
 .DS_Store

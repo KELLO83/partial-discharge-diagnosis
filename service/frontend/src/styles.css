@@ -1,16 +1,23 @@
 :root {
   color-scheme: light;
-  --bg: #f7f8fb;
-  --surface: #ffffff;
-  --surface-2: #eef2f7;
-  --line: #d9e1ec;
-  --text: #172033;
-  --muted: #647084;
-  --blue: #2563eb;
+  --bg: #eef1f4;
+  --ink: #172033;
+  --muted: #657283;
+  --panel: #ffffff;
+  --panel-2: #f8fafc;
+  --line: #d5dde7;
+  --line-strong: #b8c4d1;
+  --nav: #0c1219;
+  --nav-2: #151f2a;
+  --nav-line: #25313f;
+  --steel: #334155;
+  --blue: #2456d6;
+  --teal: #0f8a7a;
   --green: #16803c;
-  --amber: #b45309;
-  --violet: #7c3aed;
+  --amber: #b66a00;
+  --violet: #6d43c7;
   --red: #b91c1c;
+  --shadow: 0 18px 36px rgba(22, 31, 48, 0.08);
 }
 
 * {
@@ -23,9 +30,14 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    linear-gradient(90deg, rgba(12, 18, 25, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(12, 18, 25, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 76% -10%, rgba(15, 138, 122, 0.13), transparent 30%),
+    var(--bg);
+  background-size: 24px 24px, 24px 24px, auto, auto;
+  color: var(--ink);
+  font-family: Bahnschrift, "DIN Alternate", "Aptos", "Segoe UI", sans-serif;
 }
 
 button,
@@ -40,16 +52,21 @@ a {
 
 .shell {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 284px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .sidebar {
   position: sticky;
   top: 0;
+  display: flex;
   height: 100vh;
-  border-right: 1px solid var(--line);
-  background: #111827;
+  flex-direction: column;
+  border-right: 1px solid var(--nav-line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 22%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 10px),
+    var(--nav);
   color: #f8fafc;
   padding: 24px;
 }
@@ -63,54 +80,97 @@ a {
 
 .brandMark {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   place-items: center;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #111827;
-  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #f8fafc, #cbd5e1);
+  color: #0f172a;
+  font-weight: 900;
+  letter-spacing: 0;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
 }
 
 .brandBlock h1,
 .topbar h2 {
   margin: 0;
-  font-size: 19px;
-  line-height: 1.2;
+  font-size: 20px;
+  line-height: 1.18;
+  letter-spacing: 0;
 }
 
 .eyebrow {
   margin: 0 0 4px;
-  color: #8fa0b8;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
+  color: #91a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.plantBadge {
+  display: grid;
+  gap: 3px;
+  margin-top: 22px;
+  border: 1px solid var(--nav-line);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.plantBadge span {
+  color: #91a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.plantBadge strong {
+  color: #e2e8f0;
+  font-size: 14px;
 }
 
 .navList {
   display: grid;
   gap: 6px;
-  margin-top: 34px;
+  margin-top: 24px;
 }
 
 .navList a {
   display: flex;
+  position: relative;
   align-items: center;
   gap: 10px;
   min-height: 42px;
+  overflow: hidden;
   border-radius: 8px;
   padding: 0 12px;
   color: #dbe4f0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.navList a::before {
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+  content: "";
 }
 
 .navList a:hover {
-  background: #1f2937;
+  background: var(--nav-2);
+}
+
+.navList a:hover::before {
+  background: #2dd4bf;
 }
 
 .workspace {
   min-width: 0;
-  padding: 24px;
+  padding: 26px;
 }
 
 .topbar {
@@ -118,12 +178,16 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 64px;
+  min-height: 66px;
   margin-bottom: 22px;
 }
 
 .topbar .eyebrow {
   color: var(--muted);
+}
+
+.topbar h2 {
+  font-size: 25px;
 }
 
 .iconButton,
@@ -134,16 +198,22 @@ a {
   justify-content: center;
   gap: 8px;
   border-radius: 8px;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .iconButton {
-  min-width: 104px;
-  height: 38px;
+  min-width: 108px;
+  height: 40px;
   border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink);
   cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.iconButton:hover {
+  border-color: var(--line-strong);
+  background: #fff;
 }
 
 .kpiGrid {
@@ -156,39 +226,43 @@ a {
 .metricCard,
 .panel {
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow);
 }
 
 .metricCard {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   gap: 8px 12px;
-  min-height: 116px;
+  min-height: 122px;
   padding: 18px;
+  animation: riseIn 380ms ease both;
 }
 
 .metricIcon {
   display: grid;
   grid-row: span 2;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   place-items: center;
-  border-radius: 8px;
-  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
 }
 
 .metricCard p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .metricCard strong {
   overflow: hidden;
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -210,6 +284,13 @@ a {
 .panel {
   margin-bottom: 14px;
   overflow: hidden;
+  animation: riseIn 420ms ease both;
+}
+
+.panelRuntime {
+  background:
+    linear-gradient(135deg, rgba(15, 138, 122, 0.07), transparent 42%),
+    rgba(255, 255, 255, 0.94);
 }
 
 .panelHeader {
@@ -217,20 +298,23 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  min-height: 58px;
+  min-height: 60px;
   border-bottom: 1px solid var(--line);
   padding: 0 18px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.88), rgba(255, 255, 255, 0));
 }
 
 .panelHeader h3 {
   margin: 0;
   font-size: 16px;
+  letter-spacing: 0;
 }
 
 .panelHeader span {
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .intakeForm {
@@ -248,29 +332,32 @@ a {
 .uploadField {
   position: relative;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 92px;
+  grid-template-columns: 44px minmax(0, 1fr) 96px;
   align-items: center;
   gap: 12px;
-  min-height: 92px;
-  border: 1px dashed var(--line);
-  border-radius: 8px;
+  min-height: 94px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
   padding: 14px;
-  background: #fbfdff;
+  background:
+    linear-gradient(90deg, rgba(36, 86, 214, 0.04), transparent 40%),
+    #fbfdff;
   cursor: pointer;
 }
 
 .uploadField:hover {
-  border-color: #94a3b8;
-  background: #f8fafc;
+  border-color: var(--blue);
+  background: #fff;
 }
 
 .uploadIcon {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   place-items: center;
-  border-radius: 8px;
-  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #eef4ff;
   color: var(--blue);
 }
 
@@ -294,9 +381,10 @@ a {
 
 .uploadButton {
   min-height: 34px;
+  border: 1px solid var(--line);
   padding: 0 10px;
-  background: var(--surface-2);
-  color: var(--text);
+  background: var(--panel-2);
+  color: var(--ink);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -313,7 +401,8 @@ a {
 .sectionTitle {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 900;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -331,22 +420,22 @@ a {
 .field span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .field input {
   width: 100%;
-  min-height: 38px;
+  min-height: 39px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0 10px;
   background: #fff;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .field input:focus {
   border-color: var(--blue);
-  outline: 2px solid rgba(37, 99, 235, 0.15);
+  outline: 2px solid rgba(36, 86, 214, 0.14);
   outline-offset: 1px;
 }
 
@@ -367,17 +456,22 @@ a {
 .formFooter span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
 .primaryButton {
-  min-width: 136px;
-  min-height: 40px;
+  min-width: 142px;
+  min-height: 42px;
   border: 0;
-  background: var(--blue);
+  background: linear-gradient(135deg, var(--blue), #153a98);
   color: #fff;
   cursor: pointer;
+  box-shadow: 0 14px 24px rgba(36, 86, 214, 0.22);
+}
+
+.primaryButton:hover {
+  filter: brightness(1.05);
 }
 
 .primaryButton:disabled {
@@ -392,6 +486,17 @@ a {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -410,7 +515,7 @@ a {
 }
 
 .emptyState strong {
-  color: var(--text);
+  color: var(--ink);
 }
 
 .emptyState.error svg,
@@ -419,13 +524,16 @@ a {
 }
 
 .status {
+  display: inline-flex;
   width: fit-content;
   min-width: 76px;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
-  padding: 5px 8px;
+  padding: 5px 9px;
   text-align: center;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .status.completed {
@@ -460,7 +568,7 @@ a {
   gap: 8px 12px;
   margin: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px;
   background: #f8fafc;
 }
@@ -468,21 +576,22 @@ a {
 .verdictBox dt {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .verdictBox dd {
   overflow: hidden;
   margin: 0;
-  font-weight: 700;
+  font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .reasonBox {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px;
+  background: #fff;
 }
 
 .reasonBox p {
@@ -513,6 +622,7 @@ td {
 th {
   color: #475569;
   font-size: 12px;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
@@ -542,7 +652,7 @@ tr:last-child td {
   border-bottom: 1px solid var(--line);
   background: #fff;
   padding: 0 18px;
-  color: var(--text);
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
@@ -578,10 +688,10 @@ tr:last-child td {
   margin: 0;
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fafc;
+  border-radius: 10px;
+  background: #0f172a;
   padding: 12px;
-  color: #334155;
+  color: #dbeafe;
   font-family: Consolas, "Courier New", monospace;
   font-size: 12px;
   line-height: 1.45;
@@ -598,9 +708,9 @@ tr:last-child td {
 .runtimeItem {
   display: grid;
   gap: 8px;
-  min-height: 88px;
+  min-height: 90px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 14px;
   background: #fbfdff;
 }
@@ -608,13 +718,13 @@ tr:last-child td {
 .runtimeItem span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 900;
   text-transform: uppercase;
 }
 
 .runtimeItem strong {
   overflow-wrap: anywhere;
-  color: var(--text);
+  color: var(--ink);
   font-size: 15px;
 }
 
@@ -627,8 +737,9 @@ tr:last-child td {
 
 .noteItem {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 16px;
+  background: #fbfdff;
 }
 
 .noteItem .eyebrow {
@@ -652,7 +763,7 @@ tr:last-child td {
   }
 
   .navList {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-top: 18px;
   }
 
@@ -681,10 +792,13 @@ tr:last-child td {
     flex-direction: column;
   }
 
-  .navList,
   .uploadGrid,
   .fieldGrid {
     grid-template-columns: 1fr;
+  }
+
+  .navList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .uploadField {

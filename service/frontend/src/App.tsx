@@ -138,6 +138,10 @@ export function App() {
             <h1>Diagnosis Agent</h1>
           </div>
         </div>
+        <div className="plantBadge">
+          <span>Plant floor</span>
+          <strong>Automation QA</strong>
+        </div>
         <nav className="navList">
           <a href="#overview"><Gauge size={18} />Overview</a>
           <a href="#intake"><Database size={18} />Inspection</a>
@@ -236,7 +240,7 @@ export function App() {
           <TraceLog expandedKey={expandedTraceKey} onToggle={setExpandedTraceKey} trace={trace} />
         </section>
 
-        <section id="runtime" className="panel">
+        <section id="runtime" className="panel panelRuntime">
           <div className="panelHeader">
             <h3>Model Runtime Status</h3>
             <span>{modelStatus?.agent_mode ?? "pending"}</span>
@@ -246,13 +250,13 @@ export function App() {
 
         <section id="wiki" className="panel">
           <div className="panelHeader">
-            <h3>Model Integration Notes</h3>
-            <span>adapter contract</span>
+            <h3>Automation Handoff</h3>
+            <span>operator actions</span>
           </div>
           <div className="noteGrid">
-            <NoteItem title="Time-series tool" body="TimeSeriesInferenceAdapter.run(input) must return label, confidence, probabilities, and summary features." />
-            <NoteItem title="VLM tool" body="VlmInferenceAdapter.run(input) must return a structured diagnosis without leaking labels or raw file paths." />
-            <NoteItem title="Reviewer" body="The reviewer keeps completed, needs_review, and rejected branches independent from model code." />
+            <NoteItem title="Confirm" body="Completed diagnoses can move directly into the maintenance log when confidence and risk policy pass." />
+            <NoteItem title="Review" body="Review queue items require operator confirmation before field dispatch or repeated inspection." />
+            <NoteItem title="Trace" body="Expanded trace rows expose tool evidence, checksums, and reviewer decisions for audit." />
           </div>
         </section>
       </section>

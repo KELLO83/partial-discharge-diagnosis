@@ -13,7 +13,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from ml.src.torch_runtime import autocast_dtype, log_sdpa_backend_report, maybe_compile_model
+from ml.src.torch_runtime import (
+    CompileConfig,
+    SdpaProbeConfig,
+    autocast_dtype,
+    log_sdpa_backend_report,
+    maybe_compile_model,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -130,8 +136,10 @@ def run_sft_training(config: TrainingConfig) -> Path:
         sdpa_report = log_sdpa_backend_report(
             LOGGER,
             "VLM SFT",
-            device="cuda" if torch.cuda.is_available() else "cpu",
-            dtype=autocast_dtype(config.precision) or torch.float32,
+            SdpaProbeConfig(
+                device="cuda" if torch.cuda.is_available() else "cpu",
+                dtype=autocast_dtype(config.precision) or torch.float32,
+            ),
         )
     processor = transformers.AutoProcessor.from_pretrained(config.model_id, trust_remote_code=True)
     model = transformers.AutoModelForImageTextToText.from_pretrained(
@@ -146,8 +154,7 @@ def run_sft_training(config: TrainingConfig) -> Path:
         model.gradient_checkpointing_enable()
     model, torch_compile_report = maybe_compile_model(
         model=model,
-        enabled=config.torch_compile,
-        mode=config.torch_compile_mode,
+        config=CompileConfig(enabled=config.torch_compile, mode=config.torch_compile_mode),
         logger=LOGGER,
     )
     train_dataset = datasets.load_dataset("json", data_files=config.dataset, split="train")

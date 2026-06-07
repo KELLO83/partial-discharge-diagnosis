@@ -12,6 +12,7 @@ runs/
 wandb/
 mlruns/
 reports/
+service/uploads/
 
 # Model/data artifacts
 *.ckpt
@@ -71,4 +72,8 @@ Thumbs.db
 .idea/
 
 # Hidden local/tooling directories
-.*/
+.codegraph/
+.cursor/
+.omo/
+.playwright-mcp/
+.serena/

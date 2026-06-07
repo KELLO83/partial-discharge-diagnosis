@@ -1,6 +1,13 @@
-import type { DiagnosisResponse, MetadataForm } from "./types";
+import type {
+  DiagnosisListResponse,
+  DiagnosisResponse,
+  HealthResponse,
+  MetadataForm,
+  ModelRuntimeStatus,
+  TraceResponse,
+} from "./types";
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 
 export async function submitDiagnosis(input: {
   readonly image: File | null;
@@ -25,6 +32,46 @@ export async function submitDiagnosis(input: {
     throw new Error(`diagnose request failed: ${response.status}`);
   }
   return await response.json() as DiagnosisResponse;
+}
+
+export async function fetchDiagnosisTrace(diagnosisId: string): Promise<TraceResponse> {
+  const response = await fetch(`${API_BASE}/diagnose/${diagnosisId}/trace`);
+  if (!response.ok) {
+    throw new Error(`trace request failed: ${response.status}`);
+  }
+  return await response.json() as TraceResponse;
+}
+
+export async function fetchHealth(): Promise<HealthResponse> {
+  const response = await fetch(`${API_BASE}/health`);
+  if (!response.ok) {
+    throw new Error(`health request failed: ${response.status}`);
+  }
+  return await response.json() as HealthResponse;
+}
+
+export async function fetchModelStatus(): Promise<ModelRuntimeStatus> {
+  const response = await fetch(`${API_BASE}/model-status`);
+  if (!response.ok) {
+    throw new Error(`model status request failed: ${response.status}`);
+  }
+  return await response.json() as ModelRuntimeStatus;
+}
+
+export async function fetchDiagnosisHistory(): Promise<DiagnosisListResponse> {
+  const response = await fetch(`${API_BASE}/diagnoses`);
+  if (!response.ok) {
+    throw new Error(`diagnosis history request failed: ${response.status}`);
+  }
+  return await response.json() as DiagnosisListResponse;
+}
+
+export async function fetchReviewQueue(): Promise<DiagnosisListResponse> {
+  const response = await fetch(`${API_BASE}/review-queue`);
+  if (!response.ok) {
+    throw new Error(`review queue request failed: ${response.status}`);
+  }
+  return await response.json() as DiagnosisListResponse;
 }
 
 function metadataComplete(metadata: MetadataForm): boolean {

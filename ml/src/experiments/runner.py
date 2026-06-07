@@ -19,6 +19,8 @@ from ml.src.eval.metrics import classification_metrics
 from ml.src.experiments.logger import append_experiment_result
 from ml.src.models.registry import create_model
 from ml.src.torch_runtime import (
+    CompileConfig,
+    SdpaProbeConfig,
     autocast_dtype,
     autocast_enabled,
     log_sdpa_backend_report,
@@ -255,8 +257,7 @@ def run_single_experiment(
     sdpa_report = log_sdpa_backend_report(
         LOGGER,
         "time-series training",
-        device=run_device,
-        dtype=autocast_dtype(mixed_precision) or torch.float32,
+        SdpaProbeConfig(device=run_device, dtype=autocast_dtype(mixed_precision) or torch.float32),
     )
 
     train_ds = PartialDischargeDataset(split.train, layout=model_metadata["input_layout"])
@@ -302,8 +303,7 @@ def run_single_experiment(
 
     model, torch_compile_report = maybe_compile_model(
         model=model,
-        enabled=torch_compile,
-        mode=torch_compile_mode,
+        config=CompileConfig(enabled=torch_compile, mode=torch_compile_mode),
         logger=LOGGER,
     )
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)

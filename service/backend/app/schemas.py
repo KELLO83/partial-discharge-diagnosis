@@ -10,7 +10,7 @@ DiagnosisStatus = Literal["completed", "needs_review", "rejected"]
 
 
 class MetadataInput(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     equipment_name: str = Field(min_length=1)
     equipment_rated_voltage: str = Field(min_length=1)
@@ -27,6 +27,7 @@ class TimeSeriesResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     model_name: str
+    model_version: str = "unknown"
     label_id: int
     label_name: str
     confidence: float
@@ -38,6 +39,7 @@ class VlmResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     model_name: str
+    model_version: str = "unknown"
     label_id: int
     diagnosis: str
     risk_level: str
@@ -63,6 +65,39 @@ class DiagnosisResponse(BaseModel):
     error_code: str | None = None
 
 
+class DiagnosisListItem(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    diagnosis_id: str
+    trace_id: str
+    route: DiagnosisRoute
+    status: DiagnosisStatus
+    diagnosis: str | None = None
+    risk_level: str | None = None
+    confidence: float | None = None
+    reason: str
+    requires_human_review: bool
+    created_at: str
+
+
+class DiagnosisListResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    items: list[DiagnosisListItem]
+
+
+class ModelRuntimeStatus(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    agent_mode: str
+    agents_sdk_installed: bool
+    agents_sdk_reason: str
+    time_series_model: str
+    time_series_version: str
+    vlm_model: str
+    vlm_version: str
+
+
 class TraceResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -72,3 +107,4 @@ class TraceResponse(BaseModel):
     status: DiagnosisStatus
     steps: list[str]
     summary: dict[str, str]
+    events: list[dict[str, object]] = Field(default_factory=list)

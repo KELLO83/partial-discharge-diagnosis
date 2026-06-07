@@ -7,6 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
+from ml.src.features.timeseries_summary import format_summary_for_csv, summarize_signal
+
 
 FIELDNAMES: tuple[str, ...] = (
     "sample_id",
@@ -45,13 +47,7 @@ def _read_manifest(manifest_path: Path) -> list[dict[str, str]]:
 
 def _context_row(row: dict[str, str]) -> dict[str, str]:
     signal = np.loadtxt(row["timeseries_path"], delimiter=",", dtype=np.float32)
-    rms = float(np.sqrt(np.mean(np.square(signal))))
-    std = float(np.std(signal))
-    abs_p99 = float(np.percentile(np.abs(signal), 99))
-    threshold = float(np.mean(np.abs(signal)) + 3.0 * np.std(np.abs(signal)))
-    pulse_rate = float(np.mean(np.abs(signal) > threshold))
-    spectrum = np.fft.rfft(signal, axis=1)
-    spectral_energy = float(np.mean(np.square(np.abs(spectrum))))
+    summary = format_summary_for_csv(summarize_signal(signal))
     return {
         "sample_id": row["sample_id"],
         "ts_model_name": "feature_summary_untrained",
@@ -62,11 +58,11 @@ def _context_row(row: dict[str, str]) -> dict[str, str]:
         "ts_prob_2": "",
         "ts_prob_3": "",
         "ts_prob_4": "",
-        "rms": f"{rms:.8g}",
-        "std": f"{std:.8g}",
-        "abs_p99": f"{abs_p99:.8g}",
-        "pulse_rate": f"{pulse_rate:.8g}",
-        "spectral_energy": f"{spectral_energy:.8g}",
+        "rms": summary["rms"],
+        "std": summary["std"],
+        "abs_p99": summary["abs_p99"],
+        "pulse_rate": summary["pulse_rate"],
+        "spectral_energy": summary["spectral_energy"],
     }
 
 

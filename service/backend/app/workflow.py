@@ -1,37 +1,64 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
-from uuid import uuid4
 
 from pydantic import ValidationError
 
+from service.backend.app.agent_runtime import AgentRunInput, LocalDiagnosisAgentRuntime
 from service.backend.app.schemas import DiagnosisResponse, DiagnosisRoute, MetadataInput, TimeSeriesResult, VlmResult
-from service.backend.app.store import TraceRecord, trace_store
-from service.backend.app.tools import run_timeseries_inference, run_vlm_inference
+from service.backend.app.store import TraceRecord, now_iso, trace_store
+from service.backend.app.tool_contracts import TimeSeriesToolInput, VlmToolInput
+from service.backend.app.tools import time_series_adapter, vlm_adapter
 from service.backend.app.validation import CsvShape
 
 
 @dataclass(frozen=True, slots=True)
 class WorkflowInput:
+    diagnosis_id: str
     has_png_image: bool
     csv_shape: CsvShape | None
     metadata: MetadataInput | None
     metadata_error: str | None
+    image_path: Path | None = None
+    image_sha256: str | None = None
+    csv_path: Path | None = None
+    csv_sha256: str | None = None
 
 
 def run_diagnosis_workflow(input_data: WorkflowInput) -> DiagnosisResponse:
-    diagnosis_id = f"diag_{uuid4().hex[:12]}"
-    trace_id = f"trace_{uuid4().hex[:12]}"
-    steps = ["input_router"]
     route = _select_route(input_data)
-    if route == "insufficient_input":
-        return _reject(diagnosis_id, trace_id, route, steps, _rejection_reason(input_data))
-    ts_result = _run_ts_if_needed(route, steps)
-    vlm_result = _run_vlm_if_needed(route, steps, input_data.metadata, ts_result)
-    response = _review(diagnosis_id, trace_id, route, steps, ts_result, vlm_result)
-    _save_trace(response, steps, ts_result, vlm_result)
-    return response
+    runtime = LocalDiagnosisAgentRuntime(ts_adapter=time_series_adapter, vlm_adapter=vlm_adapter)
+    result = runtime.run(
+        AgentRunInput(
+            route=route,
+            diagnosis_id=input_data.diagnosis_id,
+            timeseries_input=_timeseries_tool_input(input_data),
+            vlm_input=_vlm_tool_input(input_data),
+            rejection_reason=_rejection_reason(input_data),
+        )
+    )
+    _save_trace(result.response, result.events, result.ts_result, result.vlm_result)
+    return result.response
+
+
+def run_diagnosis_workflow_with_runtime(
+    input_data: WorkflowInput,
+    runtime: LocalDiagnosisAgentRuntime,
+) -> DiagnosisResponse:
+    route = _select_route(input_data)
+    result = runtime.run(
+        AgentRunInput(
+            route=route,
+            diagnosis_id=input_data.diagnosis_id,
+            timeseries_input=_timeseries_tool_input(input_data),
+            vlm_input=_vlm_tool_input(input_data),
+            rejection_reason=_rejection_reason(input_data),
+        )
+    )
+    _save_trace(result.response, result.events, result.ts_result, result.vlm_result)
+    return result.response
 
 
 def parse_metadata(raw: str | None) -> tuple[MetadataInput | None, str | None]:
@@ -55,87 +82,26 @@ def _select_route(input_data: WorkflowInput) -> Literal["insufficient_input", "t
     return "insufficient_input"
 
 
-def _run_ts_if_needed(route: DiagnosisRoute, steps: list[str]) -> TimeSeriesResult | None:
-    if route not in {"timeseries_only", "hybrid"}:
+def _timeseries_tool_input(input_data: WorkflowInput) -> TimeSeriesToolInput | None:
+    if input_data.csv_path is None or input_data.csv_sha256 is None:
         return None
-    steps.append("time_series_tool")
-    return run_timeseries_inference()
+    return TimeSeriesToolInput(csv_path=input_data.csv_path, csv_sha256=input_data.csv_sha256)
 
 
-def _run_vlm_if_needed(
-    route: DiagnosisRoute,
-    steps: list[str],
-    metadata: MetadataInput | None,
-    ts_result: TimeSeriesResult | None,
-) -> VlmResult | None:
-    if route not in {"vlm_only", "hybrid"} or metadata is None:
+def _vlm_tool_input(input_data: WorkflowInput) -> VlmToolInput | None:
+    if input_data.image_path is None or input_data.image_sha256 is None or input_data.metadata is None:
         return None
-    steps.append("vlm_tool")
-    return run_vlm_inference(metadata, ts_result)
-
-
-def _review(
-    diagnosis_id: str,
-    trace_id: str,
-    route: DiagnosisRoute,
-    steps: list[str],
-    ts_result: TimeSeriesResult | None,
-    vlm_result: VlmResult | None,
-) -> DiagnosisResponse:
-    steps.append("diagnosis_reviewer")
-    if ts_result is not None and vlm_result is not None and ts_result.label_id != vlm_result.label_id:
-        return DiagnosisResponse(
-            diagnosis_id=diagnosis_id,
-            trace_id=trace_id,
-            route="hybrid",
-            status="needs_review",
-            reason="시계열 모델과 VLM의 예측 라벨이 불일치합니다.",
-            requires_human_review=True,
-        )
-    final = vlm_result if vlm_result is not None else ts_result
-    if final is None:
-        return _reject(diagnosis_id, trace_id, "insufficient_input", steps, "insufficient input")
-    label_id = final.label_id
-    diagnosis = final.diagnosis if isinstance(final, VlmResult) else final.label_name
-    confidence = final.confidence
-    return DiagnosisResponse(
-        diagnosis_id=diagnosis_id,
-        trace_id=trace_id,
-        route=route,
-        status="completed",
-        final_label_id=label_id,
-        diagnosis=diagnosis,
-        risk_level="주의" if label_id >= 2 else "낮음",
-        confidence=confidence,
-        reason="tool 기반 추론 결과가 일관되어 최종 진단을 확정했습니다.",
-        recommended_action=_action_for_label(label_id),
-        requires_human_review=False,
+    return VlmToolInput(
+        image_path=input_data.image_path,
+        image_sha256=input_data.image_sha256,
+        safe_metadata=input_data.metadata,
+        timeseries_result=None,
     )
-
-
-def _reject(
-    diagnosis_id: str,
-    trace_id: str,
-    route: DiagnosisRoute,
-    steps: list[str],
-    reason: str,
-) -> DiagnosisResponse:
-    response = DiagnosisResponse(
-        diagnosis_id=diagnosis_id,
-        trace_id=trace_id,
-        route=route,
-        status="rejected",
-        reason=reason,
-        requires_human_review=False,
-        error_code="INVALID_INPUT",
-    )
-    _save_trace(response, steps, None, None)
-    return response
 
 
 def _save_trace(
     response: DiagnosisResponse,
-    steps: list[str],
+    events: list[dict[str, object]],
     ts_result: TimeSeriesResult | None,
     vlm_result: VlmResult | None,
 ) -> None:
@@ -150,8 +116,15 @@ def _save_trace(
             trace_id=response.trace_id,
             route=response.route,
             status=response.status,
-            steps=tuple(steps),
+            diagnosis=response.diagnosis,
+            risk_level=response.risk_level,
+            confidence=response.confidence,
+            reason=response.reason,
+            requires_human_review=response.requires_human_review,
+            created_at=now_iso(),
+            steps=tuple(str(event.get("name", "")) for event in events),
             summary=summary,
+            events=tuple(events),
         )
     )
 
@@ -162,19 +135,3 @@ def _rejection_reason(input_data: WorkflowInput) -> str:
     if input_data.metadata_error is not None:
         return input_data.metadata_error
     return "PRPD 이미지+metadata 또는 시계열 CSV 중 하나 이상이 필요합니다."
-
-
-def _action_for_label(label_id: int) -> str:
-    match label_id:
-        case 0:
-            return "정상 상태로 판단되며 정기 모니터링을 유지하세요."
-        case 1:
-            return "센서 접촉 상태와 주변 전자기 간섭 가능성을 점검하세요."
-        case 2:
-            return "절연체 표면 오염과 트래킹 흔적을 점검하세요."
-        case 3:
-            return "고전압 접속부와 전계 집중 부위를 점검하세요."
-        case 4:
-            return "절연체 내부 결함 가능성을 고려해 정밀 진단을 진행하세요."
-        case _:
-            return "추가 데이터 확인 후 재진단하세요."

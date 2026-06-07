@@ -3,10 +3,32 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import torch
 from torch import nn
+
+SDPA_PROBE_BATCH_SIZE = 1
+SDPA_PROBE_SEQ_LEN = 128
+SDPA_PROBE_NUM_HEADS = 4
+SDPA_PROBE_HEAD_DIM = 64
+SDPA_PROFILER_EVENT_LIMIT = 20
+
+
+@dataclass(frozen=True, slots=True)
+class CompileConfig:
+    enabled: bool = False
+    mode: str = "default"
+
+
+@dataclass(frozen=True, slots=True)
+class SdpaProbeConfig:
+    device: torch.device | str = "cuda"
+    dtype: torch.dtype = torch.float16
+    seq_len: int = SDPA_PROBE_SEQ_LEN
+    num_heads: int = SDPA_PROBE_NUM_HEADS
+    head_dim: int = SDPA_PROBE_HEAD_DIM
 
 
 def autocast_dtype(mixed_precision: str) -> torch.dtype | None:
@@ -25,49 +47,43 @@ def autocast_enabled(mixed_precision: str, device: torch.device) -> bool:
 
 def maybe_compile_model(
     model: nn.Module,
-    enabled: bool,
-    mode: str,
+    config: CompileConfig,
     logger: logging.Logger,
 ) -> tuple[nn.Module, dict[str, Any]]:
     report: dict[str, Any] = {
-        "enabled": bool(enabled),
+        "enabled": config.enabled,
         "applied": False,
-        "mode": mode,
+        "mode": config.mode,
         "error": "",
     }
-    if not enabled:
+    if not config.enabled:
         return model, report
     if not hasattr(torch, "compile"):
         report["error"] = "torch.compile is not available in this PyTorch build."
         logger.warning(report["error"])
         return model, report
     try:
-        compiled = torch.compile(model, mode=mode)
+        compiled = torch.compile(model, mode=config.mode)
     except Exception as exc:  # pragma: no cover - backend/environment dependent
         report["error"] = f"{type(exc).__name__}: {exc}"
         logger.warning("torch.compile failed; continuing with eager model: %s", report["error"])
         return model, report
     report["applied"] = True
-    logger.info("torch.compile enabled: mode=%s", mode)
+    logger.info("torch.compile enabled: mode=%s", config.mode)
     return compiled, report
 
 
-def get_sdpa_backend_report(
-    device: torch.device | str = "cuda",
-    dtype: torch.dtype = torch.float16,
-    seq_len: int = 128,
-    num_heads: int = 4,
-    head_dim: int = 64,
-) -> dict[str, Any]:
-    run_device = torch.device(device)
+def get_sdpa_backend_report(config: SdpaProbeConfig | None = None) -> dict[str, Any]:
+    probe_config = config or SdpaProbeConfig()
+    run_device = torch.device(probe_config.device)
     report: dict[str, Any] = {
         "device": str(run_device),
-        "dtype": str(dtype).replace("torch.", ""),
+        "dtype": str(probe_config.dtype).replace("torch.", ""),
         "probe_shape": {
-            "batch": 1,
-            "heads": num_heads,
-            "seq_len": seq_len,
-            "head_dim": head_dim,
+            "batch": SDPA_PROBE_BATCH_SIZE,
+            "heads": probe_config.num_heads,
+            "seq_len": probe_config.seq_len,
+            "head_dim": probe_config.head_dim,
         },
         "enabled_backends": {},
         "can_use_flash_attention": None,
@@ -89,9 +105,15 @@ def get_sdpa_backend_report(
         else None,
     }
     try:
-        query = torch.randn((1, num_heads, seq_len, head_dim), device=run_device, dtype=dtype)
-        key = torch.randn((1, num_heads, seq_len, head_dim), device=run_device, dtype=dtype)
-        value = torch.randn((1, num_heads, seq_len, head_dim), device=run_device, dtype=dtype)
+        probe_shape = (
+            SDPA_PROBE_BATCH_SIZE,
+            probe_config.num_heads,
+            probe_config.seq_len,
+            probe_config.head_dim,
+        )
+        query = torch.randn(probe_shape, device=run_device, dtype=probe_config.dtype)
+        key = torch.randn(probe_shape, device=run_device, dtype=probe_config.dtype)
+        value = torch.randn(probe_shape, device=run_device, dtype=probe_config.dtype)
         params = torch.nn.attention.SDPAParams(query, key, value, None, 0.0, False, False)
         report["can_use_flash_attention"] = bool(torch.nn.attention.can_use_flash_attention(params, False))
         report["can_use_efficient_attention"] = bool(torch.nn.attention.can_use_efficient_attention(params, False))
@@ -108,7 +130,7 @@ def get_sdpa_backend_report(
                 )
             }
         )
-        report["profiler_events"] = events[:20]
+        report["profiler_events"] = events[:SDPA_PROFILER_EVENT_LIMIT]
         report["selected_backend"] = _infer_sdpa_backend(events)
     except Exception as exc:  # pragma: no cover - profiler/kernel availability dependent
         report["error"] = f"{type(exc).__name__}: {exc}"
@@ -118,10 +140,9 @@ def get_sdpa_backend_report(
 def log_sdpa_backend_report(
     logger: logging.Logger,
     label: str,
-    device: torch.device | str = "cuda",
-    dtype: torch.dtype = torch.float16,
+    config: SdpaProbeConfig | None = None,
 ) -> dict[str, Any]:
-    report = get_sdpa_backend_report(device=device, dtype=dtype)
+    report = get_sdpa_backend_report(config)
     logger.info(
         "%s SDPA backend probe: selected_backend=%s enabled=%s can_flash=%s can_efficient=%s events=%s error=%s",
         label,

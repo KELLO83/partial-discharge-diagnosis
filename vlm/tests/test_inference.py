@@ -47,6 +47,7 @@ def test_run_dry_inference_writes_prediction_jsonl(tmp_path: Path) -> None:
     assert row["sample_id"] == "sample-1"
     assert row["label_id"] == 1
     assert row["model_id"] == "Qwen/Qwen3-VL-2B-Instruct"
+    assert row["attn_implementation"] == "sdpa"
     assert row["mode"] == "dry_run_target_echo"
     assert row["parsed_json"]["label_id"] == 1
     assert json.loads(row["raw_text"])["label_id"] == 1

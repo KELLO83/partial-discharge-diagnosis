@@ -3,10 +3,19 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import logging
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from ml.src.torch_runtime import autocast_dtype, log_sdpa_backend_report, maybe_compile_model
+
+LOGGER = logging.getLogger(__name__)
 
 class TrainingRiskError(RuntimeError):
     pass
@@ -32,6 +41,9 @@ class TrainingConfig:
     precision: str = "fp16"
     image_max_pixels: str = "512x512"
     flash_attention: bool = False
+    attn_implementation: str = "sdpa"
+    torch_compile: bool = False
+    torch_compile_mode: str = "default"
 
 
 def build_training_config(
@@ -42,6 +54,10 @@ def build_training_config(
     full_finetune: bool,
     risk_override: bool,
     max_steps: int,
+    attn_implementation: str = "sdpa",
+    precision: str = "fp16",
+    torch_compile: bool = False,
+    torch_compile_mode: str = "default",
 ) -> TrainingConfig:
     if full_finetune and not risk_override:
         raise TrainingRiskError("Full fine-tuning is blocked for RTX 4060 Laptop 8GB without explicit override.")
@@ -49,6 +65,8 @@ def build_training_config(
         raise TrainingRiskError("VLM SFT on 8GB must use --load-in-4bit unless --i-understand-8gb-risk is set.")
     if max_steps < 1:
         raise ValueError("--max-steps must be at least 1.")
+    if torch_compile and load_in_4bit and not risk_override:
+        raise TrainingRiskError("torch.compile with 4-bit VLM loading is blocked without --i-understand-8gb-risk.")
     return TrainingConfig(
         model_id=model_id,
         dataset=dataset,
@@ -56,6 +74,10 @@ def build_training_config(
         load_in_4bit=load_in_4bit,
         full_finetune=full_finetune,
         max_steps=max_steps,
+        attn_implementation=attn_implementation,
+        precision=precision,
+        torch_compile=torch_compile,
+        torch_compile_mode=torch_compile_mode,
     )
 
 
@@ -103,6 +125,14 @@ def run_sft_training(config: TrainingConfig) -> Path:
             bnb_4bit_compute_dtype=torch.float16,
             bnb_4bit_use_double_quant=True,
         )
+    sdpa_report = None
+    if config.attn_implementation == "sdpa":
+        sdpa_report = log_sdpa_backend_report(
+            LOGGER,
+            "VLM SFT",
+            device="cuda" if torch.cuda.is_available() else "cpu",
+            dtype=autocast_dtype(config.precision) or torch.float32,
+        )
     processor = transformers.AutoProcessor.from_pretrained(config.model_id, trust_remote_code=True)
     model = transformers.AutoModelForImageTextToText.from_pretrained(
         config.model_id,
@@ -110,9 +140,16 @@ def run_sft_training(config: TrainingConfig) -> Path:
         quantization_config=quantization_config,
         torch_dtype=torch.float16,
         trust_remote_code=True,
+        attn_implementation=config.attn_implementation,
     )
     if config.gradient_checkpointing:
         model.gradient_checkpointing_enable()
+    model, torch_compile_report = maybe_compile_model(
+        model=model,
+        enabled=config.torch_compile,
+        mode=config.torch_compile_mode,
+        logger=LOGGER,
+    )
     train_dataset = datasets.load_dataset("json", data_files=config.dataset, split="train")
     peft_config = None
     if not config.full_finetune:
@@ -155,6 +192,8 @@ def run_sft_training(config: TrainingConfig) -> Path:
                 "train_rows": _count_jsonl_rows(Path(config.dataset)),
                 "adapter_saved": True,
                 "peak_vram_mb": peak_vram_mb,
+                "sdpa_backend_report": sdpa_report,
+                "torch_compile_report": torch_compile_report,
             },
             ensure_ascii=False,
             indent=2,
@@ -182,6 +221,8 @@ def _real_training_command(config: TrainingConfig) -> str:
         f"--dataset {config.dataset} "
         f"--output-dir {config.output_dir} "
         "--load-in-4bit "
+        f"--attn-implementation {config.attn_implementation} "
+        f"--precision {config.precision} "
         f"--max-steps {config.max_steps}"
     )
 
@@ -195,11 +236,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--full-finetune", action="store_true")
     parser.add_argument("--i-understand-8gb-risk", action="store_true")
     parser.add_argument("--max-steps", type=int, default=10)
+    parser.add_argument("--attn-implementation", default="sdpa", choices=("sdpa", "eager", "flash_attention_2"))
+    parser.add_argument("--precision", default="fp16", choices=("fp16", "bf16", "off"))
+    parser.add_argument("--torch-compile", action="store_true")
+    parser.add_argument("--torch-compile-mode", default="default", choices=("default", "reduce-overhead", "max-autotune"))
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
     args = parse_args()
     config = build_training_config(
         model_id=args.model_id,
@@ -209,6 +255,10 @@ def main() -> None:
         full_finetune=args.full_finetune,
         risk_override=args.i_understand_8gb_risk,
         max_steps=args.max_steps,
+        attn_implementation=args.attn_implementation,
+        precision=args.precision,
+        torch_compile=args.torch_compile,
+        torch_compile_mode=args.torch_compile_mode,
     )
     summary_path = write_dry_run_artifacts(config) if args.dry_run else run_sft_training(config)
     print(json.dumps({"summary": str(summary_path), "model_id": config.model_id}, ensure_ascii=False))

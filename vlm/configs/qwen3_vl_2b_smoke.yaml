@@ -12,4 +12,5 @@ gradient_checkpointing: true
 max_length: null
 image_max_pixels: 512x512
 flash_attention: false
+attn_implementation: sdpa
 max_steps: 10

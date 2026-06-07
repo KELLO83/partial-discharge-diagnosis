@@ -36,6 +36,23 @@ def test_default_training_config_uses_8gb_qlora_guardrails() -> None:
     assert config.batch_size == 1
     assert config.gradient_checkpointing is True
     assert config.train_vision_tower is False
+    assert config.attn_implementation == "sdpa"
+    assert config.precision == "fp16"
+    assert config.torch_compile is False
+
+
+def test_torch_compile_with_4bit_requires_risk_override() -> None:
+    with pytest.raises(TrainingRiskError):
+        build_training_config(
+            model_id="Qwen/Qwen3-VL-2B-Instruct",
+            dataset="dataset.jsonl",
+            output_dir="adapter",
+            load_in_4bit=True,
+            full_finetune=False,
+            risk_override=False,
+            max_steps=1,
+            torch_compile=True,
+        )
 
 
 def test_training_dry_run_writes_config_and_summary(tmp_path: Path) -> None:
@@ -57,6 +74,7 @@ def test_training_dry_run_writes_config_and_summary(tmp_path: Path) -> None:
     payload = json.loads(summary_path.read_text(encoding="utf-8"))
     assert payload["status"] == "dry_run_ready"
     assert payload["config"]["load_in_4bit"] is True
+    assert payload["config"]["attn_implementation"] == "sdpa"
     assert payload["train_rows"] == 1
     assert payload["adapter_saved"] is False
     assert (output_dir / "training_config.json").exists()

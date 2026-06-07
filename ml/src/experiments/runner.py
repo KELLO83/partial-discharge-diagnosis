@@ -18,6 +18,12 @@ from ml.src.data.loader import PartialDischargeDataset, load_manifest, make_stra
 from ml.src.eval.metrics import classification_metrics
 from ml.src.experiments.logger import append_experiment_result
 from ml.src.models.registry import create_model
+from ml.src.torch_runtime import (
+    autocast_dtype,
+    autocast_enabled,
+    log_sdpa_backend_report,
+    maybe_compile_model,
+)
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_GPU_MEMORY_TARGET = 0.90
@@ -40,6 +46,7 @@ def _predict(
     loader: DataLoader,
     device: torch.device,
     desc: str = "valid",
+    mixed_precision: str = "fp16",
 ) -> tuple[np.ndarray, np.ndarray]:
     model.eval()
     y_true: list[np.ndarray] = []
@@ -47,7 +54,12 @@ def _predict(
     with torch.no_grad():
         progress = tqdm(loader, desc=desc, leave=False)
         for x, y in progress:
-            logits = model(x.to(device, non_blocking=True))
+            with torch.amp.autocast(
+                device_type=device.type,
+                dtype=autocast_dtype(mixed_precision),
+                enabled=autocast_enabled(mixed_precision, device),
+            ):
+                logits = model(x.to(device, non_blocking=True))
             y_true.append(y.cpu().numpy())
             y_pred.append(logits.argmax(dim=-1).cpu().numpy())
     return np.concatenate(y_true), np.concatenate(y_pred)
@@ -66,6 +78,7 @@ def _try_train_step(
     batch_size: int,
     device: torch.device,
     criterion: nn.Module,
+    mixed_precision: str,
 ) -> int:
     """Run one synthetic forward/backward step and return peak reserved CUDA bytes."""
     _clear_cuda_state(device)
@@ -73,7 +86,12 @@ def _try_train_step(
     model.zero_grad(set_to_none=True)
     x = torch.randn((batch_size, *sample_shape), device=device)
     y = torch.zeros(batch_size, dtype=torch.long, device=device)
-    loss = criterion(model(x), y)
+    with torch.amp.autocast(
+        device_type=device.type,
+        dtype=autocast_dtype(mixed_precision),
+        enabled=autocast_enabled(mixed_precision, device),
+    ):
+        loss = criterion(model(x), y)
     loss.backward()
     model.zero_grad(set_to_none=True)
     torch.cuda.synchronize(device)
@@ -93,6 +111,7 @@ def _resolve_batch_size(
     auto_batch_start_size: int,
     target_gpu_memory_utilization: float,
     max_auto_batch_size: int,
+    mixed_precision: str,
 ) -> tuple[int, bool, dict[str, Any]]:
     """Resolve a manual or auto-tuned batch size for a single CUDA training job."""
     if batch_size is not None:
@@ -117,7 +136,7 @@ def _resolve_batch_size(
     probe_batch = start_batch
     while probe_batch >= 1:
         try:
-            peak_reserved = _try_train_step(model, sample_shape, probe_batch, device, criterion)
+            peak_reserved = _try_train_step(model, sample_shape, probe_batch, device, criterion, mixed_precision)
             break
         except torch.cuda.OutOfMemoryError:
             LOGGER.info("Auto batch probe OOM at batch_size=%s; retrying with half.", probe_batch)
@@ -133,7 +152,7 @@ def _resolve_batch_size(
 
     while candidate >= 1:
         try:
-            peak_reserved = _try_train_step(model, sample_shape, candidate, device, criterion)
+            peak_reserved = _try_train_step(model, sample_shape, candidate, device, criterion, mixed_precision)
             if peak_reserved <= target_bytes or candidate == 1:
                 break
             LOGGER.info(
@@ -190,6 +209,9 @@ def run_single_experiment(
     pin_memory: bool = False,
     device: str = "cuda",
     model_params: dict[str, Any] | None = None,
+    mixed_precision: str = "fp16",
+    torch_compile: bool = False,
+    torch_compile_mode: str = "default",
 ) -> dict[str, Any]:
     """Run exactly one model experiment."""
     torch.manual_seed(seed)
@@ -210,20 +232,35 @@ def run_single_experiment(
     LOGGER.info("Valid label counts: %s", split.valid["label_id"].value_counts().sort_index().to_dict())
 
     model = create_model(model_name, params=model_params)
+    model_metadata = {
+        "name": model.name,
+        "family": model.family,
+        "input_layout": model.input_layout,
+        "training_mode": model.training_mode,
+        "pretrained": model.pretrained,
+    }
     run_device = _device(device)
     model.to(run_device)
     LOGGER.info(
-        "Created model=%s family=%s layout=%s device=%s python=%s executable=%s",
-        model.name,
-        model.family,
-        model.input_layout,
+        "Created model=%s family=%s layout=%s device=%s mixed_precision=%s torch_compile=%s python=%s executable=%s",
+        model_metadata["name"],
+        model_metadata["family"],
+        model_metadata["input_layout"],
         run_device,
+        mixed_precision,
+        torch_compile,
         sys.version.split()[0],
         sys.executable,
     )
+    sdpa_report = log_sdpa_backend_report(
+        LOGGER,
+        "time-series training",
+        device=run_device,
+        dtype=autocast_dtype(mixed_precision) or torch.float32,
+    )
 
-    train_ds = PartialDischargeDataset(split.train, layout=model.input_layout)
-    valid_ds = PartialDischargeDataset(split.valid, layout=model.input_layout)
+    train_ds = PartialDischargeDataset(split.train, layout=model_metadata["input_layout"])
+    valid_ds = PartialDischargeDataset(split.valid, layout=model_metadata["input_layout"])
     sample_x, sample_y = train_ds[0]
     criterion = nn.CrossEntropyLoss()
     batch_size, batch_size_auto, batch_size_report = _resolve_batch_size(
@@ -236,10 +273,11 @@ def run_single_experiment(
         auto_batch_start_size=auto_batch_start_size,
         target_gpu_memory_utilization=target_gpu_memory_utilization,
         max_auto_batch_size=max_auto_batch_size,
+        mixed_precision=mixed_precision,
     )
     LOGGER.info(
         "Dataset config: input_layout=%s sample_shape=%s sample_label=%s normalize=True batch_size=%s batch_size_auto=%s num_workers=%s pin_memory=%s",
-        model.input_layout,
+        model_metadata["input_layout"],
         tuple(sample_x.shape),
         int(sample_y.item()),
         batch_size,
@@ -262,10 +300,24 @@ def run_single_experiment(
         pin_memory=pin_memory,
     )
 
+    model, torch_compile_report = maybe_compile_model(
+        model=model,
+        enabled=torch_compile,
+        mode=torch_compile_mode,
+        logger=LOGGER,
+    )
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    scaler = torch.amp.GradScaler("cuda", enabled=run_device.type == "cuda" and mixed_precision == "fp16")
 
     start_train = time.perf_counter()
-    LOGGER.info("Training started: epochs=%s batch_size=%s lr=%s", epochs, batch_size, learning_rate)
+    LOGGER.info(
+        "Training started: epochs=%s batch_size=%s lr=%s mixed_precision=%s grad_scaler=%s",
+        epochs,
+        batch_size,
+        learning_rate,
+        mixed_precision,
+        scaler.is_enabled(),
+    )
     for epoch in range(1, epochs + 1):
         model.train()
         running_loss = 0.0
@@ -274,9 +326,15 @@ def run_single_experiment(
             x = x.to(run_device, non_blocking=True)
             y = y.to(run_device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
-            loss = criterion(model(x), y)
-            loss.backward()
-            optimizer.step()
+            with torch.amp.autocast(
+                device_type=run_device.type,
+                dtype=autocast_dtype(mixed_precision),
+                enabled=autocast_enabled(mixed_precision, run_device),
+            ):
+                loss = criterion(model(x), y)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             running_loss += float(loss.item())
             progress.set_postfix(loss=f"{loss.item():.4f}")
         LOGGER.info("Epoch %s completed: avg_loss=%.6f", epoch, running_loss / max(1, len(train_loader)))
@@ -284,7 +342,13 @@ def run_single_experiment(
 
     start_predict = time.perf_counter()
     LOGGER.info("Validation prediction started")
-    y_true, y_pred = _predict(model, valid_loader, run_device, desc=f"{model_name} validation")
+    y_true, y_pred = _predict(
+        model,
+        valid_loader,
+        run_device,
+        desc=f"{model_name} validation",
+        mixed_precision=mixed_precision,
+    )
     predict_time = time.perf_counter() - start_predict
     metrics = classification_metrics(y_true, y_pred)
     LOGGER.info(
@@ -299,17 +363,17 @@ def run_single_experiment(
 
     row = {
         "experiment_id": f"{model_name}_{sample_size or 'full'}_seed{seed}",
-        "model_name": model.name,
-        "model_family": model.family,
-        "training_mode": model.training_mode,
-        "pretrained": model.pretrained,
+        "model_name": model_metadata["name"],
+        "model_family": model_metadata["family"],
+        "training_mode": model_metadata["training_mode"],
+        "pretrained": model_metadata["pretrained"],
         "manifest_path": str(manifest_path),
         "split_type": split.split_type,
         "python_executable": sys.executable,
         "python_version": sys.version.split()[0],
         "device": str(run_device),
         "cuda_device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "",
-        "input_layout": model.input_layout,
+        "input_layout": model_metadata["input_layout"],
         "sample_size": sample_size or len(manifest),
         "train_rows": len(split.train),
         "valid_rows": len(split.valid),
@@ -325,6 +389,10 @@ def run_single_experiment(
         "num_workers": num_workers,
         "pin_memory": pin_memory,
         "model_params": model_params or {},
+        "mixed_precision": mixed_precision,
+        "torch_compile": torch_compile,
+        "torch_compile_report": torch_compile_report,
+        "sdpa_backend_report": sdpa_report,
         "train_time_sec": round(train_time, 6),
         "predict_time_sec": round(predict_time, 6),
         "valid_accuracy": metrics.accuracy,

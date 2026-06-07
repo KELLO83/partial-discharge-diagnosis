@@ -28,6 +28,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--pin-memory", action="store_true", help="Enable DataLoader pinned memory.")
     parser.add_argument("--device", default="cuda", choices=["cuda"], help="Training device. CPU training is disabled.")
+    parser.add_argument("--mixed-precision", default="fp16", choices=("off", "fp16", "bf16"))
+    parser.add_argument("--torch-compile", action="store_true")
+    parser.add_argument("--torch-compile-mode", default="default", choices=("default", "reduce-overhead", "max-autotune"))
     return parser.parse_args()
 
 
@@ -47,6 +50,9 @@ def main() -> None:
         num_workers=args.num_workers,
         pin_memory=args.pin_memory,
         device=args.device,
+        mixed_precision=args.mixed_precision,
+        torch_compile=args.torch_compile,
+        torch_compile_mode=args.torch_compile_mode,
     )
 
 

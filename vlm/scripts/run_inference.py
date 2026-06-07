@@ -13,6 +13,7 @@ def run_dry_inference(
     load_in_4bit: bool,
     limit: int | None,
     index: int | None = None,
+    attn_implementation: str = "sdpa",
 ) -> int:
     records = _load_records(dataset_path)
     selected_records = _select_records(records, index, limit)
@@ -25,6 +26,7 @@ def run_dry_inference(
                 raw_text=assistant_text,
                 model_id=model_id,
                 load_in_4bit=load_in_4bit,
+                attn_implementation=attn_implementation,
                 mode="dry_run_target_echo",
                 cuda_peak_memory_mb=None,
             )
@@ -40,6 +42,7 @@ def run_model_inference(
     limit: int | None,
     max_new_tokens: int,
     index: int | None = None,
+    attn_implementation: str = "sdpa",
 ) -> int:
     try:
         import torch
@@ -67,6 +70,7 @@ def run_model_inference(
         quantization_config=quantization_config,
         torch_dtype=torch.float16,
         trust_remote_code=True,
+        attn_implementation=attn_implementation,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="\n") as handle:
@@ -88,6 +92,7 @@ def run_model_inference(
                 raw_text=raw_text,
                 model_id=model_id,
                 load_in_4bit=load_in_4bit,
+                attn_implementation=attn_implementation,
                 mode="model_generate",
                 cuda_peak_memory_mb=cuda_peak_memory_mb,
             )
@@ -110,6 +115,7 @@ def _prediction_payload(
     raw_text: str,
     model_id: str,
     load_in_4bit: bool,
+    attn_implementation: str,
     mode: str,
     cuda_peak_memory_mb: float | None,
 ) -> dict[str, Any]:
@@ -118,6 +124,7 @@ def _prediction_payload(
         "label_id": int(record["label_id"]),
         "model_id": model_id,
         "load_in_4bit": load_in_4bit,
+        "attn_implementation": attn_implementation,
         "mode": mode,
         "raw_text": raw_text,
         "cuda_peak_memory_mb": cuda_peak_memory_mb,
@@ -167,6 +174,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index", type=int, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--max-new-tokens", type=int, default=256)
+    parser.add_argument("--attn-implementation", default="sdpa", choices=("sdpa", "eager", "flash_attention_2"))
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -181,6 +189,7 @@ def main() -> None:
             load_in_4bit=args.load_in_4bit,
             limit=args.limit,
             index=args.index,
+            attn_implementation=args.attn_implementation,
         )
     else:
         rows_written = run_model_inference(
@@ -191,8 +200,18 @@ def main() -> None:
             limit=args.limit,
             max_new_tokens=args.max_new_tokens,
             index=args.index,
+            attn_implementation=args.attn_implementation,
         )
-    print(json.dumps({"rows_written": rows_written, "output": str(args.output), "model_id": args.model_id}))
+    print(
+        json.dumps(
+            {
+                "rows_written": rows_written,
+                "output": str(args.output),
+                "model_id": args.model_id,
+                "attn_implementation": args.attn_implementation,
+            }
+        )
+    )
 
 
 if __name__ == "__main__":

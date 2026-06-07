@@ -172,6 +172,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--learning-rate", type=float, default=None, help="Override per-model learning-rate preset.")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--pin-memory", action="store_true")
+    parser.add_argument("--mixed-precision", default="fp16", choices=("off", "fp16", "bf16"))
+    parser.add_argument("--torch-compile", action="store_true")
+    parser.add_argument("--torch-compile-mode", default="default", choices=("default", "reduce-overhead", "max-autotune"))
     parser.add_argument(
         "--model-param",
         action="append",
@@ -304,6 +307,9 @@ def main() -> None:
             pin_memory=args.pin_memory,
             device="cuda",
             model_params=model_params,
+            mixed_precision=args.mixed_precision,
+            torch_compile=args.torch_compile,
+            torch_compile_mode=args.torch_compile_mode,
         )
     else:
         run_special_runner(

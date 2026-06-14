@@ -17,7 +17,7 @@ Required before VLM training context is trusted:
 - A checkpoint loader returns `TimeSeriesResult`.
 - Validation predictions include probabilities for labels `0` through `4`.
 - Confidence calibration is measured.
-- Summary features come from `ml/src/features/timeseries_summary.py`.
+- Summary features come from `ml/timeseries/src/features/timeseries_summary.py`.
 - False high-confidence errors are reviewed.
 
 ## Gate 3: VLM Adapter Ready

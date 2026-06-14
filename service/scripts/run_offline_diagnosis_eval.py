@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from service.backend.app.offline import run_offline_mock_evaluation, summary_to_json
+from service.backend.app.application.offline import run_offline_mock_evaluation, summary_to_json
 
 
 def parse_args() -> argparse.Namespace:

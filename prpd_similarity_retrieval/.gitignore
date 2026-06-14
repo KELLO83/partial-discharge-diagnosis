@@ -1,0 +1,4 @@
+case_feature_index*.json
+case_feature_index*.npz
+case_feature_cache*.jsonl
+case_embedding_index*.npz

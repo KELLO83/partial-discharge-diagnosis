@@ -1,544 +1,378 @@
-# PRD: Partial-Discharge Diagnosis Service Agent Workflow
+# PRD: Partial-Discharge Diagnosis Service
 
 ## 1. Purpose
 
-This document defines the future `React + FastAPI + OpenAI Agents SDK` partial-discharge diagnosis workflow. This stage is service planning before implementation. It targets inference-service orchestration, not model training.
+The service layer provides an end-to-end diagnosis skeleton before final model training is complete.
 
-The service goal is: when a user provides a PRPD image, time-series CSV, and equipment/environment metadata, FastAPI runs an Agents SDK workflow, calls existing time-series and VLM inference models as tools, and returns the final diagnosis report.
-
-```text
-React
--> FastAPI
--> Agents SDK workflow
--> Time-series inference tool
--> VLM inference tool
--> Guardrail / Reviewer
--> Final diagnosis report
-```
-
-## 2. Scope
-
-### Included
-
-- React input-screen design direction
-- FastAPI diagnosis API design direction
-- Agents SDK diagnosis workflow
-- Time-series model inference tool
-- VLM inference tool
-- Input/output guardrails
-- Trace/audit log design
-- Human-review branching conditions
-
-### Excluded
-
-- Time-series model training
-- VLM model training
-- QLoRA training-code changes
-- Real industrial-site deployment
-- User authentication/authorization
-- Payment or operations-admin features
-
-## 3. User Scenarios
-
-### Scenario A: Normal Diagnosis Request
-
-The user enters the following in the React screen:
-
-- PRPD PNG image
-- Partial-discharge time-series CSV
-- Equipment name
-- Rated voltage/current
-- Insulator information
-- Sensor type
-- Temperature/humidity
-- Clearance distance
-
-The service returns:
-
-```json
-{
-  "diagnosis_id": "diag_20260604_000001",
-  "status": "completed",
-  "final_label_id": 3,
-  "diagnosis": "corona_discharge",
-  "risk_level": "caution",
-  "confidence": 0.87,
-  "reason": "The time-series model and VLM diagnosis both support a corona-discharge interpretation.",
-  "recommended_action": "Inspect high-voltage connection points and electric-field concentration areas, then monitor the trend.",
-  "requires_human_review": false
-}
-```
-
-### Scenario B: Input Error
-
-If the CSV shape is not `(20, 7680)` or the image is not PNG, the workflow does not start.
-
-```json
-{
-  "status": "rejected",
-  "error_code": "INVALID_INPUT",
-  "message": "timeseries_csv must have shape (20, 7680)."
-}
-```
-
-### Scenario C: Low Confidence
-
-If the time-series model and VLM disagree or confidence is low, the service does not finalize the diagnosis and returns review status.
-
-```json
-{
-  "status": "needs_review",
-  "requires_human_review": true,
-  "reason": "The time-series model and VLM predicted different labels."
-}
-```
-
-## 4. Overall Architecture
+It must already run like the target product:
 
 ```text
-frontend/
-  React app
-  - upload form
-  - metadata form
-  - diagnosis result view
-  - trace view
-
-service/
-  FastAPI backend
-  - upload endpoint
-  - diagnosis endpoint
-  - trace endpoint
-  - Agents SDK workflow
-
-ml/
-  time-series inference code
-
-vlm/
-  VLM inference code
-  prompt builder
-  output evaluator
+PRPD PNG
++ time-series CSV
++ equipment/environment metadata
+-> input validation
+-> time-series evidence adapter
+-> lightweight vision evidence adapter
+-> similar dataset case retrieval adapter
+-> RAG knowledge retrieval adapter
+-> VLM report adapter
+-> reviewer guardrails
+-> case trace, report, manager dashboard
 ```
 
-## 5. API Design
+Current adapters are deterministic mocks. After model work is complete, only the adapter implementations should need replacement.
 
-### POST `/diagnose`
+## 2. Non-Goals
 
-Runs the diagnosis workflow.
+- Do not train models in the service layer.
+- Do not run model experiments from the dashboard.
+- Do not put raw CSV rows, image binaries, label names, sample IDs, or file paths into prompts or traces.
+- Do not make the VLM the only diagnostic model.
 
-Request:
+## 3. Runtime Components
+
+### FastAPI Backend
+
+Location:
 
 ```text
-multipart/form-data
-- prpd_image: PNG
-- timeseries_csv: CSV
-- metadata: JSON string
+service/backend/app/
 ```
-
-Metadata JSON:
-
-```json
-{
-  "equipment_name": "ACSR-OC",
-  "equipment_rated_voltage": "22900V",
-  "equipment_rated_current": "268A",
-  "insulator_type": "solid",
-  "insulator_name": "XLPE",
-  "sensor_type": "HFCT",
-  "temperature": 19,
-  "humidity": 66,
-  "clearance_distance": "1000mm"
-}
-```
-
-Response:
-
-```json
-{
-  "diagnosis_id": "diag_...",
-  "status": "completed | needs_review | rejected",
-  "final_label_id": 0,
-  "diagnosis": "normal",
-  "risk_level": "low",
-  "confidence": 0.91,
-  "reason": "...",
-  "recommended_action": "...",
-  "requires_human_review": false,
-  "trace_id": "trace_..."
-}
-```
-
-### GET `/diagnose/{diagnosis_id}`
-
-Returns a stored diagnosis result.
-
-### GET `/diagnose/{diagnosis_id}/trace`
-
-Returns the Agent workflow execution trace and tool-call results.
-
-### GET `/health`
-
-Returns service status, model loading status, and GPU availability.
-
-## 6. Agents SDK Design
-
-The OpenAI Agents SDK is a diagnosis-process manager, not a trainer. Apply its core concepts, including Agent, tool, handoff, guardrail, and tracing, to the service workflow.
-
-### 6.1 Orchestrator Agent
 
 Responsibilities:
 
-- Start the full diagnosis workflow.
-- Check input-validation results.
-- Call the time-series tool.
-- Call the VLM tool.
-- Call the Reviewer Agent.
-- Call the final Report Agent.
+- receive multipart diagnosis requests
+- validate PNG and CSV shape
+- parse safe metadata
+- call deterministic model/retrieval adapters
+- apply confidence, probability, disagreement, and RAG guardrails
+- store trace, history, review actions, comments, and report detail
 
-Instructions:
+### React Manager Dashboard
+
+Location:
 
 ```text
-You are the workflow manager for partial-discharge diagnosis.
-Do not invent labels directly. Build the final judgment only from tool results.
-If the time-series model and VLM results conflict, do not finalize a diagnosis. Branch to needs_review.
+service/frontend/src/
 ```
-
-### 6.2 Data Intake Agent
 
 Responsibilities:
 
-- Validate uploaded file metadata.
-- Interpret CSV shape validation results.
-- Interpret image-format validation results.
-- Check required input metadata fields.
-- Block potential label leakage.
+- upload PRPD PNG and time-series CSV
+- edit equipment metadata
+- show final verdict
+- show metadata, time-series, vision, similar case, RAG, and VLM evidence cards
+- show trace log, history, review queue, model runtime status, similar cases, and report references
+- provide a dedicated similar-case search page for field operators to filter historical PRPD cases by label, equipment, sensor, and insulation type
+- provide a RAG administration panel below the trace menu for index health, evidence search, source counts, recent query logs, and reindexing
+- render all operator-facing copy in Korean because the target user is a plant/process manager or PRPD monitoring operator
 
-This Agent does not run model inference. If input is invalid, it stops the workflow.
+## 4. Adapter Contracts
 
-### 6.3 Time-Series Inference Tool
+All model and retrieval adapters must expose both native outputs and a common service evidence contract. The common contract keeps the dashboard, report generator, reviewer, and future checkpoint-backed models independent from model-specific feature names.
 
-This is a deterministic tool called by the Agent.
+Common model evidence:
+
+```text
+source
+model_name
+model_version
+label_id
+label_name
+confidence
+uncertainty
+ood_score
+top_factors[]
+explanation
+```
+
+Each `top_factors[]` item contains:
+
+```text
+name, value, weight, explanation
+```
+
+Model-specific raw features may still exist, but operator-facing evidence must come through this standard contract.
+
+### Time-Series Adapter
 
 Input:
 
-```json
-{
-  "timeseries_csv_path": "uploads/diag_x/signal.csv"
-}
+```text
+CSV artifact path + sha256
 ```
 
 Output:
 
-```json
-{
-  "model_name": "patchtst",
-  "label_id": 3,
-  "label_name": "corona_discharge",
-  "confidence": 0.87,
-  "probabilities": {
-    "0": 0.02,
-    "1": 0.04,
-    "2": 0.06,
-    "3": 0.87,
-    "4": 0.01
-  },
-  "features": {
-    "rms": 30.37,
-    "std": 4.96,
-    "abs_p99": 39.0,
-    "pulse_rate": 0.0069,
-    "spectral_energy": 13982100.0
-  }
-}
+```text
+label_id, label_name, confidence, probabilities, summary features
++ standard evidence factors for signal amplitude, pulse rate, and spectral energy
 ```
 
-Cautions:
+Current mock:
 
-- Do not put the full raw CSV in an Agent or VLM prompt.
-- Provide only inference results and summary features to the Agent.
+```text
+mock_patchtst@pre_model_mock
+```
 
-### 6.4 VLM Inference Tool
+Service deployment contract:
 
-This is a deterministic tool called by the Agent.
+```text
+artifacts/models/time_series/model_manifest.json
+-> entrypoint: ml.timeseries.src.service_adapter:load_adapter
+-> backend method: predict_csv(TimeSeriesToolInput) -> dict
+-> normalized output: TimeSeriesResult
+```
+
+### Vision Adapter
 
 Input:
 
-```json
-{
-  "prpd_image_path": "uploads/diag_x/prpd.png",
-  "safe_metadata": {
-    "equipment_name": "ACSR-OC",
-    "equipment_rated_voltage": "22900V",
-    "sensor_type": "HFCT",
-    "temperature": 19,
-    "humidity": 66
-  },
-  "timeseries_summary": {
-    "ts_pred_class": 3,
-    "ts_confidence": 0.87,
-    "rms": 30.37,
-    "std": 4.96,
-    "abs_p99": 39.0,
-    "pulse_rate": 0.0069,
-    "spectral_energy": 13982100.0
-  }
-}
+```text
+PRPD PNG artifact path + sha256
 ```
 
 Output:
 
-```json
-{
-  "label_id": 3,
-  "diagnosis": "corona_discharge",
-  "risk_level": "caution",
-  "reason": "The PRPD image and time-series summary are consistent with a corona-discharge pattern.",
-  "recommended_action": "Inspect high-voltage connection points and electric-field concentration areas."
-}
+```text
+label_id, label_name, confidence, probabilities, visual evidence, OOD hint
++ standard evidence factors for phase localization, noise band, and PRPD OOD score
 ```
 
-Candidate models:
-
-- Local first: `Qwen/Qwen3-VL-2B-Instruct`
-- Local fallback: `Qwen/Qwen2.5-VL-3B-Instruct`
-- Higher VRAM/cloud comparison: `LGAI-EXAONE/EXAONE-4.5-33B-AWQ`
-
-### 6.5 Diagnosis Reviewer Agent
-
-Responsibilities:
-
-- Compare time-series model and VLM results.
-- Validate VLM JSON schema.
-- Detect label mismatch.
-- Check confidence threshold.
-- Block exaggerated recommended actions.
-- Decide whether human review is required.
-
-Branching rules:
+Current mock:
 
 ```text
-if input_validation_failed:
-    status = rejected
-elif ts_confidence < 0.60:
-    status = needs_review
-elif ts_label_id != vlm_label_id:
-    status = needs_review
-elif vlm_json_schema_invalid:
-    status = needs_review
+mock_prpd_small_cnn@pre_model_mock
+```
+
+Service deployment contract:
+
+```text
+artifacts/models/vision/model_manifest.json
+-> entrypoint: ml.vision.src.service_adapter:load_adapter
+-> backend method: predict_image(VisionToolInput) -> dict
+-> normalized output: VisionResult
+```
+
+### RAG Retrieval Adapter
+
+Input:
+
+```text
+safe metadata + time-series result + vision result
++ similar dataset case result
+```
+
+Output:
+
+```text
+query, retriever name/version, compact evidence documents, reference cases
+```
+
+Current mock:
+
+```text
+pgvector_rulebook_case_rag@dragonkue_multilingual_e5_small_ko_v2
+```
+
+Implementation:
+
+```text
+PostgreSQL database: partial_discharge_diagnosis
+schema: rag
+embedding model: dragonkue/multilingual-e5-small-ko-v2
+embedding dimension: 384
+default sources: rulebook markdown + dataset case summaries
+optional source: SOP markdown, enabled only through RAG_SOURCE_TYPES
+excluded source: maintenance manuals
+```
+
+The first production-shaped RAG implementation uses PostgreSQL + pgvector. LangGraph remains a later internal RAG orchestration option; it should not replace the current diagnosis workflow until the retrieval boundary is stable.
+
+RAG responsibilities:
+
+- retrieve rulebook evidence for the current candidate label and sensor context
+- retrieve SOP evidence for review, remeasurement, and uncertainty handling
+- retrieve text summaries of historical dataset cases
+- rerank vector hits with candidate label, sensor, equipment type, and insulation metadata so operationally relevant evidence is promoted
+- provide evidence to the VLM reporter, fusion evidence contract, reviewer guardrails, and the dashboard evidence card
+- expose administration APIs for status, document listing, query logs, manual search, and reindexing
+- not directly vote for the final diagnosis label
+
+### Similar Case Retrieval Adapter
+
+Input:
+
+```text
+safe metadata + time-series result + vision result
+```
+
+Output:
+
+```text
+Top 5 dataset cases with label, PRPD image URL, metadata, similarity score, and retrieval reason
+```
+
+Current mock:
+
+```text
+mock_dataset_case_retriever@pre_embedding_mock
+```
+
+This is the practical field-evidence path: a new upload can be compared against existing `data/` cases before trained embedding models are available.
+
+The same dataset case repository also powers the dashboard's manual similar-case search:
+
+```text
+label / equipment / sensor / insulation / free-text query
+-> matching historical PRPD references
+```
+
+### VLM Adapter
+
+Input:
+
+```text
+PRPD PNG artifact
++ safe metadata
++ time-series evidence
++ vision evidence
++ RAG evidence
+```
+
+Output:
+
+```text
+diagnosis label, risk level, confidence, reason, recommended action
++ standard evidence factors summarizing model agreement, retrieved rulebook evidence, and top similar case
+```
+
+Current mock:
+
+```text
+mock_qwen3_vl_2b@pre_model_mock
+```
+
+Service deployment contract:
+
+```text
+artifacts/models/vlm/model_manifest.json
+-> entrypoint: ml.vlm.src.service_adapter:load_adapter
+-> backend method: generate_report(VlmToolInput) -> dict
+-> normalized output: VlmResult
+```
+
+Adapter mode:
+
+```text
+MODEL_ADAPTER_MODE=mock       # use deterministic service mocks
+MODEL_ADAPTER_MODE=checkpoint # require all model artifacts to be ready
+MODEL_ADAPTER_MODE=auto       # use ready checkpoint adapters and mock the rest
+```
+
+## 5. Workflow
+
+```text
+input_router
+-> metadata_context
+-> time_series_tool
+-> vision_tool
+-> similar_case_tool
+-> rag_tool
+-> vlm_tool
+-> fusion_engine
+-> diagnosis_reviewer
+-> report_agent
+```
+
+Route behavior:
+
+- `hybrid`: PNG + valid CSV + valid metadata
+- `vlm_only`: PNG + valid metadata
+- `timeseries_only`: valid CSV only
+- `insufficient_input`: no valid diagnostic input
+
+The RAG tool runs on every non-rejected route. The VLM tool runs only when image and metadata are available.
+
+Fusion engine behavior:
+
+```text
+collect standard evidence from time-series, vision, VLM, RAG, and similar cases
+-> compute agreement level
+-> summarize contributing sources
+-> expose a fusion rationale to trace/report/dashboard
+```
+
+The first implementation is deterministic rule-based late fusion. A trained meta-classifier can replace it later without changing the frontend evidence contract.
+
+## 6. Guardrails
+
+Input guardrails:
+
+- CSV shape must match the expected service shape.
+- PRPD image must be PNG-like.
+- metadata must reject label leakage and unexpected fields.
+
+Tool guardrails:
+
+- time-series and vision label IDs must be valid.
+- probability outputs must contain classes `0` through `4` and sum near `1`.
+- confidence must meet the release threshold.
+- Similar case retrieval should return dataset references when the local manifest is available.
+- Fusion should state whether available models agree, partially agree, or conflict.
+- RAG query must be non-empty.
+- RAG must return at least one sufficiently relevant document.
+- RAG database unavailability must fall back to deterministic local evidence so the service remains demonstrable before production DB provisioning.
+- VLM reason and recommendation must be non-empty.
+
+Reviewer behavior:
+
+```text
+if invalid input:
+    rejected
+elif low confidence:
+    needs_review
+elif time-series / vision / VLM labels disagree:
+    needs_review
+elif RAG evidence is missing or weak:
+    needs_review
 else:
-    status = completed
+    completed
 ```
 
-### 6.6 Report Agent
+## 7. API Surface
 
-Responsibilities:
+Core endpoints:
 
-- Generate the final user response.
-- Normalize diagnosis JSON.
-- Generate a short explanation for field engineers.
-- Summarize why human review is required when applicable.
+- `GET /health`
+- `GET /model-status`
+- `POST /diagnose`
+- `GET /diagnose/{diagnosis_id}/trace`
+- `GET /diagnoses`
+- `GET /diagnoses/{diagnosis_id}`
+- `GET /review-queue`
+- `POST /diagnoses/{diagnosis_id}/actions`
+- `POST /diagnoses/{diagnosis_id}/comments`
+- `GET /diagnoses/{diagnosis_id}/report`
+- `GET /dataset/cases`
+- `GET /dataset/cases/search`
+- `GET /dataset/cases/{sample_id}`
+- `GET /dataset/cases/{sample_id}/image`
 
-The Report Agent cannot create a new diagnosis label. It only formats results approved by the Reviewer Agent.
+Scenario replay endpoints:
 
-## 7. Guardrail Design
+- `GET /demo/scenarios`
+- `POST /demo/seed`
+- `POST /demo/scenarios/{scenario_id}/activate`
 
-### Input Guardrail
+## 8. Done Criteria
 
-Checks before workflow start:
-
-- File extension validation
-- Image MIME validation
-- CSV shape validation
-- Required metadata field validation
-- Detection of user-supplied labels
-
-### Tool Guardrail
-
-Checks before and after each tool call.
-
-Time-Series Tool:
-
-- Confirm the input CSV path stays inside the upload directory.
-- Confirm output `label_id` is in range `0` through `4`.
-- Confirm probabilities sum close to 1.
-
-VLM Tool:
-
-- Confirm forbidden fields are absent from the prompt.
-- Confirm output JSON is parseable.
-- Confirm all required keys exist.
-
-### Output Guardrail
-
-Checks before final response:
-
-- Confirm `status` is an allowed enum.
-- Confirm `final_label_id` maps to `diagnosis`.
-- If `requires_human_review=true`, avoid definitive recommended actions.
-
-## 8. Trace / Audit Log
-
-Use Agents SDK tracing to record:
-
-- `diagnosis_id`
-- `trace_id`
-- Input file validation results
-- Time-Series Tool input/output summary
-- VLM Tool input/output summary
-- Reviewer Agent judgment
-- Final response
-- Human-review branch reason
-
-Sensitive-data policy:
-
-- Do not store the full raw CSV in traces.
-- Do not store PRPD image binaries in traces.
-- Store only paths, checksums, shapes, and summary features.
-
-## 9. Data Security and Leakage Prevention
-
-Values forbidden in prompts:
-
-- `label_id`
-- `label_name`
-- `PD_type`
-- `sample_id`
-- file name
-- file path
-- `defect_details`
-- `defect_nums`
-- `max_discharge_value`
-
-Service input metadata must not accept target labels. Target labels exist only in training/evaluation data and are not included in service inference requests.
-
-## 10. React Screen Design
-
-### Diagnose Page
-
-Inputs:
-
-- PRPD image upload
-- Time-series CSV upload
-- Equipment/environment metadata form
-- Run diagnosis button
-
-Outputs:
-
-- Final diagnosis label
-- Risk level
-- Confidence
-- Evidence/reason
-- Recommended action
-- Human-review status
-
-### Trace Page
-
-Shows:
-
-- Input validation status
-- Time-series model result
-- VLM result
-- Reviewer judgment
-- Final response generation time
-
-## 11. FastAPI Service Structure
-
-Recommended modules:
-
-```text
-service/
-  PRD.md
-  backend/
-    app/
-      main.py
-      api/
-        diagnose.py
-        health.py
-      schemas/
-        request.py
-        response.py
-      agents/
-        workflow.py
-        prompts.py
-        guardrails.py
-      tools/
-        timeseries.py
-        vlm.py
-      storage/
-        uploads.py
-        traces.py
-  frontend/
-    src/
-      pages/
-        DiagnosePage.tsx
-        TracePage.tsx
-```
-
-## 12. Phased Implementation Plan
-
-### Phase 1: API Skeleton
-
-- FastAPI `/health`
-- FastAPI `/diagnose`
-- request/response schemas
-- file-upload storage
-
-### Phase 2: Deterministic Inference Tools
-
-- Time-Series Inference Tool
-- VLM Inference Tool
-- tool-level mock/stub support
-
-### Phase 3: Agents SDK Workflow
-
-- Orchestrator Agent
-- Data Intake Agent
-- Diagnosis Reviewer Agent
-- Report Agent
-- Decide between handoff and manager-as-tools structures
-
-Recommended approach:
-
-```text
-initial implementation: manager-as-tools
-extended implementation: handoff
-```
-
-Reason:
-
-- The initial service has a fixed diagnosis workflow, so a manager that calls tools in order is more predictable.
-- Introduce handoffs when the service becomes conversational or has more complex workflow branching.
-
-### Phase 4: React UI
-
-- upload form
-- metadata form
-- diagnosis result view
-- trace view
-
-### Phase 5: QA and Deployment Preparation
-
-- valid-sample diagnosis end-to-end
-- invalid CSV rejection
-- low-confidence review branch
-- time-series/VLM disagreement review branch
-- trace-storage validation
-
-## 13. Definition of Done
-
-- React can upload PRPD image, CSV, and metadata.
-- FastAPI `/diagnose` receives the request and runs the workflow.
-- The Time-Series Tool runs CSV inference and returns summary features.
-- The VLM Tool receives PRPD image plus safe context and returns diagnosis JSON.
-- The Reviewer Agent detects disagreement, low confidence, and invalid JSON.
-- Final response status is one of `completed`, `needs_review`, or `rejected`.
-- `/diagnose/{id}/trace` can return workflow trace data.
-
-## 14. References
-
-- OpenAI Agents SDK GitHub: `https://github.com/openai/openai-agents-python`
-- Agents SDK agents guide: `https://openai.github.io/openai-agents-python/agents/`
-- Agents SDK handoffs guide: `https://openai.github.io/openai-agents-python/handoffs/`
-- Agents SDK guardrails reference: `https://openai.github.io/openai-agents-python/ref/guardrail/`
-- Agents SDK tracing guide: `https://openai.github.io/openai-agents-python/tracing/`
-- Existing project PRD: `docs/PRD.md`
-- VLM runbook: `docs/VLM_DEVELOPMENT_RUNBOOK.md`
+- A user can upload PNG + CSV + metadata from the dashboard.
+- Backend returns a diagnosis response and trace.
+- Trace includes metadata, time-series, vision, similar case, RAG, VLM, reviewer, and report events for hybrid input.
+- Trace includes standardized model evidence and fusion rationale.
+- Manager dashboard renders Korean operator-facing copy, intake upload, evidence board, current similar cases, history, detail, review queue, and report download.
+- RAG can initialize a PostgreSQL + pgvector schema and ingest rulebook, SOP, and dataset case summary chunks.
+- The service can run without trained model checkpoints and without a populated RAG database by using deterministic fallback evidence.
+- Backend and frontend tests pass.
+- The service can keep running while future trained adapters are developed under `ml/timeseries`, `ml/vision`, and `ml/vlm`.

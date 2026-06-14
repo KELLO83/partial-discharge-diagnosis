@@ -1,13 +1,31 @@
 import type {
+  DemoScenarioActivationResponse,
+  DemoScenarioListResponse,
+  DemoSeedResponse,
+  DiagnosisDetailResponse,
   DiagnosisListResponse,
+  DiagnosisReportResponse,
   DiagnosisResponse,
   HealthResponse,
   MetadataForm,
   ModelRuntimeStatus,
+  RagDocumentListResponse,
+  RagQueryLogResponse,
+  RagReindexResponse,
+  RagSearchResponse,
+  RagStatusResponse,
+  ReviewAction,
   TraceResponse,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
+
+export function apiAssetUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  return `${API_BASE}${path}`;
+}
 
 export async function submitDiagnosis(input: {
   readonly image: File | null;
@@ -50,12 +68,70 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return await response.json() as HealthResponse;
 }
 
-export async function fetchModelStatus(): Promise<ModelRuntimeStatus> {
+export async function fetchModelRuntimeStatus(): Promise<ModelRuntimeStatus> {
   const response = await fetch(`${API_BASE}/model-status`);
   if (!response.ok) {
     throw new Error(`model status request failed: ${response.status}`);
   }
   return await response.json() as ModelRuntimeStatus;
+}
+
+export async function fetchRagStatus(): Promise<RagStatusResponse> {
+  const response = await fetch(`${API_BASE}/rag/status`);
+  if (!response.ok) {
+    throw new Error(`rag status request failed: ${response.status}`);
+  }
+  return await response.json() as RagStatusResponse;
+}
+
+export async function fetchRagDocuments(input: {
+  readonly sourceType: string;
+  readonly limit?: number;
+}): Promise<RagDocumentListResponse> {
+  const params = new URLSearchParams({limit: String(input.limit ?? 50)});
+  if (input.sourceType !== "all") {
+    params.set("source_type", input.sourceType);
+  }
+  const response = await fetch(`${API_BASE}/rag/documents?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`rag documents request failed: ${response.status}`);
+  }
+  return await response.json() as RagDocumentListResponse;
+}
+
+export async function fetchRagQueryLogs(limit = 20): Promise<RagQueryLogResponse> {
+  const response = await fetch(`${API_BASE}/rag/query-logs?limit=${limit}`);
+  if (!response.ok) {
+    throw new Error(`rag query logs request failed: ${response.status}`);
+  }
+  return await response.json() as RagQueryLogResponse;
+}
+
+export async function searchRagDocuments(input: {
+  readonly query: string;
+  readonly topK: number;
+}): Promise<RagSearchResponse> {
+  const response = await fetch(`${API_BASE}/rag/search`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({query: input.query, top_k: input.topK}),
+  });
+  if (!response.ok) {
+    throw new Error(`rag search request failed: ${response.status}`);
+  }
+  return await response.json() as RagSearchResponse;
+}
+
+export async function reindexRagDocuments(datasetLimit: number | null): Promise<RagReindexResponse> {
+  const response = await fetch(`${API_BASE}/rag/reindex`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({dataset_limit: datasetLimit}),
+  });
+  if (!response.ok) {
+    throw new Error(`rag reindex request failed: ${response.status}`);
+  }
+  return await response.json() as RagReindexResponse;
 }
 
 export async function fetchDiagnosisHistory(): Promise<DiagnosisListResponse> {
@@ -74,6 +150,75 @@ export async function fetchReviewQueue(): Promise<DiagnosisListResponse> {
   return await response.json() as DiagnosisListResponse;
 }
 
+export async function fetchDiagnosisDetail(diagnosisId: string): Promise<DiagnosisDetailResponse> {
+  const response = await fetch(`${API_BASE}/diagnoses/${diagnosisId}`);
+  if (!response.ok) {
+    throw new Error(`diagnosis detail request failed: ${response.status}`);
+  }
+  return await response.json() as DiagnosisDetailResponse;
+}
+
+export async function submitReviewAction(input: {
+  readonly action: ReviewAction;
+  readonly diagnosisId: string;
+  readonly note: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/diagnoses/${input.diagnosisId}/actions`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action: input.action, note: input.note}),
+  });
+  if (!response.ok) {
+    throw new Error(`review action request failed: ${response.status}`);
+  }
+}
+
+export async function submitDiagnosisComment(input: {
+  readonly diagnosisId: string;
+  readonly note: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/diagnoses/${input.diagnosisId}/comments`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({note: input.note}),
+  });
+  if (!response.ok) {
+    throw new Error(`diagnosis comment request failed: ${response.status}`);
+  }
+}
+
+export async function fetchDiagnosisReport(diagnosisId: string): Promise<DiagnosisReportResponse> {
+  const response = await fetch(`${API_BASE}/diagnoses/${diagnosisId}/report`);
+  if (!response.ok) {
+    throw new Error(`diagnosis report request failed: ${response.status}`);
+  }
+  return await response.json() as DiagnosisReportResponse;
+}
+
+export async function fetchDemoScenarios(): Promise<DemoScenarioListResponse> {
+  const response = await fetch(`${API_BASE}/demo/scenarios`);
+  if (!response.ok) {
+    throw new Error(`demo scenarios request failed: ${response.status}`);
+  }
+  return await response.json() as DemoScenarioListResponse;
+}
+
+export async function seedDemoRecords(): Promise<DemoSeedResponse> {
+  const response = await fetch(`${API_BASE}/demo/seed`, {method: "POST"});
+  if (!response.ok) {
+    throw new Error(`demo seed request failed: ${response.status}`);
+  }
+  return await response.json() as DemoSeedResponse;
+}
+
+export async function activateDemoScenario(scenarioId: string): Promise<DemoScenarioActivationResponse> {
+  const response = await fetch(`${API_BASE}/demo/scenarios/${scenarioId}/activate`, {method: "POST"});
+  if (!response.ok) {
+    throw new Error(`demo scenario activation request failed: ${response.status}`);
+  }
+  return await response.json() as DemoScenarioActivationResponse;
+}
+
 function metadataComplete(metadata: MetadataForm): boolean {
   return [
     metadata.equipmentName,
@@ -86,7 +231,7 @@ function metadataComplete(metadata: MetadataForm): boolean {
 }
 
 function toApiMetadata(metadata: MetadataForm): Record<string, string | number> {
-  return {
+  const payload: Record<string, string | number> = {
     equipment_name: metadata.equipmentName,
     equipment_rated_voltage: metadata.ratedVoltage,
     equipment_rated_current: metadata.ratedCurrent,
@@ -94,4 +239,16 @@ function toApiMetadata(metadata: MetadataForm): Record<string, string | number> 
     temperature: Number(metadata.temperature),
     humidity: Number(metadata.humidity),
   };
+  addOptionalString(payload, "equipment_type", metadata.equipmentType);
+  addOptionalString(payload, "measurement_location", metadata.measurementLocation);
+  addOptionalString(payload, "operating_condition", metadata.operatingCondition);
+  addOptionalString(payload, "insulator_type", metadata.insulatorType);
+  addOptionalString(payload, "clearance_distance", metadata.clearanceDistance);
+  return payload;
+}
+
+function addOptionalString(payload: Record<string, string | number>, key: string, value: string | undefined): void {
+  if (value !== undefined && value.trim().length > 0) {
+    payload[key] = value;
+  }
 }

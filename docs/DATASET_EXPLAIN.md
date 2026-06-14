@@ -14,9 +14,9 @@ Each sample is a 1:1 match between three files:
 
 ```text
 one partial-discharge sample
-â”œâ”€â”€ PRPD image (*.png)
-â”œâ”€â”€ partial-discharge time-series data (*.csv)
-â””â”€â”€ label and metadata (*.json)
+¦§¦¡¦¡ PRPD image (*.png)
+¦§¦¡¦¡ partial-discharge time-series data (*.csv)
+¦¦¦¡¦¡ label and metadata (*.json)
 ```
 
 The primary modeling target is 5-class CSV time-series classification, not PRPD image-only vision classification. The secondary target is a small VLM diagnosis model using PRPD image, JSON metadata, and time-series summary information.
@@ -117,15 +117,15 @@ Example pattern:
 ```text
 source CSV:
 Train/source/VS_noise_solid_ACSR-OC/
-â””â”€â”€ noise_solid_ACSR-OC_230910_195222_HFCT_1000.csv
+¦¦¦¡¦¡ noise_solid_ACSR-OC_230910_195222_HFCT_1000.csv
 
 source PNG:
 Train/source/VS_noise_solid_ACSR-OC/
-â””â”€â”€ noise_solid_ACSR-OC_230910_195222_HFCT_1000.png
+¦¦¦¡¦¡ noise_solid_ACSR-OC_230910_195222_HFCT_1000.png
 
 label JSON:
 Train/labels/VL_noise_solid_ACSR-OC/
-â””â”€â”€ noise_solid_ACSR-OC_230910_195222_HFCT_1000.json
+¦¦¦¡¦¡ noise_solid_ACSR-OC_230910_195222_HFCT_1000.json
 ```
 
 Generate the manifest from JSON files:
@@ -281,15 +281,15 @@ JSON files contain `label` and `metadata` sections.
 
 ```text
 json
-â”œâ”€â”€ label
-â”‚   â”œâ”€â”€ PD_type
-â”‚   â”œâ”€â”€ image_path
-â”‚   â””â”€â”€ timeseries_path
-â””â”€â”€ metadata
-    â”œâ”€â”€ equipment_information
-    â”œâ”€â”€ environment
-    â”œâ”€â”€ discharge_information
-    â””â”€â”€ discharge_evaluation_factors
+¦§¦¡¦¡ label
+¦¢   ¦§¦¡¦¡ PD_type
+¦¢   ¦§¦¡¦¡ image_path
+¦¢   ¦¦¦¡¦¡ timeseries_path
+¦¦¦¡¦¡ metadata
+    ¦§¦¡¦¡ equipment_information
+    ¦§¦¡¦¡ environment
+    ¦§¦¡¦¡ discharge_information
+    ¦¦¦¡¦¡ discharge_evaluation_factors
 ```
 
 JSON may include a UTF-8 BOM, so read with `utf-8-sig`.
@@ -558,7 +558,7 @@ Current runners use manifest `split=train` and `split=valid` when both are prese
 Fixed split command:
 
 ```powershell
-python ml/scripts/make_splits.py --manifest Train/manifest.csv --output Train/manifest_random_split_seed42.csv --valid-ratio 0.2 --seed 42
+python ml/timeseries/scripts/make_splits.py --manifest Train/manifest.csv --output Train/manifest_random_split_seed42.csv --valid-ratio 0.2 --seed 42
 ```
 
 ## 18. Evaluation Metrics

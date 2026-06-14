@@ -1,0 +1,36 @@
+{
+  "task": "time_series",
+  "model_name": "pd_timeseries_patchtst",
+  "model_version": "0.1.0",
+  "framework": "pytorch",
+  "entrypoint": "ml.timeseries.src.service_adapter:load_adapter",
+  "checkpoint_path": "checkpoint.pt",
+  "preprocessor_path": "preprocessor.json",
+  "label_map": {
+    "0": "정상",
+    "1": "노이즈",
+    "2": "표면 방전",
+    "3": "코로나 방전",
+    "4": "보이드 방전"
+  },
+  "input_spec": {
+    "modality": "time_series_csv",
+    "schema_version": "1.0",
+    "shape": ["channels", "samples"],
+    "dtype": "float32",
+    "notes": "CSV artifact path is passed through TimeSeriesToolInput.csv_path."
+  },
+  "output_spec": {
+    "schema_version": "1.0",
+    "required_fields": ["label_id", "confidence", "probabilities", "features"],
+    "notes": "The backend output is normalized to TimeSeriesResult."
+  },
+  "thresholds": {
+    "min_confidence": 0.72,
+    "review_confidence": 0.55
+  },
+  "runtime": {
+    "device": "auto",
+    "batch_size": 1
+  }
+}

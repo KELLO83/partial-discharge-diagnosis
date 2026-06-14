@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hard Split Review - 단상 유입변압기</title>
+
+<style>
+:root {
+  --paper: #f2f5f4;
+  --panel: #ffffff;
+  --ink: #17201f;
+  --muted: #65716f;
+  --line: #cfd8d5;
+  --strong: #0f766e;
+  --warn: #b42318;
+  --amber: #a15c07;
+  --wave: #1d4ed8;
+  --action: #1f4d5a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Aptos", "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.page-head {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.05fr) minmax(320px, .95fr) minmax(220px, .45fr);
+  gap: 28px;
+  padding: 32px clamp(18px, 4vw, 56px);
+  border-bottom: 1px solid var(--line);
+  background: #10211f;
+  color: #f7fbfa;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  color: #83d5ca;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h1, h2, h3 { margin: 0; letter-spacing: 0; }
+h1 { font-size: clamp(30px, 5vw, 58px); line-height: 1; }
+h2 { font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+h3 { font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+
+.run-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.run-meta div {
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.06);
+}
+
+dt { color: #addbd5; font-size: 11px; text-transform: uppercase; }
+dd { margin: 2px 0 0; font-weight: 750; overflow-wrap: anywhere; }
+
+.review-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+}
+
+.review-actions button {
+  min-height: 38px;
+  border: 1px solid rgba(255,255,255,.26);
+  background: #f7fbfa;
+  color: #10211f;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.review-actions button:hover { background: #c7f1ea; }
+
+#review-progress {
+  grid-column: 1 / -1;
+  color: #addbd5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+main {
+  display: grid;
+  gap: 22px;
+  padding: 24px clamp(14px, 3vw, 44px) 48px;
+}
+
+.failure {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--warn);
+  background: var(--panel);
+}
+
+.failure-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(420px, 1.4fr);
+  gap: 1px;
+  background: var(--line);
+}
+
+.neighbor-stack {
+  display: grid;
+  gap: 1px;
+}
+
+.case-panel {
+  min-width: 0;
+  padding: 16px;
+  background: var(--panel);
+}
+
+.query-panel { background: #fbfcfc; }
+
+.case-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.score { color: var(--amber); font-variant-numeric: tabular-nums; }
+
+.label-chip {
+  display: inline-block;
+  margin: 10px 0 14px;
+  color: var(--strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.label-chip.danger { color: var(--warn); margin: 0; white-space: nowrap; }
+
+.media-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.2fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+figure { margin: 0; }
+
+figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+img, .missing-media, .waveform {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--line);
+  background: #eef3f1;
+}
+
+img { object-fit: contain; display: block; }
+
+.missing-media {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.waveform { height: auto; }
+.waveform line { stroke: #c8d1ce; stroke-width: 1; }
+.waveform polyline { fill: none; stroke: var(--wave); stroke-width: 2.2; }
+
+.metadata-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metadata-row span { overflow-wrap: anywhere; }
+
+.review-box {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #f7faf9;
+}
+
+.review-heading {
+  margin-bottom: 8px;
+  color: var(--action);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.review-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.review-options label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.review-options input { margin: 0 6px 0 0; }
+
+.review-box textarea {
+  width: 100%;
+  min-height: 54px;
+  margin-top: 8px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  padding: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.empty-state {
+  padding: 32px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+@media (max-width: 980px) {
+  .page-head, .comparison-grid, .media-grid, .review-options { grid-template-columns: 1fr; }
+  .failure-head { align-items: flex-start; flex-direction: column; }
+}
+</style>
+
+
+<script>
+const reviewColumns = [
+  "query_sample_id",
+  "query_label_id",
+  "query_label_name",
+  "neighbor_rank",
+  "neighbor_sample_id",
+  "neighbor_label_id",
+  "neighbor_label_name",
+  "query_equipment_name",
+  "query_sensor_type",
+  "neighbor_equipment_name",
+  "neighbor_sensor_type",
+  "similarity_score",
+  "human_relevance",
+  "review_note"
+];
+
+function collectReviews() {
+  return Array.from(document.querySelectorAll(".neighbor-panel")).map((panel) => {
+    const checked = panel.querySelector("input[type='radio']:checked");
+    const note = panel.querySelector("[data-review-note]");
+    return {
+      query_sample_id: panel.dataset.querySampleId || "",
+      query_label_id: panel.dataset.queryLabelId || "",
+      query_label_name: panel.dataset.queryLabelName || "",
+      neighbor_rank: panel.dataset.neighborRank || "",
+      neighbor_sample_id: panel.dataset.neighborSampleId || "",
+      neighbor_label_id: panel.dataset.neighborLabelId || "",
+      neighbor_label_name: panel.dataset.neighborLabelName || "",
+      query_equipment_name: panel.dataset.queryEquipmentName || "",
+      query_sensor_type: panel.dataset.querySensorType || "",
+      neighbor_equipment_name: panel.dataset.neighborEquipmentName || "",
+      neighbor_sensor_type: panel.dataset.neighborSensorType || "",
+      similarity_score: panel.dataset.similarityScore || "",
+      human_relevance: checked ? checked.value : "",
+      review_note: note ? note.value.trim() : ""
+    };
+  });
+}
+
+function csvCell(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function reviewsAsCsv(rows) {
+  return [
+    reviewColumns.map(csvCell).join(","),
+    ...rows.map((row) => reviewColumns.map((column) => csvCell(row[column] || "")).join(","))
+  ].join("\n");
+}
+
+function downloadText(filename, text, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}
+
+function downloadReviews(format) {
+  const rows = collectReviews();
+  if (format === "json") {
+    downloadText("hard_split_human_reviews.json", JSON.stringify(rows, null, 2), "application/json;charset=utf-8");
+    return;
+  }
+  downloadText("hard_split_human_reviews.csv", reviewsAsCsv(rows), "text/csv;charset=utf-8");
+}
+
+function updateReviewProgress() {
+  const rows = collectReviews();
+  const reviewed = rows.filter((row) => row.human_relevance !== "").length;
+  const output = document.getElementById("review-progress");
+  if (output) {
+    output.value = `${reviewed} / ${rows.length} reviewed`;
+    output.textContent = output.value;
+  }
+}
+
+document.addEventListener("change", updateReviewProgress);
+document.addEventListener("input", updateReviewProgress);
+window.addEventListener("DOMContentLoaded", updateReviewProgress);
+</script>
+
+</head>
+<body>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">PRPD Similarity Retrieval</p>
+    <h1>Hard Split Failure Review</h1>
+  </div>
+  <dl class="run-meta">
+    <div><dt>Mode</dt><dd>feature_retrieval</dd></div>
+    <div><dt>Split</dt><dd>equipment_name</dd></div>
+    <div><dt>Holdout</dt><dd>단상 유입변압기</dd></div>
+    <div><dt>Train / Query</dt><dd>26,675 / 3,335</dd></div>
+    <div><dt>Inspected</dt><dd>5</dd></div>
+    <div><dt>Top-k</dt><dd>3</dd></div>
+  </dl>
+  <div class="review-actions" aria-label="review export actions">
+    <button type="button" onclick="downloadReviews('csv')">CSV</button>
+    <button type="button" onclick="downloadReviews('json')">JSON</button>
+    <output id="review-progress">0 reviewed</output>
+  </div>
+</header>
+
+<main>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_액체_단상유입변압기_230918_194729_HFCT_700</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_액체_단상유입변압기_230918_194729_HFCT_700</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_230918_194729_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,52.25 1.46,49.47 2.92,68.97 4.38,49.47 5.84,60.61 7.31,43.90 8.77,66.18 10.23,46.68 11.69,29.97 13.15,41.11 14.61,82.90 16.07,46.68 17.53,55.04 19.00,32.75 20.46,52.25 21.92,46.68 23.38,52.25 24.84,32.75 26.30,60.61 27.76,32.75 29.22,52.25 30.68,35.54 32.15,49.47 33.61,55.04 35.07,46.68 36.53,63.40 37.99,52.25 39.45,80.11 40.91,24.40 42.37,55.04 43.84,46.68 45.30,43.90 46.76,41.11 48.22,43.90 49.68,43.90 51.14,68.97 52.60,10.47 54.06,46.68 55.53,24.40 56.99,55.04 58.45,46.68 59.91,68.97 61.37,38.33 62.83,43.90 64.29,57.83 65.75,46.68 67.21,46.68 68.68,38.33 70.14,43.90 71.60,32.75 73.06,46.68 74.52,63.40 75.98,63.40 77.44,46.68 78.90,52.25 80.37,49.47 81.83,66.18 83.29,29.97 84.75,71.76 86.21,27.18 87.67,55.04 89.13,46.68 90.59,52.25 92.05,57.83 93.52,63.40 94.98,55.04 96.44,55.04 97.90,43.90 99.36,32.75 100.82,41.11 102.28,41.11 103.74,41.11 105.21,43.90 106.67,55.04 108.13,35.54 109.59,60.61 111.05,43.90 112.51,71.76 113.97,24.40 115.43,41.11 116.89,66.18 118.36,63.40 119.82,38.33 121.28,46.68 122.74,38.33 124.20,35.54 125.66,35.54 127.12,38.33 128.58,43.90 130.05,38.33 131.51,35.54 132.97,52.25 134.43,38.33 135.89,43.90 137.35,66.18 138.81,27.18 140.27,35.54 141.74,46.68 143.20,46.68 144.66,43.90 146.12,63.40 147.58,43.90 149.04,74.54 150.50,63.40 151.96,29.97 153.42,43.90 154.89,66.18 156.35,38.33 157.81,43.90 159.27,43.90 160.73,21.61 162.19,63.40 163.65,46.68 165.11,24.40 166.58,41.11 168.04,46.68 169.50,60.61 170.96,43.90 172.42,49.47 173.88,43.90 175.34,43.90 176.80,7.68 178.26,55.04 179.73,49.47 181.19,29.97 182.65,63.40 184.11,29.97 185.57,63.40 187.03,35.54 188.49,38.33 189.95,41.11 191.42,71.76 192.88,24.40 194.34,66.18 195.80,41.11 197.26,63.40 198.72,41.11 200.18,32.75 201.64,35.54 203.11,32.75 204.57,38.33 206.03,66.18 207.49,55.04 208.95,49.47 210.41,27.18 211.87,32.75 213.33,46.68 214.79,24.40 216.26,66.18 217.72,49.47 219.18,60.61 220.64,46.68 222.10,32.75 223.56,52.25 225.02,60.61 226.48,43.90 227.95,49.47 229.41,46.68 230.87,52.25 232.33,52.25 233.79,49.47 235.25,52.25 236.71,55.04 238.17,43.90 239.63,38.33 241.10,41.11 242.56,16.04 244.02,66.18 245.48,46.68 246.94,66.18 248.40,49.47 249.86,52.25 251.32,55.04 252.79,63.40 254.25,41.11 255.71,63.40 257.17,32.75 258.63,52.25 260.09,49.47 261.55,74.54 263.01,46.68 264.47,68.97 265.94,38.33 267.40,32.75 268.86,43.90 270.32,60.61 271.78,46.68 273.24,35.54 274.70,68.97 276.16,52.25 277.63,41.11 279.09,35.54 280.55,43.90 282.01,60.61 283.47,49.47 284.93,66.18 286.39,74.54 287.85,35.54 289.32,60.61 290.78,55.04 292.24,29.97 293.70,29.97 295.16,66.18 296.62,52.25 298.08,60.61 299.54,38.33 301.00,71.76 302.47,24.40 303.93,43.90 305.39,60.61 306.85,46.68 308.31,52.25 309.77,52.25 311.23,52.25 312.69,46.68 314.16,41.11 315.62,63.40 317.08,55.04 318.54,71.76 320.00,35.54" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 단상 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194729_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195837_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.928076">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.928076</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195837_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195837_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,60.98 1.46,32.11 2.92,56.54 4.38,52.10 5.84,60.98 7.31,56.54 8.77,74.31 10.23,47.66 11.69,67.65 13.15,47.66 14.61,58.76 16.07,47.66 17.53,34.33 19.00,47.66 20.46,45.44 21.92,49.88 23.38,54.32 24.84,32.11 26.30,58.76 27.76,49.88 29.22,47.66 30.68,52.10 32.15,52.10 33.61,43.21 35.07,60.98 36.53,27.67 37.99,47.66 39.45,56.54 40.91,38.77 42.37,56.54 43.84,49.88 45.30,49.88 46.76,47.66 48.22,43.21 49.68,32.11 51.14,34.33 52.60,40.99 54.06,69.87 55.53,34.33 56.99,58.76 58.45,43.21 59.91,65.42 61.37,40.99 62.83,56.54 64.29,34.33 65.75,54.32 67.21,47.66 68.68,56.54 70.14,47.66 71.60,38.77 73.06,56.54 74.52,54.32 75.98,65.42 77.44,40.99 78.90,58.76 80.37,36.55 81.83,63.20 83.29,18.78 84.75,56.54 86.21,49.88 87.67,43.21 89.13,47.66 90.59,45.44 92.05,47.66 93.52,63.20 94.98,34.33 96.44,56.54 97.90,49.88 99.36,45.44 100.82,47.66 102.28,43.21 103.74,47.66 105.21,36.55 106.67,56.54 108.13,38.77 109.59,52.10 111.05,54.32 112.51,69.87 113.97,63.20 115.43,29.89 116.89,47.66 118.36,65.42 119.82,54.32 121.28,43.21 122.74,36.55 124.20,32.11 125.66,54.32 127.12,47.66 128.58,49.88 130.05,56.54 131.51,52.10 132.97,38.77 134.43,54.32 135.89,52.10 137.35,49.88 138.81,27.67 140.27,54.32 141.74,45.44 143.20,36.55 144.66,54.32 146.12,54.32 147.58,40.99 149.04,47.66 150.50,32.11 151.96,40.99 153.42,52.10 154.89,52.10 156.35,45.44 157.81,43.21 159.27,40.99 160.73,69.87 162.19,38.77 163.65,45.44 165.11,47.66 166.58,63.20 168.04,45.44 169.50,54.32 170.96,40.99 172.42,63.20 173.88,47.66 175.34,60.98 176.80,38.77 178.26,45.44 179.73,63.20 181.19,43.21 182.65,49.88 184.11,23.23 185.57,52.10 187.03,40.99 188.49,56.54 189.95,47.66 191.42,27.67 192.88,45.44 194.34,54.32 195.80,49.88 197.26,72.09 198.72,49.88 200.18,54.32 201.64,34.33 203.11,47.66 204.57,7.68 206.03,45.44 207.49,47.66 208.95,29.89 210.41,43.21 211.87,43.21 213.33,63.20 214.79,36.55 216.26,65.42 217.72,47.66 219.18,72.09 220.64,58.76 222.10,45.44 223.56,52.10 225.02,29.89 226.48,43.21 227.95,12.12 229.41,27.67 230.87,27.67 232.33,49.88 233.79,43.21 235.25,45.44 236.71,47.66 238.17,43.21 239.63,65.42 241.10,38.77 242.56,36.55 244.02,49.88 245.48,60.98 246.94,49.88 248.40,60.98 249.86,29.89 251.32,36.55 252.79,65.42 254.25,45.44 255.71,63.20 257.17,56.54 258.63,36.55 260.09,36.55 261.55,63.20 263.01,43.21 264.47,52.10 265.94,36.55 267.40,67.65 268.86,43.21 270.32,47.66 271.78,40.99 273.24,40.99 274.70,36.55 276.16,52.10 277.63,43.21 279.09,58.76 280.55,52.10 282.01,52.10 283.47,29.89 284.93,54.32 286.39,47.66 287.85,43.21 289.32,49.88 290.78,45.44 292.24,56.54 293.70,56.54 295.16,45.44 296.62,45.44 298.08,60.98 299.54,56.54 301.00,54.32 302.47,47.66 303.93,54.32 305.39,36.55 306.85,47.66 308.31,58.76 309.77,40.99 311.23,45.44 312.69,32.11 314.16,54.32 315.62,49.88 317.08,45.44 318.54,45.44 320.00,47.66" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-0-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-0-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-0-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194729_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195734_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.927736">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.927736</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195734_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195734_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,58.42 1.46,56.01 2.92,77.75 4.38,51.17 5.84,63.26 7.31,41.51 8.77,53.59 10.23,60.84 11.69,39.09 13.15,60.84 14.61,12.51 16.07,46.34 17.53,58.42 19.00,48.76 20.46,68.09 21.92,43.93 23.38,39.09 24.84,46.34 26.30,39.09 27.76,65.67 29.22,34.26 30.68,60.84 32.15,43.93 33.61,39.09 35.07,43.93 36.53,48.76 37.99,39.09 39.45,51.17 40.91,63.26 42.37,68.09 43.84,31.84 45.30,68.09 46.76,34.26 48.22,63.26 49.68,31.84 51.14,46.34 52.60,29.43 54.06,63.26 55.53,46.34 56.99,65.67 58.45,36.68 59.91,58.42 61.37,51.17 62.83,63.26 64.29,53.59 65.75,34.26 67.21,53.59 68.68,43.93 70.14,53.59 71.60,46.34 73.06,58.42 74.52,41.51 75.98,65.67 77.44,34.26 78.90,46.34 80.37,41.51 81.83,51.17 83.29,58.42 84.75,41.51 86.21,48.76 87.67,56.01 89.13,51.17 90.59,41.51 92.05,36.68 93.52,46.34 94.98,48.76 96.44,41.51 97.90,60.84 99.36,48.76 100.82,46.34 102.28,46.34 103.74,51.17 105.21,43.93 106.67,48.76 108.13,34.26 109.59,70.50 111.05,27.01 112.51,75.34 113.97,51.17 115.43,56.01 116.89,7.68 118.36,36.68 119.82,60.84 121.28,36.68 122.74,48.76 124.20,68.09 125.66,60.84 127.12,60.84 128.58,56.01 130.05,34.26 131.51,53.59 132.97,36.68 134.43,53.59 135.89,43.93 137.35,56.01 138.81,43.93 140.27,63.26 141.74,46.34 143.20,56.01 144.66,41.51 146.12,68.09 147.58,39.09 149.04,72.92 150.50,39.09 151.96,48.76 153.42,14.93 154.89,75.34 156.35,39.09 157.81,39.09 159.27,46.34 160.73,51.17 162.19,48.76 163.65,41.51 165.11,46.34 166.58,56.01 168.04,36.68 169.50,63.26 170.96,27.01 172.42,43.93 173.88,46.34 175.34,24.59 176.80,58.42 178.26,46.34 179.73,63.26 181.19,36.68 182.65,70.50 184.11,41.51 185.57,31.84 187.03,46.34 188.49,31.84 189.95,48.76 191.42,68.09 192.88,43.93 194.34,36.68 195.80,39.09 197.26,29.43 198.72,41.51 200.18,39.09 201.64,43.93 203.11,51.17 204.57,48.76 206.03,36.68 207.49,34.26 208.95,46.34 210.41,29.43 211.87,43.93 213.33,51.17 214.79,48.76 216.26,60.84 217.72,36.68 219.18,53.59 220.64,51.17 222.10,51.17 223.56,31.84 225.02,58.42 226.48,56.01 227.95,31.84 229.41,56.01 230.87,65.67 232.33,39.09 233.79,41.51 235.25,46.34 236.71,58.42 238.17,31.84 239.63,63.26 241.10,41.51 242.56,63.26 244.02,41.51 245.48,46.34 246.94,39.09 248.40,46.34 249.86,39.09 251.32,43.93 252.79,53.59 254.25,39.09 255.71,53.59 257.17,48.76 258.63,48.76 260.09,53.59 261.55,63.26 263.01,41.51 264.47,31.84 265.94,41.51 267.40,65.67 268.86,56.01 270.32,46.34 271.78,58.42 273.24,53.59 274.70,53.59 276.16,56.01 277.63,43.93 279.09,41.51 280.55,53.59 282.01,43.93 283.47,41.51 284.93,53.59 286.39,63.26 287.85,46.34 289.32,56.01 290.78,46.34 292.24,48.76 293.70,29.43 295.16,24.59 296.62,51.17 298.08,53.59 299.54,46.34 301.00,53.59 302.47,51.17 303.93,48.76 305.39,41.51 306.85,56.01 308.31,46.34 309.77,56.01 311.23,46.34 312.69,58.42 314.16,56.01 315.62,48.76 317.08,19.76 318.54,14.93 320.00,48.76" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-0-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-0-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-0-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194729_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195341_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.927498">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.927498</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195341_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195341_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,43.20 1.46,53.35 2.92,71.11 4.38,43.20 5.84,55.89 7.31,55.89 8.77,53.35 10.23,48.28 11.69,48.28 13.15,58.43 14.61,50.81 16.07,45.74 17.53,30.52 19.00,45.74 20.46,43.20 21.92,53.35 23.38,50.81 24.84,45.74 26.30,55.89 27.76,27.98 29.22,48.28 30.68,33.05 32.15,27.98 33.61,38.13 35.07,63.50 36.53,58.43 37.99,50.81 39.45,66.04 40.91,45.74 42.37,55.89 43.84,43.20 45.30,45.74 46.76,35.59 48.22,48.28 49.68,33.05 51.14,35.59 52.60,33.05 54.06,60.96 55.53,43.20 56.99,33.05 58.45,45.74 59.91,40.66 61.37,63.50 62.83,38.13 64.29,45.74 65.75,38.13 67.21,38.13 68.68,33.05 70.14,43.20 71.60,33.05 73.06,50.81 74.52,53.35 75.98,60.96 77.44,30.52 78.90,53.35 80.37,50.81 81.83,63.50 83.29,40.66 84.75,58.43 86.21,40.66 87.67,58.43 89.13,45.74 90.59,7.68 92.05,40.66 93.52,45.74 94.98,40.66 96.44,40.66 97.90,43.20 99.36,50.81 100.82,48.28 102.28,48.28 103.74,45.74 105.21,53.35 106.67,33.05 108.13,58.43 109.59,66.04 111.05,50.81 112.51,68.58 113.97,48.28 115.43,55.89 116.89,15.29 118.36,60.96 119.82,48.28 121.28,40.66 122.74,30.52 124.20,66.04 125.66,60.96 127.12,63.50 128.58,50.81 130.05,43.20 131.51,60.96 132.97,48.28 134.43,35.59 135.89,50.81 137.35,55.89 138.81,30.52 140.27,45.74 141.74,43.20 143.20,63.50 144.66,30.52 146.12,58.43 147.58,53.35 149.04,33.05 150.50,40.66 151.96,68.58 153.42,45.74 154.89,66.04 156.35,45.74 157.81,48.28 159.27,50.81 160.73,60.96 162.19,63.50 163.65,45.74 165.11,60.96 166.58,45.74 168.04,38.13 169.50,58.43 170.96,50.81 172.42,48.28 173.88,48.28 175.34,58.43 176.80,40.66 178.26,50.81 179.73,30.52 181.19,45.74 182.65,60.96 184.11,38.13 185.57,71.11 187.03,55.89 188.49,66.04 189.95,38.13 191.42,50.81 192.88,50.81 194.34,45.74 195.80,50.81 197.26,53.35 198.72,48.28 200.18,53.35 201.64,48.28 203.11,38.13 204.57,38.13 206.03,58.43 207.49,30.52 208.95,40.66 210.41,55.89 211.87,58.43 213.33,40.66 214.79,60.96 216.26,53.35 217.72,33.05 219.18,63.50 220.64,60.96 222.10,63.50 223.56,48.28 225.02,40.66 226.48,53.35 227.95,48.28 229.41,45.74 230.87,63.50 232.33,30.52 233.79,45.74 235.25,50.81 236.71,17.83 238.17,43.20 239.63,35.59 241.10,55.89 242.56,50.81 244.02,40.66 245.48,33.05 246.94,40.66 248.40,43.20 249.86,40.66 251.32,53.35 252.79,68.58 254.25,55.89 255.71,68.58 257.17,53.35 258.63,45.74 260.09,58.43 261.55,45.74 263.01,43.20 264.47,55.89 265.94,55.89 267.40,68.58 268.86,50.81 270.32,38.13 271.78,48.28 273.24,55.89 274.70,27.98 276.16,27.98 277.63,33.05 279.09,50.81 280.55,38.13 282.01,55.89 283.47,53.35 284.93,60.96 286.39,63.50 287.85,33.05 289.32,63.50 290.78,43.20 292.24,33.05 293.70,50.81 295.16,58.43 296.62,53.35 298.08,58.43 299.54,25.44 301.00,53.35 302.47,30.52 303.93,43.20 305.39,50.81 306.85,50.81 308.31,53.35 309.77,45.74 311.23,53.35 312.69,53.35 314.16,58.43 315.62,38.13 317.08,50.81 318.54,43.20 320.00,25.44" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-0-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-0-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-0-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_액체_단상유입변압기_230918_194750_HFCT_700</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_액체_단상유입변압기_230918_194750_HFCT_700</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_230918_194750_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,46.58 1.46,46.58 2.92,56.30 4.38,47.97 5.84,51.44 7.31,44.49 8.77,51.44 10.23,50.05 11.69,43.10 13.15,47.27 14.61,7.68 16.07,44.49 17.53,52.13 19.00,47.97 20.46,50.74 21.92,47.97 23.38,48.66 24.84,47.97 26.30,43.10 27.76,48.66 29.22,50.74 30.68,49.35 32.15,52.13 33.61,45.88 35.07,47.27 36.53,49.35 37.99,45.88 39.45,52.13 40.91,46.58 42.37,53.52 43.84,45.88 45.30,48.66 46.76,47.97 48.22,45.88 49.68,50.05 51.14,48.66 52.60,44.49 54.06,53.52 55.53,45.19 56.99,45.88 58.45,45.19 59.91,48.66 61.37,46.58 62.83,45.88 64.29,52.83 65.75,45.19 67.21,50.74 68.68,49.35 70.14,52.13 71.60,42.41 73.06,54.22 74.52,50.05 75.98,54.91 77.44,47.27 78.90,54.22 80.37,47.97 81.83,47.27 83.29,49.35 84.75,49.35 86.21,43.10 87.67,52.83 89.13,42.41 90.59,45.88 92.05,47.27 93.52,45.19 94.98,51.44 96.44,48.66 97.90,51.44 99.36,46.58 100.82,54.22 102.28,45.88 103.74,47.97 105.21,50.05 106.67,49.35 108.13,46.58 109.59,51.44 111.05,45.88 112.51,53.52 113.97,39.63 115.43,54.91 116.89,41.02 118.36,47.27 119.82,45.19 121.28,44.49 122.74,50.05 124.20,40.32 125.66,42.41 127.12,46.58 128.58,52.83 130.05,47.97 131.51,47.27 132.97,47.27 134.43,47.97 135.89,47.27 137.35,45.19 138.81,50.05 140.27,47.97 141.74,42.41 143.20,50.05 144.66,44.49 146.12,54.22 147.58,49.35 149.04,50.74 150.50,51.44 151.96,49.35 153.42,47.27 154.89,47.97 156.35,42.41 157.81,51.44 159.27,44.49 160.73,46.58 162.19,49.35 163.65,44.49 165.11,46.58 166.58,47.27 168.04,44.49 169.50,49.35 170.96,47.97 172.42,53.52 173.88,47.97 175.34,48.66 176.80,45.88 178.26,49.35 179.73,53.52 181.19,46.58 182.65,50.74 184.11,45.88 185.57,52.83 187.03,49.35 188.49,50.74 189.95,47.97 191.42,50.74 192.88,44.49 194.34,52.13 195.80,45.88 197.26,55.61 198.72,45.19 200.18,51.44 201.64,50.05 203.11,52.83 204.57,51.44 206.03,52.83 207.49,46.58 208.95,48.66 210.41,52.13 211.87,45.88 213.33,48.66 214.79,48.66 216.26,44.49 217.72,48.66 219.18,50.05 220.64,50.05 222.10,40.32 223.56,38.94 225.02,42.41 226.48,41.02 227.95,54.91 229.41,45.88 230.87,48.66 232.33,45.88 233.79,47.27 235.25,44.49 236.71,47.27 238.17,45.88 239.63,50.74 241.10,45.19 242.56,51.44 244.02,48.66 245.48,48.66 246.94,49.35 248.40,51.44 249.86,43.10 251.32,47.97 252.79,54.91 254.25,44.49 255.71,50.05 257.17,49.35 258.63,52.13 260.09,47.97 261.55,48.66 263.01,43.80 264.47,41.71 265.94,43.80 267.40,45.88 268.86,46.58 270.32,49.35 271.78,49.35 273.24,46.58 274.70,48.66 276.16,43.80 277.63,50.74 279.09,50.74 280.55,47.97 282.01,47.27 283.47,48.66 284.93,53.52 286.39,54.91 287.85,48.66 289.32,47.27 290.78,43.80 292.24,46.58 293.70,53.52 295.16,41.02 296.62,50.05 298.08,49.35 299.54,47.97 301.00,54.22 302.47,46.58 303.93,51.44 305.39,50.05 306.85,52.13 308.31,50.05 309.77,41.02 311.23,44.49 312.69,50.74 314.16,45.19 315.62,47.27 317.08,47.97 318.54,47.97 320.00,48.66" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 단상 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194750_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195837_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.931343">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.931343</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195837_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195837_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,60.98 1.46,32.11 2.92,56.54 4.38,52.10 5.84,60.98 7.31,56.54 8.77,74.31 10.23,47.66 11.69,67.65 13.15,47.66 14.61,58.76 16.07,47.66 17.53,34.33 19.00,47.66 20.46,45.44 21.92,49.88 23.38,54.32 24.84,32.11 26.30,58.76 27.76,49.88 29.22,47.66 30.68,52.10 32.15,52.10 33.61,43.21 35.07,60.98 36.53,27.67 37.99,47.66 39.45,56.54 40.91,38.77 42.37,56.54 43.84,49.88 45.30,49.88 46.76,47.66 48.22,43.21 49.68,32.11 51.14,34.33 52.60,40.99 54.06,69.87 55.53,34.33 56.99,58.76 58.45,43.21 59.91,65.42 61.37,40.99 62.83,56.54 64.29,34.33 65.75,54.32 67.21,47.66 68.68,56.54 70.14,47.66 71.60,38.77 73.06,56.54 74.52,54.32 75.98,65.42 77.44,40.99 78.90,58.76 80.37,36.55 81.83,63.20 83.29,18.78 84.75,56.54 86.21,49.88 87.67,43.21 89.13,47.66 90.59,45.44 92.05,47.66 93.52,63.20 94.98,34.33 96.44,56.54 97.90,49.88 99.36,45.44 100.82,47.66 102.28,43.21 103.74,47.66 105.21,36.55 106.67,56.54 108.13,38.77 109.59,52.10 111.05,54.32 112.51,69.87 113.97,63.20 115.43,29.89 116.89,47.66 118.36,65.42 119.82,54.32 121.28,43.21 122.74,36.55 124.20,32.11 125.66,54.32 127.12,47.66 128.58,49.88 130.05,56.54 131.51,52.10 132.97,38.77 134.43,54.32 135.89,52.10 137.35,49.88 138.81,27.67 140.27,54.32 141.74,45.44 143.20,36.55 144.66,54.32 146.12,54.32 147.58,40.99 149.04,47.66 150.50,32.11 151.96,40.99 153.42,52.10 154.89,52.10 156.35,45.44 157.81,43.21 159.27,40.99 160.73,69.87 162.19,38.77 163.65,45.44 165.11,47.66 166.58,63.20 168.04,45.44 169.50,54.32 170.96,40.99 172.42,63.20 173.88,47.66 175.34,60.98 176.80,38.77 178.26,45.44 179.73,63.20 181.19,43.21 182.65,49.88 184.11,23.23 185.57,52.10 187.03,40.99 188.49,56.54 189.95,47.66 191.42,27.67 192.88,45.44 194.34,54.32 195.80,49.88 197.26,72.09 198.72,49.88 200.18,54.32 201.64,34.33 203.11,47.66 204.57,7.68 206.03,45.44 207.49,47.66 208.95,29.89 210.41,43.21 211.87,43.21 213.33,63.20 214.79,36.55 216.26,65.42 217.72,47.66 219.18,72.09 220.64,58.76 222.10,45.44 223.56,52.10 225.02,29.89 226.48,43.21 227.95,12.12 229.41,27.67 230.87,27.67 232.33,49.88 233.79,43.21 235.25,45.44 236.71,47.66 238.17,43.21 239.63,65.42 241.10,38.77 242.56,36.55 244.02,49.88 245.48,60.98 246.94,49.88 248.40,60.98 249.86,29.89 251.32,36.55 252.79,65.42 254.25,45.44 255.71,63.20 257.17,56.54 258.63,36.55 260.09,36.55 261.55,63.20 263.01,43.21 264.47,52.10 265.94,36.55 267.40,67.65 268.86,43.21 270.32,47.66 271.78,40.99 273.24,40.99 274.70,36.55 276.16,52.10 277.63,43.21 279.09,58.76 280.55,52.10 282.01,52.10 283.47,29.89 284.93,54.32 286.39,47.66 287.85,43.21 289.32,49.88 290.78,45.44 292.24,56.54 293.70,56.54 295.16,45.44 296.62,45.44 298.08,60.98 299.54,56.54 301.00,54.32 302.47,47.66 303.93,54.32 305.39,36.55 306.85,47.66 308.31,58.76 309.77,40.99 311.23,45.44 312.69,32.11 314.16,54.32 315.62,49.88 317.08,45.44 318.54,45.44 320.00,47.66" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-1-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-1-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-1-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194750_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195734_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.930910">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.930910</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195734_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195734_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,58.42 1.46,56.01 2.92,77.75 4.38,51.17 5.84,63.26 7.31,41.51 8.77,53.59 10.23,60.84 11.69,39.09 13.15,60.84 14.61,12.51 16.07,46.34 17.53,58.42 19.00,48.76 20.46,68.09 21.92,43.93 23.38,39.09 24.84,46.34 26.30,39.09 27.76,65.67 29.22,34.26 30.68,60.84 32.15,43.93 33.61,39.09 35.07,43.93 36.53,48.76 37.99,39.09 39.45,51.17 40.91,63.26 42.37,68.09 43.84,31.84 45.30,68.09 46.76,34.26 48.22,63.26 49.68,31.84 51.14,46.34 52.60,29.43 54.06,63.26 55.53,46.34 56.99,65.67 58.45,36.68 59.91,58.42 61.37,51.17 62.83,63.26 64.29,53.59 65.75,34.26 67.21,53.59 68.68,43.93 70.14,53.59 71.60,46.34 73.06,58.42 74.52,41.51 75.98,65.67 77.44,34.26 78.90,46.34 80.37,41.51 81.83,51.17 83.29,58.42 84.75,41.51 86.21,48.76 87.67,56.01 89.13,51.17 90.59,41.51 92.05,36.68 93.52,46.34 94.98,48.76 96.44,41.51 97.90,60.84 99.36,48.76 100.82,46.34 102.28,46.34 103.74,51.17 105.21,43.93 106.67,48.76 108.13,34.26 109.59,70.50 111.05,27.01 112.51,75.34 113.97,51.17 115.43,56.01 116.89,7.68 118.36,36.68 119.82,60.84 121.28,36.68 122.74,48.76 124.20,68.09 125.66,60.84 127.12,60.84 128.58,56.01 130.05,34.26 131.51,53.59 132.97,36.68 134.43,53.59 135.89,43.93 137.35,56.01 138.81,43.93 140.27,63.26 141.74,46.34 143.20,56.01 144.66,41.51 146.12,68.09 147.58,39.09 149.04,72.92 150.50,39.09 151.96,48.76 153.42,14.93 154.89,75.34 156.35,39.09 157.81,39.09 159.27,46.34 160.73,51.17 162.19,48.76 163.65,41.51 165.11,46.34 166.58,56.01 168.04,36.68 169.50,63.26 170.96,27.01 172.42,43.93 173.88,46.34 175.34,24.59 176.80,58.42 178.26,46.34 179.73,63.26 181.19,36.68 182.65,70.50 184.11,41.51 185.57,31.84 187.03,46.34 188.49,31.84 189.95,48.76 191.42,68.09 192.88,43.93 194.34,36.68 195.80,39.09 197.26,29.43 198.72,41.51 200.18,39.09 201.64,43.93 203.11,51.17 204.57,48.76 206.03,36.68 207.49,34.26 208.95,46.34 210.41,29.43 211.87,43.93 213.33,51.17 214.79,48.76 216.26,60.84 217.72,36.68 219.18,53.59 220.64,51.17 222.10,51.17 223.56,31.84 225.02,58.42 226.48,56.01 227.95,31.84 229.41,56.01 230.87,65.67 232.33,39.09 233.79,41.51 235.25,46.34 236.71,58.42 238.17,31.84 239.63,63.26 241.10,41.51 242.56,63.26 244.02,41.51 245.48,46.34 246.94,39.09 248.40,46.34 249.86,39.09 251.32,43.93 252.79,53.59 254.25,39.09 255.71,53.59 257.17,48.76 258.63,48.76 260.09,53.59 261.55,63.26 263.01,41.51 264.47,31.84 265.94,41.51 267.40,65.67 268.86,56.01 270.32,46.34 271.78,58.42 273.24,53.59 274.70,53.59 276.16,56.01 277.63,43.93 279.09,41.51 280.55,53.59 282.01,43.93 283.47,41.51 284.93,53.59 286.39,63.26 287.85,46.34 289.32,56.01 290.78,46.34 292.24,48.76 293.70,29.43 295.16,24.59 296.62,51.17 298.08,53.59 299.54,46.34 301.00,53.59 302.47,51.17 303.93,48.76 305.39,41.51 306.85,56.01 308.31,46.34 309.77,56.01 311.23,46.34 312.69,58.42 314.16,56.01 315.62,48.76 317.08,19.76 318.54,14.93 320.00,48.76" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-1-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-1-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-1-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194750_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195341_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.930682">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.930682</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195341_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195341_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,43.20 1.46,53.35 2.92,71.11 4.38,43.20 5.84,55.89 7.31,55.89 8.77,53.35 10.23,48.28 11.69,48.28 13.15,58.43 14.61,50.81 16.07,45.74 17.53,30.52 19.00,45.74 20.46,43.20 21.92,53.35 23.38,50.81 24.84,45.74 26.30,55.89 27.76,27.98 29.22,48.28 30.68,33.05 32.15,27.98 33.61,38.13 35.07,63.50 36.53,58.43 37.99,50.81 39.45,66.04 40.91,45.74 42.37,55.89 43.84,43.20 45.30,45.74 46.76,35.59 48.22,48.28 49.68,33.05 51.14,35.59 52.60,33.05 54.06,60.96 55.53,43.20 56.99,33.05 58.45,45.74 59.91,40.66 61.37,63.50 62.83,38.13 64.29,45.74 65.75,38.13 67.21,38.13 68.68,33.05 70.14,43.20 71.60,33.05 73.06,50.81 74.52,53.35 75.98,60.96 77.44,30.52 78.90,53.35 80.37,50.81 81.83,63.50 83.29,40.66 84.75,58.43 86.21,40.66 87.67,58.43 89.13,45.74 90.59,7.68 92.05,40.66 93.52,45.74 94.98,40.66 96.44,40.66 97.90,43.20 99.36,50.81 100.82,48.28 102.28,48.28 103.74,45.74 105.21,53.35 106.67,33.05 108.13,58.43 109.59,66.04 111.05,50.81 112.51,68.58 113.97,48.28 115.43,55.89 116.89,15.29 118.36,60.96 119.82,48.28 121.28,40.66 122.74,30.52 124.20,66.04 125.66,60.96 127.12,63.50 128.58,50.81 130.05,43.20 131.51,60.96 132.97,48.28 134.43,35.59 135.89,50.81 137.35,55.89 138.81,30.52 140.27,45.74 141.74,43.20 143.20,63.50 144.66,30.52 146.12,58.43 147.58,53.35 149.04,33.05 150.50,40.66 151.96,68.58 153.42,45.74 154.89,66.04 156.35,45.74 157.81,48.28 159.27,50.81 160.73,60.96 162.19,63.50 163.65,45.74 165.11,60.96 166.58,45.74 168.04,38.13 169.50,58.43 170.96,50.81 172.42,48.28 173.88,48.28 175.34,58.43 176.80,40.66 178.26,50.81 179.73,30.52 181.19,45.74 182.65,60.96 184.11,38.13 185.57,71.11 187.03,55.89 188.49,66.04 189.95,38.13 191.42,50.81 192.88,50.81 194.34,45.74 195.80,50.81 197.26,53.35 198.72,48.28 200.18,53.35 201.64,48.28 203.11,38.13 204.57,38.13 206.03,58.43 207.49,30.52 208.95,40.66 210.41,55.89 211.87,58.43 213.33,40.66 214.79,60.96 216.26,53.35 217.72,33.05 219.18,63.50 220.64,60.96 222.10,63.50 223.56,48.28 225.02,40.66 226.48,53.35 227.95,48.28 229.41,45.74 230.87,63.50 232.33,30.52 233.79,45.74 235.25,50.81 236.71,17.83 238.17,43.20 239.63,35.59 241.10,55.89 242.56,50.81 244.02,40.66 245.48,33.05 246.94,40.66 248.40,43.20 249.86,40.66 251.32,53.35 252.79,68.58 254.25,55.89 255.71,68.58 257.17,53.35 258.63,45.74 260.09,58.43 261.55,45.74 263.01,43.20 264.47,55.89 265.94,55.89 267.40,68.58 268.86,50.81 270.32,38.13 271.78,48.28 273.24,55.89 274.70,27.98 276.16,27.98 277.63,33.05 279.09,50.81 280.55,38.13 282.01,55.89 283.47,53.35 284.93,60.96 286.39,63.50 287.85,33.05 289.32,63.50 290.78,43.20 292.24,33.05 293.70,50.81 295.16,58.43 296.62,53.35 298.08,58.43 299.54,25.44 301.00,53.35 302.47,30.52 303.93,43.20 305.39,50.81 306.85,50.81 308.31,53.35 309.77,45.74 311.23,53.35 312.69,53.35 314.16,58.43 315.62,38.13 317.08,50.81 318.54,43.20 320.00,25.44" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-1-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-1-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-1-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_액체_단상유입변압기_230918_194807_HFCT_1300</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_액체_단상유입변압기_230918_194807_HFCT_1300</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_230918_194807_HFCT_1300.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,47.73 1.46,47.03 2.92,56.16 4.38,37.89 5.84,55.46 7.31,45.62 8.77,40.70 10.23,47.73 11.69,49.84 13.15,44.92 14.61,52.65 16.07,44.22 17.53,54.75 19.00,46.32 20.46,51.24 21.92,47.03 23.38,45.62 24.84,49.84 26.30,48.43 27.76,48.43 29.22,51.24 30.68,48.43 32.15,51.24 33.61,53.35 35.07,39.30 36.53,49.84 37.99,51.94 39.45,47.73 40.91,51.24 42.37,55.46 43.84,48.43 45.30,48.43 46.76,45.62 48.22,51.94 49.68,41.41 51.14,47.03 52.60,50.54 54.06,44.92 55.53,47.03 56.99,46.32 58.45,49.13 59.91,48.43 61.37,49.13 62.83,51.94 64.29,52.65 65.75,44.92 67.21,51.94 68.68,47.73 70.14,43.51 71.60,47.73 73.06,47.73 74.52,39.30 75.98,49.13 77.44,52.65 78.90,52.65 80.37,51.94 81.83,51.24 83.29,49.13 84.75,51.94 86.21,45.62 87.67,49.84 89.13,44.92 90.59,52.65 92.05,47.73 93.52,47.03 94.98,47.73 96.44,53.35 97.90,47.03 99.36,53.35 100.82,45.62 102.28,51.24 103.74,46.32 105.21,51.94 106.67,44.92 108.13,47.03 109.59,50.54 111.05,48.43 112.51,50.54 113.97,48.43 115.43,44.92 116.89,52.65 118.36,49.13 119.82,44.22 121.28,42.81 122.74,45.62 124.20,52.65 125.66,39.30 127.12,49.84 128.58,47.03 130.05,49.84 131.51,49.84 132.97,44.92 134.43,46.32 135.89,49.13 137.35,46.32 138.81,50.54 140.27,47.73 141.74,55.46 143.20,49.13 144.66,48.43 146.12,49.13 147.58,46.32 149.04,51.94 150.50,46.32 151.96,44.22 153.42,46.32 154.89,55.46 156.35,46.32 157.81,49.84 159.27,44.22 160.73,53.35 162.19,45.62 163.65,47.73 165.11,46.32 166.58,53.35 168.04,46.32 169.50,51.24 170.96,46.32 172.42,47.73 173.88,49.84 175.34,52.65 176.80,45.62 178.26,53.35 179.73,47.03 181.19,51.24 182.65,47.73 184.11,44.22 185.57,44.22 187.03,47.03 188.49,55.46 189.95,48.43 191.42,43.51 192.88,44.92 194.34,40.00 195.80,43.51 197.26,41.41 198.72,45.62 200.18,47.73 201.64,51.24 203.11,44.22 204.57,49.13 206.03,48.43 207.49,44.22 208.95,44.92 210.41,47.03 211.87,52.65 213.33,49.84 214.79,50.54 216.26,54.05 217.72,52.65 219.18,51.94 220.64,51.24 222.10,44.92 223.56,49.13 225.02,48.43 226.48,47.03 227.95,50.54 229.41,49.13 230.87,42.81 232.33,44.22 233.79,49.84 235.25,42.81 236.71,51.24 238.17,49.13 239.63,45.62 241.10,45.62 242.56,44.92 244.02,51.94 245.48,7.68 246.94,50.54 248.40,54.75 249.86,34.38 251.32,51.24 252.79,50.54 254.25,46.32 255.71,44.92 257.17,41.41 258.63,52.65 260.09,50.54 261.55,48.43 263.01,47.73 264.47,47.03 265.94,46.32 267.40,51.24 268.86,50.54 270.32,49.13 271.78,46.32 273.24,50.54 274.70,48.43 276.16,49.84 277.63,47.03 279.09,47.73 280.55,44.22 282.01,48.43 283.47,49.84 284.93,45.62 286.39,55.46 287.85,47.73 289.32,51.24 290.78,49.13 292.24,44.22 293.70,49.84 295.16,53.35 296.62,44.92 298.08,47.73 299.54,41.41 301.00,54.05 302.47,48.43 303.93,42.11 305.39,49.84 306.85,44.22 308.31,54.05 309.77,49.84 311.23,48.43 312.69,39.30 314.16,48.43 315.62,44.92 317.08,49.84 318.54,40.00 320.00,51.24" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 단상 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1300mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194807_HFCT_1300" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_192725_HFCT_1300" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938423">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.938423</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_192725_HFCT_1300</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_192725_HFCT_1300.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,40.03 1.46,45.43 2.92,75.08 4.38,50.82 5.84,34.64 7.31,75.08 8.77,42.73 10.23,42.73 11.69,58.91 13.15,37.34 14.61,26.55 16.07,21.16 17.53,48.12 19.00,40.03 20.46,72.39 21.92,40.03 23.38,45.43 24.84,61.60 26.30,56.21 27.76,40.03 29.22,64.30 30.68,34.64 32.15,61.60 33.61,58.91 35.07,61.60 36.53,40.03 37.99,67.00 39.45,77.78 40.91,48.12 42.37,40.03 43.84,58.91 45.30,37.34 46.76,48.12 48.22,48.12 49.68,34.64 51.14,21.16 52.60,37.34 54.06,67.00 55.53,61.60 56.99,42.73 58.45,50.82 59.91,21.16 61.37,53.51 62.83,53.51 64.29,45.43 65.75,40.03 67.21,61.60 68.68,42.73 70.14,50.82 71.60,45.43 73.06,75.08 74.52,64.30 75.98,77.78 77.44,40.03 78.90,29.25 80.37,21.16 81.83,67.00 83.29,48.12 84.75,48.12 86.21,42.73 87.67,67.00 89.13,42.73 90.59,21.16 92.05,61.60 93.52,48.12 94.98,61.60 96.44,26.55 97.90,75.08 99.36,37.34 100.82,48.12 102.28,7.68 103.74,64.30 105.21,34.64 106.67,58.91 108.13,31.95 109.59,77.78 111.05,42.73 112.51,67.00 113.97,40.03 115.43,53.51 116.89,61.60 118.36,48.12 119.82,40.03 121.28,15.77 122.74,26.55 124.20,29.25 125.66,42.73 127.12,45.43 128.58,50.82 130.05,53.51 131.51,64.30 132.97,45.43 134.43,53.51 135.89,10.38 137.35,72.39 138.81,48.12 140.27,34.64 141.74,56.21 143.20,21.16 144.66,56.21 146.12,56.21 147.58,42.73 149.04,64.30 150.50,34.64 151.96,61.60 153.42,10.38 154.89,50.82 156.35,58.91 157.81,31.95 159.27,64.30 160.73,21.16 162.19,34.64 163.65,42.73 165.11,31.95 166.58,58.91 168.04,58.91 169.50,61.60 170.96,42.73 172.42,40.03 173.88,40.03 175.34,50.82 176.80,58.91 178.26,53.51 179.73,72.39 181.19,50.82 182.65,80.48 184.11,45.43 185.57,58.91 187.03,31.95 188.49,29.25 189.95,53.51 191.42,40.03 192.88,48.12 194.34,26.55 195.80,42.73 197.26,37.34 198.72,23.86 200.18,48.12 201.64,45.43 203.11,42.73 204.57,50.82 206.03,61.60 207.49,29.25 208.95,50.82 210.41,34.64 211.87,56.21 213.33,64.30 214.79,77.78 216.26,58.91 217.72,56.21 219.18,83.17 220.64,56.21 222.10,69.69 223.56,40.03 225.02,40.03 226.48,45.43 227.95,29.25 229.41,40.03 230.87,37.34 232.33,40.03 233.79,64.30 235.25,45.43 236.71,45.43 238.17,40.03 239.63,29.25 241.10,53.51 242.56,64.30 244.02,61.60 245.48,42.73 246.94,15.77 248.40,58.91 249.86,72.39 251.32,69.69 252.79,75.08 254.25,23.86 255.71,72.39 257.17,56.21 258.63,53.51 260.09,37.34 261.55,37.34 263.01,34.64 264.47,61.60 265.94,48.12 267.40,50.82 268.86,31.95 270.32,50.82 271.78,37.34 273.24,67.00 274.70,42.73 276.16,42.73 277.63,15.77 279.09,72.39 280.55,53.51 282.01,53.51 283.47,34.64 284.93,45.43 286.39,69.69 287.85,37.34 289.32,69.69 290.78,48.12 292.24,67.00 293.70,37.34 295.16,69.69 296.62,18.46 298.08,37.34 299.54,34.64 301.00,58.91 302.47,53.51 303.93,56.21 305.39,34.64 306.85,34.64 308.31,31.95 309.77,34.64 311.23,37.34 312.69,56.21 314.16,50.82 315.62,61.60 317.08,50.82 318.54,40.03 320.00,48.12" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1300mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-2-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-2-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-2-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194807_HFCT_1300" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_194933_HFCT_1300" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938306">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.938306</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_194933_HFCT_1300</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_194933_HFCT_1300.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,38.87 1.46,44.37 2.92,71.84 4.38,55.35 5.84,80.08 7.31,47.11 8.77,44.37 10.23,30.63 11.69,63.60 13.15,60.85 14.61,33.38 16.07,27.88 17.53,25.14 19.00,41.62 20.46,66.34 21.92,55.35 23.38,58.10 24.84,58.10 26.30,41.62 27.76,55.35 29.22,14.15 30.68,55.35 32.15,58.10 33.61,44.37 35.07,60.85 36.53,38.87 37.99,30.63 39.45,74.58 40.91,55.35 42.37,58.10 43.84,38.87 45.30,55.35 46.76,38.87 48.22,60.85 49.68,52.61 51.14,52.61 52.60,44.37 54.06,52.61 55.53,30.63 56.99,52.61 58.45,58.10 59.91,36.13 61.37,49.86 62.83,41.62 64.29,60.85 65.75,30.63 67.21,30.63 68.68,55.35 70.14,44.37 71.60,60.85 73.06,58.10 74.52,47.11 75.98,44.37 77.44,52.61 78.90,38.87 80.37,33.38 81.83,22.39 83.29,55.35 84.75,69.09 86.21,38.87 87.67,38.87 89.13,47.11 90.59,38.87 92.05,38.87 93.52,44.37 94.98,41.62 96.44,36.13 97.90,44.37 99.36,41.62 100.82,49.86 102.28,49.86 103.74,44.37 105.21,55.35 106.67,44.37 108.13,49.86 109.59,58.10 111.05,47.11 112.51,55.35 113.97,49.86 115.43,44.37 116.89,27.88 118.36,22.39 119.82,44.37 121.28,16.90 122.74,38.87 124.20,16.90 125.66,41.62 127.12,58.10 128.58,63.60 130.05,58.10 131.51,52.61 132.97,38.87 134.43,47.11 135.89,47.11 137.35,49.86 138.81,55.35 140.27,30.63 141.74,52.61 143.20,52.61 144.66,60.85 146.12,66.34 147.58,41.62 149.04,58.10 150.50,41.62 151.96,49.86 153.42,27.88 154.89,58.10 156.35,49.86 157.81,47.11 159.27,55.35 160.73,27.88 162.19,55.35 163.65,55.35 165.11,60.85 166.58,55.35 168.04,58.10 169.50,58.10 170.96,77.33 172.42,49.86 173.88,38.87 175.34,47.11 176.80,55.35 178.26,58.10 179.73,77.33 181.19,38.87 182.65,55.35 184.11,63.60 185.57,47.11 187.03,41.62 188.49,58.10 189.95,44.37 191.42,33.38 192.88,41.62 194.34,41.62 195.80,52.61 197.26,19.64 198.72,25.14 200.18,49.86 201.64,41.62 203.11,52.61 204.57,38.87 206.03,47.11 207.49,30.63 208.95,41.62 210.41,63.60 211.87,36.13 213.33,44.37 214.79,60.85 216.26,77.33 217.72,52.61 219.18,88.32 220.64,55.35 222.10,33.38 223.56,41.62 225.02,69.09 226.48,33.38 227.95,63.60 229.41,25.14 230.87,66.34 232.33,30.63 233.79,58.10 235.25,47.11 236.71,60.85 238.17,36.13 239.63,63.60 241.10,25.14 242.56,49.86 244.02,55.35 245.48,36.13 246.94,47.11 248.40,55.35 249.86,30.63 251.32,58.10 252.79,74.58 254.25,47.11 255.71,71.84 257.17,36.13 258.63,63.60 260.09,33.38 261.55,66.34 263.01,38.87 264.47,69.09 265.94,30.63 267.40,30.63 268.86,55.35 270.32,30.63 271.78,52.61 273.24,36.13 274.70,41.62 276.16,41.62 277.63,38.87 279.09,52.61 280.55,60.85 282.01,60.85 283.47,52.61 284.93,52.61 286.39,52.61 287.85,38.87 289.32,63.60 290.78,44.37 292.24,49.86 293.70,30.63 295.16,49.86 296.62,47.11 298.08,49.86 299.54,38.87 301.00,63.60 302.47,27.88 303.93,47.11 305.39,52.61 306.85,52.61 308.31,60.85 309.77,33.38 311.23,36.13 312.69,38.87 314.16,47.11 315.62,38.87 317.08,52.61 318.54,49.86 320.00,58.10" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1300mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-2-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-2-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-2-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194807_HFCT_1300" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_185525_HFCT_1300" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938279">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.938279</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_185525_HFCT_1300</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_185525_HFCT_1300.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,55.98 1.46,42.50 2.92,72.15 4.38,53.28 5.84,53.28 7.31,64.06 8.77,45.19 10.23,29.02 11.69,74.84 13.15,47.89 14.61,23.63 16.07,47.89 17.53,31.72 19.00,50.59 20.46,47.89 21.92,53.28 23.38,42.50 24.84,53.28 26.30,23.63 27.76,10.15 29.22,66.76 30.68,50.59 32.15,39.80 33.61,53.28 35.07,72.15 36.53,50.59 37.99,61.37 39.45,47.89 40.91,39.80 42.37,53.28 43.84,20.94 45.30,50.59 46.76,37.11 48.22,53.28 49.68,39.80 51.14,37.11 52.60,37.11 54.06,66.76 55.53,53.28 56.99,31.72 58.45,37.11 59.91,66.76 61.37,55.98 62.83,50.59 64.29,39.80 65.75,64.06 67.21,29.02 68.68,45.19 70.14,37.11 71.60,20.94 73.06,53.28 74.52,50.59 75.98,55.98 77.44,50.59 78.90,37.11 80.37,39.80 81.83,39.80 83.29,47.89 84.75,55.98 86.21,23.63 87.67,61.37 89.13,42.50 90.59,45.19 92.05,45.19 93.52,37.11 94.98,53.28 96.44,50.59 97.90,61.37 99.36,64.06 100.82,15.55 102.28,29.02 103.74,64.06 105.21,45.19 106.67,23.63 108.13,29.02 109.59,64.06 111.05,26.33 112.51,85.62 113.97,64.06 115.43,53.28 116.89,50.59 118.36,50.59 119.82,47.89 121.28,29.02 122.74,58.67 124.20,61.37 125.66,53.28 127.12,53.28 128.58,61.37 130.05,50.59 131.51,55.98 132.97,45.19 134.43,58.67 135.89,37.11 137.35,53.28 138.81,45.19 140.27,53.28 141.74,37.11 143.20,42.50 144.66,47.89 146.12,53.28 147.58,39.80 149.04,47.89 150.50,55.98 151.96,58.67 153.42,47.89 154.89,42.50 156.35,31.72 157.81,37.11 159.27,20.94 160.73,31.72 162.19,50.59 163.65,42.50 165.11,53.28 166.58,61.37 168.04,69.45 169.50,58.67 170.96,47.89 172.42,61.37 173.88,50.59 175.34,37.11 176.80,47.89 178.26,47.89 179.73,69.45 181.19,34.41 182.65,55.98 184.11,42.50 185.57,31.72 187.03,50.59 188.49,34.41 189.95,53.28 191.42,69.45 192.88,42.50 194.34,42.50 195.80,23.63 197.26,64.06 198.72,37.11 200.18,61.37 201.64,42.50 203.11,53.28 204.57,53.28 206.03,61.37 207.49,45.19 208.95,47.89 210.41,61.37 211.87,58.67 213.33,37.11 214.79,88.32 216.26,58.67 217.72,23.63 219.18,88.32 220.64,34.41 222.10,61.37 223.56,53.28 225.02,53.28 226.48,42.50 227.95,26.33 229.41,20.94 230.87,37.11 232.33,37.11 233.79,69.45 235.25,34.41 236.71,64.06 238.17,42.50 239.63,53.28 241.10,50.59 242.56,45.19 244.02,31.72 245.48,72.15 246.94,61.37 248.40,53.28 249.86,34.41 251.32,50.59 252.79,53.28 254.25,31.72 255.71,66.76 257.17,47.89 258.63,64.06 260.09,23.63 261.55,53.28 263.01,53.28 264.47,55.98 265.94,37.11 267.40,47.89 268.86,39.80 270.32,58.67 271.78,37.11 273.24,26.33 274.70,45.19 276.16,42.50 277.63,45.19 279.09,55.98 280.55,45.19 282.01,61.37 283.47,31.72 284.93,61.37 286.39,58.67 287.85,61.37 289.32,74.84 290.78,72.15 292.24,45.19 293.70,50.59 295.16,23.63 296.62,42.50 298.08,61.37 299.54,42.50 301.00,29.02 302.47,37.11 303.93,50.59 305.39,39.80 306.85,58.67 308.31,45.19 309.77,66.76 311.23,42.50 312.69,61.37 314.16,31.72 315.62,42.50 317.08,42.50 318.54,37.11 320.00,58.67" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1300mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-2-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-2-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-2-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_액체_단상유입변압기_230918_194809_HFCT_1000</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_액체_단상유입변압기_230918_194809_HFCT_1000</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_230918_194809_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,51.92 1.46,45.17 2.92,44.42 4.38,46.67 5.84,47.42 7.31,44.42 8.77,48.92 10.23,45.92 11.69,45.92 13.15,54.92 14.61,42.17 16.07,53.42 17.53,46.67 19.00,44.42 20.46,48.92 21.92,47.42 23.38,50.42 24.84,48.17 26.30,48.17 27.76,54.92 29.22,50.42 30.68,54.92 32.15,47.42 33.61,53.42 35.07,48.92 36.53,48.92 37.99,48.92 39.45,50.42 40.91,48.17 42.37,42.92 43.84,55.67 45.30,39.17 46.76,51.17 48.22,47.42 49.68,49.67 51.14,45.17 52.60,42.92 54.06,39.92 55.53,45.17 56.99,45.92 58.45,45.17 59.91,48.92 61.37,48.92 62.83,49.67 64.29,46.67 65.75,45.17 67.21,44.42 68.68,43.67 70.14,48.17 71.60,45.17 73.06,40.67 74.52,46.67 75.98,45.92 77.44,49.67 78.90,43.67 80.37,48.92 81.83,46.67 83.29,47.42 84.75,45.92 86.21,52.67 87.67,44.42 89.13,49.67 90.59,47.42 92.05,44.42 93.52,43.67 94.98,52.67 96.44,48.92 97.90,50.42 99.36,51.17 100.82,48.92 102.28,55.67 103.74,46.67 105.21,48.92 106.67,48.92 108.13,50.42 109.59,42.92 111.05,51.17 112.51,49.67 113.97,52.67 115.43,45.92 116.89,50.42 118.36,48.92 119.82,40.67 121.28,42.17 122.74,49.67 124.20,51.92 125.66,46.67 127.12,50.42 128.58,44.42 130.05,48.17 131.51,49.67 132.97,52.67 134.43,46.67 135.89,43.67 137.35,45.17 138.81,51.92 140.27,48.17 141.74,52.67 143.20,45.92 144.66,54.92 146.12,50.42 147.58,52.67 149.04,44.42 150.50,48.92 151.96,45.17 153.42,45.92 154.89,42.92 156.35,52.67 157.81,39.92 159.27,44.42 160.73,44.42 162.19,47.42 163.65,45.92 165.11,48.17 166.58,51.17 168.04,45.92 169.50,52.67 170.96,52.67 172.42,52.67 173.88,42.17 175.34,51.17 176.80,45.17 178.26,48.17 179.73,49.67 181.19,55.67 182.65,51.17 184.11,53.42 185.57,47.42 187.03,41.42 188.49,46.67 189.95,54.92 191.42,45.17 192.88,44.42 194.34,42.92 195.80,52.67 197.26,42.92 198.72,50.42 200.18,49.67 201.64,45.92 203.11,48.92 204.57,50.42 206.03,47.42 207.49,42.92 208.95,52.67 210.41,38.42 211.87,51.17 213.33,51.17 214.79,52.67 216.26,47.42 217.72,51.92 219.18,49.67 220.64,50.42 222.10,45.17 223.56,48.92 225.02,45.92 226.48,53.42 227.95,43.67 229.41,46.67 230.87,47.42 232.33,43.67 233.79,46.67 235.25,49.67 236.71,44.42 238.17,50.42 239.63,50.42 241.10,44.42 242.56,48.92 244.02,48.17 245.48,52.67 246.94,46.67 248.40,44.42 249.86,47.42 251.32,48.92 252.79,52.67 254.25,48.17 255.71,46.67 257.17,48.17 258.63,53.42 260.09,51.92 261.55,53.42 263.01,52.67 264.47,46.67 265.94,46.67 267.40,48.92 268.86,48.17 270.32,51.17 271.78,49.67 273.24,51.92 274.70,50.42 276.16,46.67 277.63,48.17 279.09,48.17 280.55,48.17 282.01,43.67 283.47,45.92 284.93,7.68 286.39,48.92 287.85,48.92 289.32,42.17 290.78,50.42 292.24,46.67 293.70,48.17 295.16,51.17 296.62,52.67 298.08,45.92 299.54,47.42 301.00,50.42 302.47,50.42 303.93,45.92 305.39,47.42 306.85,51.92 308.31,49.67 309.77,46.67 311.23,54.92 312.69,48.17 314.16,52.67 315.62,50.42 317.08,48.17 318.54,48.17 320.00,49.67" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 단상 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194809_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195759_HFCT_1000" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.919295">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.919295</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195759_HFCT_1000</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195759_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,56.66 1.46,36.49 2.92,79.70 4.38,53.77 5.84,79.70 7.31,39.37 8.77,62.42 10.23,22.08 11.69,53.77 13.15,50.89 14.61,56.66 16.07,30.73 17.53,50.89 19.00,30.73 20.46,53.77 21.92,53.77 23.38,36.49 24.84,53.77 26.30,59.54 27.76,27.85 29.22,39.37 30.68,48.01 32.15,50.89 33.61,27.85 35.07,56.66 36.53,53.77 37.99,39.37 39.45,68.18 40.91,39.37 42.37,82.58 43.84,45.13 45.30,33.61 46.76,30.73 48.22,30.73 49.68,45.13 51.14,50.89 52.60,19.20 54.06,53.77 55.53,7.68 56.99,50.89 58.45,48.01 59.91,71.06 61.37,42.25 62.83,56.66 64.29,62.42 65.75,19.20 67.21,30.73 68.68,59.54 70.14,62.42 71.60,56.66 73.06,53.77 74.52,27.85 75.98,76.82 77.44,16.32 78.90,27.85 80.37,50.89 81.83,48.01 83.29,39.37 84.75,33.61 86.21,33.61 87.67,33.61 89.13,53.77 90.59,82.58 92.05,42.25 93.52,42.25 94.98,68.18 96.44,36.49 97.90,50.89 99.36,62.42 100.82,42.25 102.28,39.37 103.74,56.66 105.21,50.89 106.67,50.89 108.13,53.77 109.59,73.94 111.05,30.73 112.51,62.42 113.97,50.89 115.43,42.25 116.89,45.13 118.36,56.66 119.82,48.01 121.28,39.37 122.74,48.01 124.20,68.18 125.66,48.01 127.12,19.20 128.58,48.01 130.05,45.13 131.51,33.61 132.97,48.01 134.43,39.37 135.89,65.30 137.35,39.37 138.81,68.18 140.27,33.61 141.74,39.37 143.20,39.37 144.66,59.54 146.12,56.66 147.58,42.25 149.04,65.30 150.50,48.01 151.96,39.37 153.42,36.49 154.89,59.54 156.35,53.77 157.81,48.01 159.27,48.01 160.73,56.66 162.19,36.49 163.65,30.73 165.11,53.77 166.58,45.13 168.04,59.54 169.50,42.25 170.96,24.97 172.42,36.49 173.88,56.66 175.34,45.13 176.80,68.18 178.26,50.89 179.73,59.54 181.19,33.61 182.65,76.82 184.11,22.08 185.57,33.61 187.03,62.42 188.49,48.01 189.95,56.66 191.42,62.42 192.88,50.89 194.34,30.73 195.80,50.89 197.26,30.73 198.72,50.89 200.18,42.25 201.64,65.30 203.11,56.66 204.57,59.54 206.03,33.61 207.49,53.77 208.95,19.20 210.41,56.66 211.87,50.89 213.33,62.42 214.79,45.13 216.26,82.58 217.72,39.37 219.18,65.30 220.64,33.61 222.10,68.18 223.56,42.25 225.02,59.54 226.48,36.49 227.95,56.66 229.41,27.85 230.87,50.89 232.33,53.77 233.79,39.37 235.25,39.37 236.71,48.01 238.17,45.13 239.63,36.49 241.10,27.85 242.56,48.01 244.02,56.66 245.48,42.25 246.94,76.82 248.40,30.73 249.86,59.54 251.32,33.61 252.79,65.30 254.25,48.01 255.71,68.18 257.17,48.01 258.63,62.42 260.09,53.77 261.55,62.42 263.01,33.61 264.47,53.77 265.94,42.25 267.40,71.06 268.86,30.73 270.32,50.89 271.78,48.01 273.24,68.18 274.70,48.01 276.16,53.77 277.63,30.73 279.09,48.01 280.55,53.77 282.01,45.13 283.47,48.01 284.93,30.73 286.39,48.01 287.85,48.01 289.32,73.94 290.78,65.30 292.24,65.30 293.70,50.89 295.16,42.25 296.62,36.49 298.08,45.13 299.54,50.89 301.00,36.49 302.47,62.42 303.93,27.85 305.39,50.89 306.85,33.61 308.31,42.25 309.77,48.01 311.23,50.89 312.69,42.25 314.16,62.42 315.62,30.73 317.08,56.66 318.54,30.73 320.00,36.49" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-3-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-3-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-3-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194809_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_185420_HFCT_1000" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.918817">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.918817</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_185420_HFCT_1000</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_185420_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,54.18 1.46,60.00 2.92,65.81 4.38,57.09 5.84,45.46 7.31,48.37 8.77,51.28 10.23,30.93 11.69,54.18 13.15,57.09 14.61,33.84 16.07,54.18 17.53,71.62 19.00,54.18 20.46,62.90 21.92,48.37 23.38,62.90 24.84,51.28 26.30,13.49 27.76,57.09 29.22,57.09 30.68,42.56 32.15,42.56 33.61,42.56 35.07,33.84 36.53,13.49 37.99,33.84 39.45,68.71 40.91,30.93 42.37,80.34 43.84,7.68 45.30,77.43 46.76,57.09 48.22,33.84 49.68,57.09 51.14,57.09 52.60,48.37 54.06,57.09 55.53,42.56 56.99,45.46 58.45,25.12 59.91,51.28 61.37,57.09 62.83,51.28 64.29,30.93 65.75,36.74 67.21,33.84 68.68,51.28 70.14,36.74 71.60,51.28 73.06,42.56 74.52,62.90 75.98,33.84 77.44,39.65 78.90,25.12 80.37,51.28 81.83,39.65 83.29,62.90 84.75,54.18 86.21,39.65 87.67,60.00 89.13,30.93 90.59,30.93 92.05,10.59 93.52,51.28 94.98,36.74 96.44,60.00 97.90,54.18 99.36,74.53 100.82,45.46 102.28,62.90 103.74,68.71 105.21,36.74 106.67,45.46 108.13,42.56 109.59,62.90 111.05,57.09 112.51,65.81 113.97,39.65 115.43,51.28 116.89,48.37 118.36,57.09 119.82,36.74 121.28,42.56 122.74,10.59 124.20,65.81 125.66,30.93 127.12,62.90 128.58,39.65 130.05,45.46 131.51,36.74 132.97,51.28 134.43,60.00 135.89,57.09 137.35,48.37 138.81,48.37 140.27,51.28 141.74,48.37 143.20,51.28 144.66,68.71 146.12,62.90 147.58,36.74 149.04,71.62 150.50,51.28 151.96,68.71 153.42,36.74 154.89,39.65 156.35,39.65 157.81,45.46 159.27,48.37 160.73,39.65 162.19,25.12 163.65,51.28 165.11,57.09 166.58,45.46 168.04,45.46 169.50,33.84 170.96,36.74 172.42,54.18 173.88,60.00 175.34,45.46 176.80,42.56 178.26,65.81 179.73,60.00 181.19,45.46 182.65,80.34 184.11,33.84 185.57,28.02 187.03,51.28 188.49,36.74 189.95,48.37 191.42,48.37 192.88,42.56 194.34,28.02 195.80,48.37 197.26,42.56 198.72,68.71 200.18,48.37 201.64,60.00 203.11,48.37 204.57,60.00 206.03,54.18 207.49,36.74 208.95,54.18 210.41,39.65 211.87,42.56 213.33,48.37 214.79,54.18 216.26,65.81 217.72,30.93 219.18,65.81 220.64,42.56 222.10,48.37 223.56,62.90 225.02,22.21 226.48,33.84 227.95,28.02 229.41,65.81 230.87,36.74 232.33,42.56 233.79,48.37 235.25,54.18 236.71,60.00 238.17,42.56 239.63,22.21 241.10,60.00 242.56,36.74 244.02,48.37 245.48,39.65 246.94,42.56 248.40,60.00 249.86,45.46 251.32,60.00 252.79,57.09 254.25,42.56 255.71,57.09 257.17,42.56 258.63,22.21 260.09,48.37 261.55,22.21 263.01,51.28 264.47,54.18 265.94,51.28 267.40,54.18 268.86,54.18 270.32,48.37 271.78,48.37 273.24,57.09 274.70,57.09 276.16,65.81 277.63,42.56 279.09,57.09 280.55,39.65 282.01,48.37 283.47,51.28 284.93,62.90 286.39,60.00 287.85,39.65 289.32,65.81 290.78,51.28 292.24,57.09 293.70,54.18 295.16,74.53 296.62,51.28 298.08,42.56 299.54,42.56 301.00,42.56 302.47,42.56 303.93,65.81 305.39,33.84 306.85,45.46 308.31,36.74 309.77,48.37 311.23,54.18 312.69,51.28 314.16,30.93 315.62,57.09 317.08,36.74 318.54,45.46 320.00,25.12" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-3-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-3-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-3-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194809_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195738_HFCT_1000" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.918657">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.918657</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195738_HFCT_1000</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195738_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,33.45 1.46,55.99 2.92,55.99 4.38,39.89 5.84,78.54 7.31,55.99 8.77,65.66 10.23,39.89 11.69,23.78 13.15,30.23 14.61,59.21 16.07,46.33 17.53,49.55 19.00,20.56 20.46,62.44 21.92,39.89 23.38,46.33 24.84,33.45 26.30,52.77 27.76,36.67 29.22,55.99 30.68,36.67 32.15,49.55 33.61,39.89 35.07,43.11 36.53,49.55 37.99,30.23 39.45,65.66 40.91,59.21 42.37,46.33 43.84,39.89 45.30,52.77 46.76,49.55 48.22,33.45 49.68,30.23 51.14,46.33 52.60,39.89 54.06,23.78 55.53,33.45 56.99,55.99 58.45,49.55 59.91,33.45 61.37,27.01 62.83,36.67 64.29,33.45 65.75,59.21 67.21,62.44 68.68,59.21 70.14,39.89 71.60,49.55 73.06,75.32 74.52,46.33 75.98,72.10 77.44,27.01 78.90,43.11 80.37,46.33 81.83,52.77 83.29,59.21 84.75,62.44 86.21,33.45 87.67,72.10 89.13,39.89 90.59,75.32 92.05,49.55 93.52,49.55 94.98,43.11 96.44,52.77 97.90,43.11 99.36,39.89 100.82,55.99 102.28,46.33 103.74,33.45 105.21,55.99 106.67,36.67 108.13,62.44 109.59,65.66 111.05,43.11 112.51,59.21 113.97,62.44 115.43,55.99 116.89,62.44 118.36,55.99 119.82,52.77 121.28,65.66 122.74,46.33 124.20,59.21 125.66,46.33 127.12,55.99 128.58,43.11 130.05,55.99 131.51,52.77 132.97,55.99 134.43,65.66 135.89,43.11 137.35,62.44 138.81,36.67 140.27,59.21 141.74,33.45 143.20,52.77 144.66,52.77 146.12,78.54 147.58,49.55 149.04,68.88 150.50,39.89 151.96,17.34 153.42,46.33 154.89,46.33 156.35,55.99 157.81,14.12 159.27,7.68 160.73,72.10 162.19,65.66 163.65,36.67 165.11,49.55 166.58,46.33 168.04,36.67 169.50,23.78 170.96,65.66 172.42,49.55 173.88,46.33 175.34,27.01 176.80,27.01 178.26,36.67 179.73,59.21 181.19,55.99 182.65,75.32 184.11,46.33 185.57,36.67 187.03,36.67 188.49,39.89 189.95,27.01 191.42,52.77 192.88,46.33 194.34,65.66 195.80,36.67 197.26,52.77 198.72,59.21 200.18,68.88 201.64,33.45 203.11,43.11 204.57,62.44 206.03,33.45 207.49,39.89 208.95,36.67 210.41,39.89 211.87,62.44 213.33,59.21 214.79,62.44 216.26,81.76 217.72,36.67 219.18,78.54 220.64,33.45 222.10,39.89 223.56,49.55 225.02,52.77 226.48,49.55 227.95,52.77 229.41,49.55 230.87,43.11 232.33,43.11 233.79,49.55 235.25,46.33 236.71,33.45 238.17,55.99 239.63,55.99 241.10,43.11 242.56,46.33 244.02,43.11 245.48,52.77 246.94,43.11 248.40,65.66 249.86,55.99 251.32,59.21 252.79,55.99 254.25,39.89 255.71,27.01 257.17,62.44 258.63,55.99 260.09,33.45 261.55,65.66 263.01,46.33 264.47,14.12 265.94,46.33 267.40,52.77 268.86,20.56 270.32,52.77 271.78,49.55 273.24,52.77 274.70,49.55 276.16,49.55 277.63,33.45 279.09,75.32 280.55,33.45 282.01,52.77 283.47,36.67 284.93,46.33 286.39,65.66 287.85,46.33 289.32,49.55 290.78,55.99 292.24,52.77 293.70,59.21 295.16,62.44 296.62,65.66 298.08,65.66 299.54,49.55 301.00,59.21 302.47,33.45 303.93,14.12 305.39,36.67 306.85,39.89 308.31,33.45 309.77,33.45 311.23,33.45 312.69,62.44 314.16,23.78 315.62,65.66 317.08,43.11 318.54,36.67 320.00,39.89" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-3-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-3-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-3-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_액체_단상유입변압기_230918_194811_HFCT_700</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_액체_단상유입변압기_230918_194811_HFCT_700</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EB%85%B8%EC%9D%B4%EC%A6%88_%EC%95%A1%EC%B2%B4_%EB%8B%A8%EC%83%81%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_230918_194811_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,47.87 1.46,48.54 2.92,50.55 4.38,47.87 5.84,49.21 7.31,55.24 8.77,49.88 10.23,41.84 11.69,48.54 13.15,45.19 14.61,50.55 16.07,45.19 17.53,51.89 19.00,49.21 20.46,51.22 21.92,47.20 23.38,49.88 24.84,47.87 26.30,50.55 27.76,48.54 29.22,47.20 30.68,43.18 32.15,45.86 33.61,44.52 35.07,50.55 36.53,50.55 37.99,47.87 39.45,53.23 40.91,49.88 42.37,53.90 43.84,49.21 45.30,47.20 46.76,41.84 48.22,48.54 49.68,45.19 51.14,48.54 52.60,48.54 54.06,53.90 55.53,45.86 56.99,45.86 58.45,45.86 59.91,47.87 61.37,49.21 62.83,52.56 64.29,46.53 65.75,47.87 67.21,45.86 68.68,42.51 70.14,45.86 71.60,46.53 73.06,47.87 74.52,7.68 75.98,51.89 77.44,44.52 78.90,45.86 80.37,43.85 81.83,52.56 83.29,42.51 84.75,49.88 86.21,47.87 87.67,52.56 89.13,45.19 90.59,49.21 92.05,46.53 93.52,45.19 94.98,51.22 96.44,50.55 97.90,50.55 99.36,51.22 100.82,51.22 102.28,47.20 103.74,49.21 105.21,47.87 106.67,50.55 108.13,8.35 109.59,56.58 111.05,49.88 112.51,55.24 113.97,44.52 115.43,41.84 116.89,49.21 118.36,46.53 119.82,47.87 121.28,52.56 122.74,44.52 124.20,49.88 125.66,49.21 127.12,50.55 128.58,51.22 130.05,46.53 131.51,47.87 132.97,46.53 134.43,53.23 135.89,50.55 137.35,49.88 138.81,50.55 140.27,51.89 141.74,7.68 143.20,52.56 144.66,46.53 146.12,53.23 147.58,49.88 149.04,49.21 150.50,42.51 151.96,43.18 153.42,45.86 154.89,47.20 156.35,47.20 157.81,44.52 159.27,39.83 160.73,53.23 162.19,47.20 163.65,51.89 165.11,49.21 166.58,51.89 168.04,47.20 169.50,45.19 170.96,48.54 172.42,50.55 173.88,43.85 175.34,48.54 176.80,49.88 178.26,50.55 179.73,48.54 181.19,46.53 182.65,54.57 184.11,46.53 185.57,52.56 187.03,49.88 188.49,53.90 189.95,43.18 191.42,48.54 192.88,45.19 194.34,46.53 195.80,44.52 197.26,51.22 198.72,47.20 200.18,45.86 201.64,46.53 203.11,51.89 204.57,45.86 206.03,48.54 207.49,46.53 208.95,50.55 210.41,47.87 211.87,47.87 213.33,52.56 214.79,42.51 216.26,50.55 217.72,51.89 219.18,49.21 220.64,45.86 222.10,45.86 223.56,43.18 225.02,49.21 226.48,51.89 227.95,50.55 229.41,47.87 230.87,53.90 232.33,47.20 233.79,51.22 235.25,47.87 236.71,49.21 238.17,44.52 239.63,45.19 241.10,51.22 242.56,53.90 244.02,50.55 245.48,47.87 246.94,46.53 248.40,50.55 249.86,47.87 251.32,46.53 252.79,52.56 254.25,51.22 255.71,51.89 257.17,51.22 258.63,47.87 260.09,51.89 261.55,47.87 263.01,51.22 264.47,45.86 265.94,47.87 267.40,53.90 268.86,41.84 270.32,39.83 271.78,46.53 273.24,45.86 274.70,50.55 276.16,49.21 277.63,51.22 279.09,48.54 280.55,50.55 282.01,47.87 283.47,47.20 284.93,51.22 286.39,50.55 287.85,47.87 289.32,52.56 290.78,43.85 292.24,49.21 293.70,45.86 295.16,54.57 296.62,46.53 298.08,46.53 299.54,47.87 301.00,56.58 302.47,46.53 303.93,49.88 305.39,44.52 306.85,49.21 308.31,47.87 309.77,45.19 311.23,49.88 312.69,51.22 314.16,47.20 315.62,51.22 317.08,53.23 318.54,50.55 320.00,47.87" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 단상 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194811_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195837_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.929016">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.929016</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195837_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195837_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,60.98 1.46,32.11 2.92,56.54 4.38,52.10 5.84,60.98 7.31,56.54 8.77,74.31 10.23,47.66 11.69,67.65 13.15,47.66 14.61,58.76 16.07,47.66 17.53,34.33 19.00,47.66 20.46,45.44 21.92,49.88 23.38,54.32 24.84,32.11 26.30,58.76 27.76,49.88 29.22,47.66 30.68,52.10 32.15,52.10 33.61,43.21 35.07,60.98 36.53,27.67 37.99,47.66 39.45,56.54 40.91,38.77 42.37,56.54 43.84,49.88 45.30,49.88 46.76,47.66 48.22,43.21 49.68,32.11 51.14,34.33 52.60,40.99 54.06,69.87 55.53,34.33 56.99,58.76 58.45,43.21 59.91,65.42 61.37,40.99 62.83,56.54 64.29,34.33 65.75,54.32 67.21,47.66 68.68,56.54 70.14,47.66 71.60,38.77 73.06,56.54 74.52,54.32 75.98,65.42 77.44,40.99 78.90,58.76 80.37,36.55 81.83,63.20 83.29,18.78 84.75,56.54 86.21,49.88 87.67,43.21 89.13,47.66 90.59,45.44 92.05,47.66 93.52,63.20 94.98,34.33 96.44,56.54 97.90,49.88 99.36,45.44 100.82,47.66 102.28,43.21 103.74,47.66 105.21,36.55 106.67,56.54 108.13,38.77 109.59,52.10 111.05,54.32 112.51,69.87 113.97,63.20 115.43,29.89 116.89,47.66 118.36,65.42 119.82,54.32 121.28,43.21 122.74,36.55 124.20,32.11 125.66,54.32 127.12,47.66 128.58,49.88 130.05,56.54 131.51,52.10 132.97,38.77 134.43,54.32 135.89,52.10 137.35,49.88 138.81,27.67 140.27,54.32 141.74,45.44 143.20,36.55 144.66,54.32 146.12,54.32 147.58,40.99 149.04,47.66 150.50,32.11 151.96,40.99 153.42,52.10 154.89,52.10 156.35,45.44 157.81,43.21 159.27,40.99 160.73,69.87 162.19,38.77 163.65,45.44 165.11,47.66 166.58,63.20 168.04,45.44 169.50,54.32 170.96,40.99 172.42,63.20 173.88,47.66 175.34,60.98 176.80,38.77 178.26,45.44 179.73,63.20 181.19,43.21 182.65,49.88 184.11,23.23 185.57,52.10 187.03,40.99 188.49,56.54 189.95,47.66 191.42,27.67 192.88,45.44 194.34,54.32 195.80,49.88 197.26,72.09 198.72,49.88 200.18,54.32 201.64,34.33 203.11,47.66 204.57,7.68 206.03,45.44 207.49,47.66 208.95,29.89 210.41,43.21 211.87,43.21 213.33,63.20 214.79,36.55 216.26,65.42 217.72,47.66 219.18,72.09 220.64,58.76 222.10,45.44 223.56,52.10 225.02,29.89 226.48,43.21 227.95,12.12 229.41,27.67 230.87,27.67 232.33,49.88 233.79,43.21 235.25,45.44 236.71,47.66 238.17,43.21 239.63,65.42 241.10,38.77 242.56,36.55 244.02,49.88 245.48,60.98 246.94,49.88 248.40,60.98 249.86,29.89 251.32,36.55 252.79,65.42 254.25,45.44 255.71,63.20 257.17,56.54 258.63,36.55 260.09,36.55 261.55,63.20 263.01,43.21 264.47,52.10 265.94,36.55 267.40,67.65 268.86,43.21 270.32,47.66 271.78,40.99 273.24,40.99 274.70,36.55 276.16,52.10 277.63,43.21 279.09,58.76 280.55,52.10 282.01,52.10 283.47,29.89 284.93,54.32 286.39,47.66 287.85,43.21 289.32,49.88 290.78,45.44 292.24,56.54 293.70,56.54 295.16,45.44 296.62,45.44 298.08,60.98 299.54,56.54 301.00,54.32 302.47,47.66 303.93,54.32 305.39,36.55 306.85,47.66 308.31,58.76 309.77,40.99 311.23,45.44 312.69,32.11 314.16,54.32 315.62,49.88 317.08,45.44 318.54,45.44 320.00,47.66" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-4-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-4-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-4-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194811_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_195734_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.928550">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.928550</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_195734_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_195734_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,58.42 1.46,56.01 2.92,77.75 4.38,51.17 5.84,63.26 7.31,41.51 8.77,53.59 10.23,60.84 11.69,39.09 13.15,60.84 14.61,12.51 16.07,46.34 17.53,58.42 19.00,48.76 20.46,68.09 21.92,43.93 23.38,39.09 24.84,46.34 26.30,39.09 27.76,65.67 29.22,34.26 30.68,60.84 32.15,43.93 33.61,39.09 35.07,43.93 36.53,48.76 37.99,39.09 39.45,51.17 40.91,63.26 42.37,68.09 43.84,31.84 45.30,68.09 46.76,34.26 48.22,63.26 49.68,31.84 51.14,46.34 52.60,29.43 54.06,63.26 55.53,46.34 56.99,65.67 58.45,36.68 59.91,58.42 61.37,51.17 62.83,63.26 64.29,53.59 65.75,34.26 67.21,53.59 68.68,43.93 70.14,53.59 71.60,46.34 73.06,58.42 74.52,41.51 75.98,65.67 77.44,34.26 78.90,46.34 80.37,41.51 81.83,51.17 83.29,58.42 84.75,41.51 86.21,48.76 87.67,56.01 89.13,51.17 90.59,41.51 92.05,36.68 93.52,46.34 94.98,48.76 96.44,41.51 97.90,60.84 99.36,48.76 100.82,46.34 102.28,46.34 103.74,51.17 105.21,43.93 106.67,48.76 108.13,34.26 109.59,70.50 111.05,27.01 112.51,75.34 113.97,51.17 115.43,56.01 116.89,7.68 118.36,36.68 119.82,60.84 121.28,36.68 122.74,48.76 124.20,68.09 125.66,60.84 127.12,60.84 128.58,56.01 130.05,34.26 131.51,53.59 132.97,36.68 134.43,53.59 135.89,43.93 137.35,56.01 138.81,43.93 140.27,63.26 141.74,46.34 143.20,56.01 144.66,41.51 146.12,68.09 147.58,39.09 149.04,72.92 150.50,39.09 151.96,48.76 153.42,14.93 154.89,75.34 156.35,39.09 157.81,39.09 159.27,46.34 160.73,51.17 162.19,48.76 163.65,41.51 165.11,46.34 166.58,56.01 168.04,36.68 169.50,63.26 170.96,27.01 172.42,43.93 173.88,46.34 175.34,24.59 176.80,58.42 178.26,46.34 179.73,63.26 181.19,36.68 182.65,70.50 184.11,41.51 185.57,31.84 187.03,46.34 188.49,31.84 189.95,48.76 191.42,68.09 192.88,43.93 194.34,36.68 195.80,39.09 197.26,29.43 198.72,41.51 200.18,39.09 201.64,43.93 203.11,51.17 204.57,48.76 206.03,36.68 207.49,34.26 208.95,46.34 210.41,29.43 211.87,43.93 213.33,51.17 214.79,48.76 216.26,60.84 217.72,36.68 219.18,53.59 220.64,51.17 222.10,51.17 223.56,31.84 225.02,58.42 226.48,56.01 227.95,31.84 229.41,56.01 230.87,65.67 232.33,39.09 233.79,41.51 235.25,46.34 236.71,58.42 238.17,31.84 239.63,63.26 241.10,41.51 242.56,63.26 244.02,41.51 245.48,46.34 246.94,39.09 248.40,46.34 249.86,39.09 251.32,43.93 252.79,53.59 254.25,39.09 255.71,53.59 257.17,48.76 258.63,48.76 260.09,53.59 261.55,63.26 263.01,41.51 264.47,31.84 265.94,41.51 267.40,65.67 268.86,56.01 270.32,46.34 271.78,58.42 273.24,53.59 274.70,53.59 276.16,56.01 277.63,43.93 279.09,41.51 280.55,53.59 282.01,43.93 283.47,41.51 284.93,53.59 286.39,63.26 287.85,46.34 289.32,56.01 290.78,46.34 292.24,48.76 293.70,29.43 295.16,24.59 296.62,51.17 298.08,53.59 299.54,46.34 301.00,53.59 302.47,51.17 303.93,48.76 305.39,41.51 306.85,56.01 308.31,46.34 309.77,56.01 311.23,46.34 312.69,58.42 314.16,56.01 315.62,48.76 317.08,19.76 318.54,14.93 320.00,48.76" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-4-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-4-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-4-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_액체_단상유입변압기_230918_194811_HFCT_700" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="정상_액체_전력용유입변압기_231005_191335_HFCT_700" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="단상 유입변압기" data-query-sensor-type="HFCT" data-neighbor-equipment-name="전력용 유입변압기" data-neighbor-sensor-type="HFCT" data-similarity-score="0.928334">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.928334</span>
+  </div>
+  <h3>정상_액체_전력용유입변압기_231005_191335_HFCT_700</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0/%EC%A0%95%EC%83%81_%EC%95%A1%EC%B2%B4_%EC%A0%84%EB%A0%A5%EC%9A%A9%EC%9C%A0%EC%9E%85%EB%B3%80%EC%95%95%EA%B8%B0_231005_191335_HFCT_700.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,37.31 1.46,58.31 2.92,49.31 4.38,43.31 5.84,43.31 7.31,64.31 8.77,43.31 10.23,40.31 11.69,64.31 13.15,52.31 14.61,34.31 16.07,46.31 17.53,55.31 19.00,43.31 20.46,46.31 21.92,37.31 23.38,46.31 24.84,28.30 26.30,67.31 27.76,31.30 29.22,64.31 30.68,52.31 32.15,34.31 33.61,52.31 35.07,43.31 36.53,55.31 37.99,61.31 39.45,70.32 40.91,49.31 42.37,67.31 43.84,34.31 45.30,64.31 46.76,40.31 48.22,79.32 49.68,37.31 51.14,43.31 52.60,22.30 54.06,52.31 55.53,34.31 56.99,64.31 58.45,43.31 59.91,46.31 61.37,28.30 62.83,61.31 64.29,55.31 65.75,22.30 67.21,55.31 68.68,43.31 70.14,10.30 71.60,64.31 73.06,82.32 74.52,43.31 75.98,61.31 77.44,55.31 78.90,58.31 80.37,19.30 81.83,55.31 83.29,31.30 84.75,64.31 86.21,22.30 87.67,37.31 89.13,46.31 90.59,43.31 92.05,52.31 93.52,34.31 94.98,58.31 96.44,52.31 97.90,58.31 99.36,49.31 100.82,52.31 102.28,40.31 103.74,61.31 105.21,46.31 106.67,52.31 108.13,37.31 109.59,58.31 111.05,52.31 112.51,70.32 113.97,64.31 115.43,73.32 116.89,31.30 118.36,40.31 119.82,40.31 121.28,49.31 122.74,43.31 124.20,28.30 125.66,46.31 127.12,58.31 128.58,25.30 130.05,46.31 131.51,40.31 132.97,46.31 134.43,43.31 135.89,43.31 137.35,67.31 138.81,37.31 140.27,58.31 141.74,52.31 143.20,31.30 144.66,34.31 146.12,52.31 147.58,46.31 149.04,55.31 150.50,52.31 151.96,67.31 153.42,22.30 154.89,34.31 156.35,19.30 157.81,34.31 159.27,37.31 160.73,79.32 162.19,25.30 163.65,64.31 165.11,25.30 166.58,46.31 168.04,37.31 169.50,55.31 170.96,46.31 172.42,40.31 173.88,43.31 175.34,34.31 176.80,52.31 178.26,25.30 179.73,79.32 181.19,28.30 182.65,73.32 184.11,34.31 185.57,73.32 187.03,40.31 188.49,61.31 189.95,40.31 191.42,40.31 192.88,37.31 194.34,46.31 195.80,34.31 197.26,61.31 198.72,40.31 200.18,61.31 201.64,37.31 203.11,52.31 204.57,46.31 206.03,43.31 207.49,46.31 208.95,49.31 210.41,46.31 211.87,40.31 213.33,58.31 214.79,13.30 216.26,88.32 217.72,46.31 219.18,55.31 220.64,58.31 222.10,70.32 223.56,34.31 225.02,34.31 226.48,58.31 227.95,55.31 229.41,46.31 230.87,70.32 232.33,52.31 233.79,49.31 235.25,55.31 236.71,43.31 238.17,64.31 239.63,25.30 241.10,52.31 242.56,43.31 244.02,61.31 245.48,37.31 246.94,70.32 248.40,40.31 249.86,61.31 251.32,40.31 252.79,70.32 254.25,46.31 255.71,46.31 257.17,37.31 258.63,46.31 260.09,40.31 261.55,67.31 263.01,46.31 264.47,34.31 265.94,34.31 267.40,67.31 268.86,52.31 270.32,46.31 271.78,70.32 273.24,31.30 274.70,31.30 276.16,31.30 277.63,58.31 279.09,40.31 280.55,55.31 282.01,46.31 283.47,31.30 284.93,37.31 286.39,76.32 287.85,34.31 289.32,79.32 290.78,49.31 292.24,46.31 293.70,43.31 295.16,52.31 296.62,34.31 298.08,58.31 299.54,46.31 301.00,37.31 302.47,34.31 303.93,58.31 305.39,19.30 306.85,49.31 308.31,25.30 309.77,55.31 311.23,46.31 312.69,73.32 314.16,46.31 315.62,61.31 317.08,58.31 318.54,70.32 320.00,61.31" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: 전력용 유입변압기</span><span>sensor_type: HFCT</span><span>insulator_type: 액체</span><span>clearance_distance: [&#x27;700mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-4-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-4-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-4-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+
+</main>
+</body>
+</html>

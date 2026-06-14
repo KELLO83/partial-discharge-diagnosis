@@ -40,7 +40,7 @@ Chronological wiki changes are recorded in `LOG.md`.
 | Upload artifacts | `service/backend/app/artifacts.py` |
 | Trace storage | `service/backend/app/store.py` |
 | Offline evaluator | `service/backend/app/offline.py` |
-| Shared TS features | `ml/src/features/timeseries_summary.py` |
+| Shared TS features | `ml/timeseries/src/features/timeseries_summary.py` |
 
 ## Concept Notes
 

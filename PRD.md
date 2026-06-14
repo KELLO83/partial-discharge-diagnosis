@@ -1,29 +1,39 @@
-# PRD: Partial-Discharge Time-Series and Small VLM Diagnosis Project
+# PRD: Partial-Discharge Composite Diagnosis System
 
 ## 1. Purpose
 
-This project uses the AI-Hub industrial partial-discharge dataset to build two model tracks:
+This repository builds a service-grade partial-discharge diagnosis system from the AI-Hub industrial electrical fire prevention dataset.
 
-1. A 5-class partial-discharge classifier that uses only CSV time-series data.
-2. A small VLM diagnosis model that combines PRPD images, metadata, and time-series summaries.
+The root project goal is not one monolithic model. The system is split into three ML tracks and one service layer:
 
-This is not an image-only vision classification project. ResNet/EfficientNet-style PRPD image classifiers are excluded from the core track.
+```text
+CSV time-series signal
++ PRPD image
++ safe equipment/environment metadata
++ rulebook/SOP/case retrieval evidence
+-> time-series model
+-> lightweight vision model
+-> standard evidence contract
+-> rule-based late fusion
+-> VLM report generator
+-> guardrailed diagnosis service
+```
 
-## 2. Data Format
+Each ML track owns its own detailed PRD and agent rules because input format, model design, evaluation, and runtime constraints differ.
 
-Local training data lives under `Train/`.
+## 2. Dataset
 
-Current `Train/manifest.csv` summary:
+Local working data lives under `Train/`.
+
+Current `data/manifest.csv` summary:
 
 - Total samples: `30,010`
-- Label distribution: `6,002` samples for each label `0` through `4`
-- Each sample connects three files:
+- Balanced labels: `6,002` samples for each label `0` through `4`
+- Each sample links:
   - `timeseries_path`: partial-discharge CSV time-series
   - `image_path`: PRPD PNG image
   - `json_path`: label and metadata JSON
 - CSV shape: `(20, 7680)`
-  - `20`: pseudo-channel or measurement-segment dimension
-  - `7680`: time axis
 
 Label mapping:
 
@@ -35,248 +45,174 @@ Label mapping:
 | 3 | corona_discharge |
 | 4 | void_discharge |
 
-Experiment code must use `label_id` from `manifest.csv`. When regenerating a manifest, derive labels from JSON `label.PD_type`.
+`data/manifest.csv` is the source of truth for future model training and service-side dataset case retrieval. Some manifest path values may still start with `Train/` as an original extraction prefix; service code resolves those paths against the current `data/` folder.
 
-## 3. Time-Series Track
+## 3. ML Tracks
 
-The time-series task is classification, not forecasting.
+### 3.1 Time-Series Track
 
-Default input:
-
-```text
-CSV -> tensor shape (20, 7680), or transposed to (7680, 20)
-```
-
-Core models:
+Location:
 
 ```text
-GRU
-InceptionTime
-PatchTST
-TimesNet
-MOMENT
+ml/timeseries/
 ```
 
-Extended GPU models:
+Responsibility:
 
 ```text
-TCN
-ResNet1D
-ModernTCN
-iTransformer
-TimeMixer
-UniTS
-GPT4TS / One-Fits-All
-TS2Vec
+CSV tensor (20, 7680)
+-> time-series / feature model
+-> 5-class prediction, probabilities, confidence, evidence features
 ```
 
-CPU-only optional baselines:
+Detailed docs:
+
+- `ml/timeseries/PRD.md`
+- `ml/timeseries/AGENTS.md`
+
+### 3.2 Vision Track
+
+Location:
 
 ```text
-MiniROCKET
-MultiROCKET
-HYDRA
-feature_logistic
-feature_svm
-feature_random_forest
-feature_tabpfn
+ml/vision/
 ```
 
-Models that may have especially long training time:
+Responsibility:
 
 ```text
-TimeMixer
-UniTS
-GPT4TS
-TS2Vec
+PRPD PNG or normalized PRPD tensor
+-> lightweight vision model
+-> 5-class prediction, confidence, visual evidence, OOD hint
 ```
 
-Run these models on a small smoke subset before using all `30,010` samples.
+This track starts with lightweight models, not a large VLM and not a full vision-tower LoRA experiment.
 
-## 4. Feature Baseline Track
+Detailed docs:
 
-The feature baseline is not a raw time-series model. It is a tabular classifier that consumes features extracted from each CSV.
+- `ml/vision/PRD.md`
+- `ml/vision/AGENTS.md`
 
-Pipeline:
+### 3.3 VLM Track
+
+Location:
 
 ```text
-CSV signal
--> amplitude / pulse / cycle / phase-bin / FFT / numeric PRPD histogram features
--> Logistic / Linear SVM / RandomForest / TabPFN
--> 5-class prediction
+ml/vlm/
 ```
 
-One CSV becomes one feature vector. The default is `--feature-set small`.
+Responsibility:
 
 ```text
-Raw input per sample: (20, 7680) CSV
-Converted input per sample: 64 tabular feature columns
-
-Full Train shape:
-X.shape = (30010, 64)
-y.shape = (30010,)
-target = label_id
+PRPD image
++ safe metadata
++ time-series evidence
++ vision evidence
+-> structured JSON diagnosis report
 ```
 
-Feature-set sizes:
+The VLM is a report generator and consistency checker. It must not be treated as the only diagnostic model.
 
-| Feature set | CSV feature columns | With metadata | Purpose |
-| --- | ---: | ---: | --- |
-| `small` | 64 | 74 | Fast baseline using global/stat, FFT, amplitude histogram, pulse, cycle, and half-cycle features |
-| `medium` | 128 | 138 | Balanced baseline with phase-bin count/max features |
-| `full` | 182 | 192 | Includes a compact 96-bin numeric PRPD histogram |
+Detailed docs:
 
-If `--include-metadata` is enabled, add only the safe numeric metadata whitelist. Do not use file paths, file names, sample IDs, label names, or defect details as features.
+- `ml/vlm/PRD.md`
+- `ml/vlm/AGENTS.md`
 
-## 5. VLM Track
+## 4. Service Layer
 
-Do not place full raw CSV rows in the VLM prompt.
-
-Recommended VLM input:
+Location:
 
 ```text
-PRPD PNG image
-+ JSON metadata text
-+ time-series model prediction / confidence
-+ time-series feature summary
+service/
 ```
 
-Primary candidate:
+Responsibility:
 
 ```text
-Qwen3-VL-2B-Instruct
+input validation
+-> model tool calls
+-> rulebook/SOP retrieval
+-> similar dataset case retrieval
+-> disagreement / confidence / OOD guardrails
+-> diagnosis record
+-> trace and dashboard
 ```
 
-Fallback or comparison candidate:
+The service may use mock adapters until trained checkpoints are connected.
+
+## 5. Architecture Rule
+
+Do not collapse all diagnosis logic into the VLM.
+
+Preferred flow:
 
 ```text
-Qwen2.5-VL-3B-Instruct
+time-series model evidence
++ lightweight vision model evidence
++ metadata
++ retrieved rulebook/SOP evidence
+-> VLM explanation/report
+-> reviewer policy
 ```
 
-Training strategy:
+The VLM explains and formats evidence. The time-series and vision tracks produce the primary diagnostic signals.
 
-```text
-QLoRA SFT
-Freeze the vision encoder at first
-Apply LoRA primarily to LLM/projector layers
-Prefer structured JSON diagnosis output over free-form natural language
-```
+## 6. Leakage Rules
 
-Example target VLM output:
+Never use these as model features or VLM prompt text:
 
-```json
-{
-  "label_id": 3,
-  "label_name": "corona_discharge",
-  "risk_level": "caution",
-  "reason": "The PRPD pattern, metadata, and time-series evidence are consistent with corona discharge."
-}
-```
+- file paths
+- file names
+- sample IDs
+- label names
+- `PD_type`
+- defect details
+- full raw CSV rows in prompts
+- any metadata column proven to encode the label directly
 
-## 6. Initial EDA
+`label_id` is allowed in supervised targets and evaluation records only.
 
-Run initial EDA once on the current Train data and manifest. Do not repeat it before every model run unless data extraction, `manifest.csv`, label mapping, feature design, or split policy changes.
-
-Default command:
-
-```powershell
-python ml/scripts/run_eda.py
-```
-
-The default summarizes the full 30,010-row manifest and reads a class-balanced `sample-size=500` subset of actual CSV signals for faster visualization.
-
-Default output location:
-
-```text
-results/eda/
-```
-
-Main outputs:
-
-| File | Purpose |
-| --- | --- |
-| `eda_summary.json` | Row count, label distribution, leakage-risk columns, and missing paths |
-| `label_distribution.csv/png` | Class balance check |
-| `metadata_distributions.png` | Insulator, equipment, and sensor distributions |
-| `signal_summary_sample.csv` | RMS, p99, max_abs, pulse_rate, and related per-sample statistics |
-| `signal_stats_by_class.png` | Class-wise signal-statistics boxplots |
-| `phase_pulse_distribution.png` | 60Hz phase-bin pulse distribution |
-| `sample_waveforms_by_class.png` | Example raw waveforms by class |
-| `class_mean_abs_waveform.png` | Mean absolute waveform by class |
-
-Run full signal-level EDA over all CSV files only when explicitly needed:
-
-```powershell
-python ml/scripts/run_eda.py --full-signal-eda
-```
-
-Initial EDA must check:
-
-- Whether labels `0` through `4` are balanced
-- Whether leakage-prone columns such as paths, file names, and label text are excluded from features
-- Whether every CSV shape is `(20, 7680)`
-- How RMS, p99, max_abs, and pulse_rate differ by class
-- Whether 60Hz phase-bin pulse distributions differ by class
-- Whether specific equipment, sensors, or insulators are concentrated in specific labels
-
-## 7. Execution Rules
-
-`train.py` must train exactly one neural model per run.
-
-Allowed:
-
-```powershell
-python train.py --model gru --sample-size 100
-python train.py --model moderntcn --sample-size 100
-```
-
-CPU-only baselines are not trained directly by `train.py`. The `cpu_only` entries in `train.py --list-models` are informational. Run each model through its dedicated runner:
-
-```powershell
-python ml/scripts/run_feature_baseline.py --model logistic
-python ml/scripts/run_minirocket.py
-python ml/scripts/run_multirocket.py
-python ml/scripts/run_sktime_classifier.py --model catch22
-```
-
-Forbidden:
-
-```powershell
-python train.py --model core
-python train.py --model extended
-python train.py --model gru,patchtst
-```
-
-GPU neural models use `.venv`.
-
-CPU-only baselines may use `.venv` or `.venv314t`.
-
-- `.venv`: stable default environment
-- `.venv314t`: free-threaded Python 3.14t environment for CPU-only smoke and multi-thread experiments
-
-## 8. Success Criteria
+## 7. Success Criteria
 
 Minimum success:
 
-- Manifest-based dataset loading works.
-- At least one Core time-series model trains and evaluates.
-- Leakage-safe feature baseline works.
-- Metrics include accuracy, macro F1, per-class F1, and confusion matrix.
-- VLM strategy and data-conversion plan are documented.
+- `ml/timeseries` has a working classifier baseline.
+- `ml/vision` has a lightweight PRPD vision baseline.
+- `ml/vlm` can generate valid structured JSON from model evidence.
+- The service can show a traceable diagnosis workflow with agreement, disagreement, and review cases.
 
-Strong portfolio success:
+Strong success:
 
-- Core time-series models are compared.
-- MiniROCKET/MultiROCKET and feature baselines are compared.
-- At least one pretrained or foundation time-series model is fine-tuned or probed.
-- A VLM instruction dataset is built from PRPD image, metadata, and time-series summaries.
-- A small VLM generates structured JSON diagnosis output.
+- Time-series and vision models are evaluated on the same split.
+- VLM reports cite model evidence and respect low-confidence/OOD flags.
+- All model adapters expose common `standard_evidence` with top factors and operator-facing explanation text.
+- Fusion summarizes agreement/conflict across time-series, vision, VLM, RAG, and similar cases before the reviewer step.
+- RAG evidence grounds reports in rulebook, SOP, or past-case snippets.
+- Similar Case Retrieval shows Top 5 dataset references with PRPD image, label, metadata, similarity score, and retrieval reason, and also supports a manual operator search page.
+- Disagreement cases route to review instead of being finalized.
+- The frontend is Korean-first and reads as a plant/process manager console, not a developer dashboard.
+- Documentation stays separated by track so model-specific design does not crowd the root PRD.
 
-## 9. Detailed Documents
+## 8. Document Map
 
-- `docs/PRD.md`: detailed project PRD
-- `docs/DATASET_EXPLAIN.md`: integrated data structure and manifest notes
-- `docs/TIMESERIES_MODELS.md`: time-series model candidates and experiment order
-- `docs/MODEL_IMPLEMENTATION_SOURCES.md`: official implementation and wrapper policy
-- `docs/VLM_STRATEGY.md`: VLM model and fine-tuning strategy
-- `AGENT.md`: coding and execution rules
+Root:
+
+- `PRD.md`: project-level architecture and ownership
+- `AGENT.md`: repository-level coding and execution rules
+
+Track-level:
+
+- `ml/timeseries/PRD.md`
+- `ml/timeseries/AGENTS.md`
+- `ml/vision/PRD.md`
+- `ml/vision/AGENTS.md`
+- `ml/vlm/PRD.md`
+- `ml/vlm/AGENTS.md`
+
+Reference docs:
+
+- `docs/DATASET_EXPLAIN.md`
+- `docs/TIMESERIES_MODELS.md`
+- `docs/VLM_STRATEGY.md`
+- `docs/VLM_IMPLEMENTATION_PLAN.md`
+- `service/PRD.md`

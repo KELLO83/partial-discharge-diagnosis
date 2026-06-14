@@ -476,9 +476,9 @@ VLM evaluation:
 1. Download AI-Hub sample data.
 2. Inspect real folder names and JSON examples.
 3. Generate `manifest.csv` from JSON files.
-4. Run `python ml/scripts/validate_dataset.py --fail-on-invalid`.
-5. Generate a fixed split manifest with `python ml/scripts/make_splits.py --manifest Train/manifest.csv --output Train/manifest_random_split_seed42.csv`.
-6. Run initial EDA with `python ml/scripts/run_eda.py`.
+4. Run `python ml/timeseries/scripts/validate_dataset.py --fail-on-invalid`.
+5. Generate a fixed split manifest with `python ml/timeseries/scripts/make_splits.py --manifest data/manifest.csv --output data/manifest_random_split_seed42.csv`.
+6. Run initial EDA with `python ml/timeseries/scripts/run_eda.py`.
 7. Check label distribution, metadata distribution, CSV shapes, signal statistics, phase-bin pulse distribution, and leakage-risk columns.
 8. Exclude paths, label text, defect information, and `max_discharge_value` from default feature baselines.
 9. Validate feature baselines and CPU classical baselines with smoke runs.

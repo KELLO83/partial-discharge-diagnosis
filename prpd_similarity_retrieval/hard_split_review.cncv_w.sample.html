@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hard Split Review - CNCV-W</title>
+
+<style>
+:root {
+  --paper: #f2f5f4;
+  --panel: #ffffff;
+  --ink: #17201f;
+  --muted: #65716f;
+  --line: #cfd8d5;
+  --strong: #0f766e;
+  --warn: #b42318;
+  --amber: #a15c07;
+  --wave: #1d4ed8;
+  --action: #1f4d5a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Aptos", "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+.page-head {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.05fr) minmax(320px, .95fr) minmax(220px, .45fr);
+  gap: 28px;
+  padding: 32px clamp(18px, 4vw, 56px);
+  border-bottom: 1px solid var(--line);
+  background: #10211f;
+  color: #f7fbfa;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  color: #83d5ca;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h1, h2, h3 { margin: 0; letter-spacing: 0; }
+h1 { font-size: clamp(30px, 5vw, 58px); line-height: 1; }
+h2 { font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+h3 { font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+
+.run-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.run-meta div {
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.06);
+}
+
+dt { color: #addbd5; font-size: 11px; text-transform: uppercase; }
+dd { margin: 2px 0 0; font-weight: 750; overflow-wrap: anywhere; }
+
+.review-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+}
+
+.review-actions button {
+  min-height: 38px;
+  border: 1px solid rgba(255,255,255,.26);
+  background: #f7fbfa;
+  color: #10211f;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.review-actions button:hover { background: #c7f1ea; }
+
+#review-progress {
+  grid-column: 1 / -1;
+  color: #addbd5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+main {
+  display: grid;
+  gap: 22px;
+  padding: 24px clamp(14px, 3vw, 44px) 48px;
+}
+
+.failure {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--warn);
+  background: var(--panel);
+}
+
+.failure-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(420px, 1.4fr);
+  gap: 1px;
+  background: var(--line);
+}
+
+.neighbor-stack {
+  display: grid;
+  gap: 1px;
+}
+
+.case-panel {
+  min-width: 0;
+  padding: 16px;
+  background: var(--panel);
+}
+
+.query-panel { background: #fbfcfc; }
+
+.case-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.score { color: var(--amber); font-variant-numeric: tabular-nums; }
+
+.label-chip {
+  display: inline-block;
+  margin: 10px 0 14px;
+  color: var(--strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.label-chip.danger { color: var(--warn); margin: 0; white-space: nowrap; }
+
+.media-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.2fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+figure { margin: 0; }
+
+figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+img, .missing-media, .waveform {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--line);
+  background: #eef3f1;
+}
+
+img { object-fit: contain; display: block; }
+
+.missing-media {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.waveform { height: auto; }
+.waveform line { stroke: #c8d1ce; stroke-width: 1; }
+.waveform polyline { fill: none; stroke: var(--wave); stroke-width: 2.2; }
+
+.metadata-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metadata-row span { overflow-wrap: anywhere; }
+
+.review-box {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: #f7faf9;
+}
+
+.review-heading {
+  margin-bottom: 8px;
+  color: var(--action);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.review-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.review-options label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.review-options input { margin: 0 6px 0 0; }
+
+.review-box textarea {
+  width: 100%;
+  min-height: 54px;
+  margin-top: 8px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  padding: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.empty-state {
+  padding: 32px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+@media (max-width: 980px) {
+  .page-head, .comparison-grid, .media-grid, .review-options { grid-template-columns: 1fr; }
+  .failure-head { align-items: flex-start; flex-direction: column; }
+}
+</style>
+
+
+<script>
+const reviewColumns = [
+  "query_sample_id",
+  "query_label_id",
+  "query_label_name",
+  "neighbor_rank",
+  "neighbor_sample_id",
+  "neighbor_label_id",
+  "neighbor_label_name",
+  "query_equipment_name",
+  "query_sensor_type",
+  "neighbor_equipment_name",
+  "neighbor_sensor_type",
+  "similarity_score",
+  "human_relevance",
+  "review_note"
+];
+
+function collectReviews() {
+  return Array.from(document.querySelectorAll(".neighbor-panel")).map((panel) => {
+    const checked = panel.querySelector("input[type='radio']:checked");
+    const note = panel.querySelector("[data-review-note]");
+    return {
+      query_sample_id: panel.dataset.querySampleId || "",
+      query_label_id: panel.dataset.queryLabelId || "",
+      query_label_name: panel.dataset.queryLabelName || "",
+      neighbor_rank: panel.dataset.neighborRank || "",
+      neighbor_sample_id: panel.dataset.neighborSampleId || "",
+      neighbor_label_id: panel.dataset.neighborLabelId || "",
+      neighbor_label_name: panel.dataset.neighborLabelName || "",
+      query_equipment_name: panel.dataset.queryEquipmentName || "",
+      query_sensor_type: panel.dataset.querySensorType || "",
+      neighbor_equipment_name: panel.dataset.neighborEquipmentName || "",
+      neighbor_sensor_type: panel.dataset.neighborSensorType || "",
+      similarity_score: panel.dataset.similarityScore || "",
+      human_relevance: checked ? checked.value : "",
+      review_note: note ? note.value.trim() : ""
+    };
+  });
+}
+
+function csvCell(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function reviewsAsCsv(rows) {
+  return [
+    reviewColumns.map(csvCell).join(","),
+    ...rows.map((row) => reviewColumns.map((column) => csvCell(row[column] || "")).join(","))
+  ].join("\n");
+}
+
+function downloadText(filename, text, mimeType) {
+  const blob = new Blob([text], { type: mimeType });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}
+
+function downloadReviews(format) {
+  const rows = collectReviews();
+  if (format === "json") {
+    downloadText("hard_split_human_reviews.json", JSON.stringify(rows, null, 2), "application/json;charset=utf-8");
+    return;
+  }
+  downloadText("hard_split_human_reviews.csv", reviewsAsCsv(rows), "text/csv;charset=utf-8");
+}
+
+function updateReviewProgress() {
+  const rows = collectReviews();
+  const reviewed = rows.filter((row) => row.human_relevance !== "").length;
+  const output = document.getElementById("review-progress");
+  if (output) {
+    output.value = `${reviewed} / ${rows.length} reviewed`;
+    output.textContent = output.value;
+  }
+}
+
+document.addEventListener("change", updateReviewProgress);
+document.addEventListener("input", updateReviewProgress);
+window.addEventListener("DOMContentLoaded", updateReviewProgress);
+</script>
+
+</head>
+<body>
+
+<header class="page-head">
+  <div>
+    <p class="kicker">PRPD Similarity Retrieval</p>
+    <h1>Hard Split Failure Review</h1>
+  </div>
+  <dl class="run-meta">
+    <div><dt>Mode</dt><dd>feature_retrieval</dd></div>
+    <div><dt>Split</dt><dd>equipment_name</dd></div>
+    <div><dt>Holdout</dt><dd>CNCV-W</dd></div>
+    <div><dt>Train / Query</dt><dd>26,675 / 3,335</dd></div>
+    <div><dt>Inspected</dt><dd>5</dd></div>
+    <div><dt>Top-k</dt><dd>3</dd></div>
+  </dl>
+  <div class="review-actions" aria-label="review export actions">
+    <button type="button" onclick="downloadReviews('csv')">CSV</button>
+    <button type="button" onclick="downloadReviews('json')">JSON</button>
+    <output id="review-progress">0 reviewed</output>
+  </div>
+</header>
+
+<main>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_고체_CNCV-W_230913_103126_HFCT_500</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_고체_CNCV-W_230913_103126_HFCT_500</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W/%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W_230913_103126_HFCT_500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,45.82 1.46,41.73 2.92,47.18 4.38,41.73 5.84,52.63 7.31,53.99 8.77,51.27 10.23,51.27 11.69,51.27 13.15,49.91 14.61,45.82 16.07,44.46 17.53,55.36 19.00,44.46 20.46,48.54 21.92,48.54 23.38,48.54 24.84,51.27 26.30,49.91 27.76,56.72 29.22,52.63 30.68,47.18 32.15,56.72 33.61,44.46 35.07,37.65 36.53,45.82 37.99,40.37 39.45,49.91 40.91,52.63 42.37,49.91 43.84,53.99 45.30,43.10 46.76,45.82 48.22,41.73 49.68,44.46 51.14,51.27 52.60,47.18 54.06,52.63 55.53,48.54 56.99,40.37 58.45,47.18 59.91,49.91 61.37,48.54 62.83,53.99 64.29,51.27 65.75,49.91 67.21,44.46 68.68,52.63 70.14,49.91 71.60,45.82 73.06,40.37 74.52,40.37 75.98,53.99 77.44,51.27 78.90,52.63 80.37,51.27 81.83,51.27 83.29,55.36 84.75,55.36 86.21,48.54 87.67,49.91 89.13,51.27 90.59,47.18 92.05,43.10 93.52,51.27 94.98,48.54 96.44,47.18 97.90,52.63 99.36,52.63 100.82,44.46 102.28,56.72 103.74,43.10 105.21,52.63 106.67,53.99 108.13,55.36 109.59,49.91 111.05,41.73 112.51,49.91 113.97,44.46 115.43,52.63 116.89,53.99 118.36,51.27 119.82,52.63 121.28,48.54 122.74,47.18 124.20,53.99 125.66,48.54 127.12,53.99 128.58,48.54 130.05,48.54 131.51,48.54 132.97,53.99 134.43,49.91 135.89,51.27 137.35,45.82 138.81,44.46 140.27,41.73 141.74,43.10 143.20,41.73 144.66,39.01 146.12,39.01 147.58,53.99 149.04,52.63 150.50,44.46 151.96,52.63 153.42,48.54 154.89,53.99 156.35,48.54 157.81,53.99 159.27,43.10 160.73,52.63 162.19,48.54 163.65,48.54 165.11,49.91 166.58,48.54 168.04,51.27 169.50,53.99 170.96,49.91 172.42,49.91 173.88,44.46 175.34,43.10 176.80,43.10 178.26,48.54 179.73,40.37 181.19,45.82 182.65,45.82 184.11,40.37 185.57,32.20 187.03,52.63 188.49,45.82 189.95,49.91 191.42,49.91 192.88,48.54 194.34,45.82 195.80,49.91 197.26,47.18 198.72,52.63 200.18,48.54 201.64,33.56 203.11,47.18 204.57,49.91 206.03,45.82 207.49,48.54 208.95,52.63 210.41,49.91 211.87,52.63 213.33,41.73 214.79,40.37 216.26,41.73 217.72,34.92 219.18,55.36 220.64,51.27 222.10,53.99 223.56,52.63 225.02,44.46 226.48,53.99 227.95,44.46 229.41,53.99 230.87,52.63 232.33,53.99 233.79,44.46 235.25,51.27 236.71,51.27 238.17,41.73 239.63,55.36 241.10,40.37 242.56,52.63 244.02,44.46 245.48,44.46 246.94,39.01 248.40,45.82 249.86,44.46 251.32,40.37 252.79,53.99 254.25,47.18 255.71,47.18 257.17,53.99 258.63,43.10 260.09,52.63 261.55,48.54 263.01,56.72 264.47,7.68 265.94,44.46 267.40,49.91 268.86,52.63 270.32,52.63 271.78,40.37 273.24,51.27 274.70,48.54 276.16,45.82 277.63,47.18 279.09,52.63 280.55,48.54 282.01,47.18 283.47,47.18 284.93,44.46 286.39,51.27 287.85,43.10 289.32,51.27 290.78,40.37 292.24,51.27 293.70,55.36 295.16,34.92 296.62,53.99 298.08,53.99 299.54,49.91 301.00,47.18 302.47,47.18 303.93,51.27 305.39,47.18 306.85,48.54 308.31,45.82 309.77,53.99 311.23,49.91 312.69,52.63 314.16,51.27 315.62,53.99 317.08,33.56 318.54,18.58 320.00,43.10" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: CNCV-W</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103126_HFCT_500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="정상_고체_ACSR-OC_230909_201008_HFCT_1500" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.939098">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.939098</span>
+  </div>
+  <h3>정상_고체_ACSR-OC_230909_201008_HFCT_1500</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC_230909_201008_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,45.64 1.46,66.08 2.92,7.68 4.38,54.40 5.84,57.32 7.31,57.32 8.77,36.88 10.23,54.40 11.69,51.48 13.15,33.96 14.61,31.04 16.07,36.88 17.53,57.32 19.00,54.40 20.46,66.08 21.92,54.40 23.38,51.48 24.84,54.40 26.30,57.32 27.76,45.64 29.22,39.80 30.68,51.48 32.15,51.48 33.61,63.16 35.07,54.40 36.53,48.56 37.99,45.64 39.45,33.96 40.91,42.72 42.37,36.88 43.84,51.48 45.30,42.72 46.76,63.16 48.22,48.56 49.68,45.64 51.14,28.12 52.60,60.24 54.06,54.40 55.53,54.40 56.99,39.80 58.45,48.56 59.91,39.80 61.37,63.16 62.83,60.24 64.29,22.28 65.75,31.04 67.21,31.04 68.68,60.24 70.14,36.88 71.60,31.04 73.06,48.56 74.52,45.64 75.98,45.64 77.44,57.32 78.90,51.48 80.37,51.48 81.83,57.32 83.29,54.40 84.75,63.16 86.21,60.24 87.67,57.32 89.13,51.48 90.59,36.88 92.05,31.04 93.52,66.08 94.98,51.48 96.44,54.40 97.90,31.04 99.36,63.16 100.82,36.88 102.28,60.24 103.74,48.56 105.21,51.48 106.67,51.48 108.13,60.24 109.59,33.96 111.05,54.40 112.51,45.64 113.97,51.48 115.43,39.80 116.89,45.64 118.36,13.52 119.82,57.32 121.28,51.48 122.74,33.96 124.20,48.56 125.66,45.64 127.12,39.80 128.58,42.72 130.05,39.80 131.51,45.64 132.97,60.24 134.43,51.48 135.89,63.16 137.35,57.32 138.81,57.32 140.27,45.64 141.74,51.48 143.20,51.48 144.66,39.80 146.12,45.64 147.58,51.48 149.04,63.16 150.50,28.12 151.96,45.64 153.42,71.92 154.89,57.32 156.35,63.16 157.81,54.40 159.27,48.56 160.73,57.32 162.19,60.24 163.65,45.64 165.11,48.56 166.58,31.04 168.04,51.48 169.50,39.80 170.96,48.56 172.42,54.40 173.88,33.96 175.34,45.64 176.80,39.80 178.26,51.48 179.73,48.56 181.19,42.72 182.65,45.64 184.11,54.40 185.57,36.88 187.03,31.04 188.49,57.32 189.95,31.04 191.42,51.48 192.88,48.56 194.34,48.56 195.80,51.48 197.26,48.56 198.72,39.80 200.18,57.32 201.64,25.20 203.11,42.72 204.57,36.88 206.03,54.40 207.49,45.64 208.95,51.48 210.41,42.72 211.87,51.48 213.33,54.40 214.79,48.56 216.26,51.48 217.72,60.24 219.18,45.64 220.64,51.48 222.10,42.72 223.56,54.40 225.02,51.48 226.48,57.32 227.95,57.32 229.41,51.48 230.87,57.32 232.33,36.88 233.79,39.80 235.25,48.56 236.71,42.72 238.17,51.48 239.63,51.48 241.10,51.48 242.56,42.72 244.02,54.40 245.48,48.56 246.94,48.56 248.40,63.16 249.86,48.56 251.32,39.80 252.79,28.12 254.25,51.48 255.71,19.36 257.17,31.04 258.63,33.96 260.09,54.40 261.55,57.32 263.01,31.04 264.47,48.56 265.94,51.48 267.40,57.32 268.86,48.56 270.32,51.48 271.78,45.64 273.24,45.64 274.70,45.64 276.16,54.40 277.63,51.48 279.09,25.20 280.55,42.72 282.01,66.08 283.47,51.48 284.93,57.32 286.39,63.16 287.85,63.16 289.32,42.72 290.78,54.40 292.24,45.64 293.70,51.48 295.16,45.64 296.62,54.40 298.08,48.56 299.54,45.64 301.00,36.88 302.47,51.48 303.93,48.56 305.39,63.16 306.85,57.32 308.31,33.96 309.77,60.24 311.23,31.04 312.69,25.20 314.16,51.48 315.62,48.56 317.08,42.72 318.54,60.24 320.00,42.72" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-0-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-0-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-0-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103126_HFCT_500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="정상_고체_ACSR-OC_230909_204406_HFCT_1500" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938896">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.938896</span>
+  </div>
+  <h3>정상_고체_ACSR-OC_230909_204406_HFCT_1500</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC_230909_204406_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,50.74 1.46,54.65 2.92,58.57 4.38,50.74 5.84,54.65 7.31,66.40 8.77,62.48 10.23,54.65 11.69,35.08 13.15,54.65 14.61,39.00 16.07,62.48 17.53,58.57 19.00,62.48 20.46,50.74 21.92,46.83 23.38,54.65 24.84,58.57 26.30,46.83 27.76,46.83 29.22,50.74 30.68,39.00 32.15,58.57 33.61,39.00 35.07,66.40 36.53,50.74 37.99,50.74 39.45,27.25 40.91,62.48 42.37,54.65 43.84,39.00 45.30,54.65 46.76,70.31 48.22,46.83 49.68,50.74 51.14,46.83 52.60,62.48 54.06,7.68 55.53,58.57 56.99,35.08 58.45,50.74 59.91,50.74 61.37,54.65 62.83,50.74 64.29,42.91 65.75,58.57 67.21,42.91 68.68,39.00 70.14,62.48 71.60,46.83 73.06,42.91 74.52,62.48 75.98,46.83 77.44,66.40 78.90,7.68 80.37,42.91 81.83,54.65 83.29,50.74 84.75,54.65 86.21,62.48 87.67,70.31 89.13,78.14 90.59,46.83 92.05,27.25 93.52,50.74 94.98,39.00 96.44,23.34 97.90,42.91 99.36,19.42 100.82,50.74 102.28,42.91 103.74,50.74 105.21,46.83 106.67,35.08 108.13,62.48 109.59,42.91 111.05,50.74 112.51,42.91 113.97,39.00 115.43,23.34 116.89,46.83 118.36,42.91 119.82,54.65 121.28,42.91 122.74,50.74 124.20,54.65 125.66,35.08 127.12,54.65 128.58,39.00 130.05,58.57 131.51,54.65 132.97,39.00 134.43,46.83 135.89,54.65 137.35,54.65 138.81,23.34 140.27,39.00 141.74,70.31 143.20,58.57 144.66,54.65 146.12,42.91 147.58,54.65 149.04,35.08 150.50,54.65 151.96,39.00 153.42,39.00 154.89,7.68 156.35,54.65 157.81,54.65 159.27,58.57 160.73,58.57 162.19,46.83 163.65,62.48 165.11,50.74 166.58,58.57 168.04,50.74 169.50,58.57 170.96,42.91 172.42,54.65 173.88,46.83 175.34,58.57 176.80,15.51 178.26,39.00 179.73,31.17 181.19,27.25 182.65,50.74 184.11,46.83 185.57,39.00 187.03,74.23 188.49,7.68 189.95,23.34 191.42,50.74 192.88,58.57 194.34,35.08 195.80,54.65 197.26,35.08 198.72,35.08 200.18,62.48 201.64,50.74 203.11,46.83 204.57,58.57 206.03,54.65 207.49,50.74 208.95,42.91 210.41,46.83 211.87,78.14 213.33,46.83 214.79,35.08 216.26,42.91 217.72,50.74 219.18,35.08 220.64,42.91 222.10,46.83 223.56,58.57 225.02,54.65 226.48,42.91 227.95,62.48 229.41,62.48 230.87,58.57 232.33,50.74 233.79,58.57 235.25,58.57 236.71,39.00 238.17,19.42 239.63,54.65 241.10,50.74 242.56,54.65 244.02,27.25 245.48,62.48 246.94,50.74 248.40,15.51 249.86,31.17 251.32,54.65 252.79,11.59 254.25,54.65 255.71,42.91 257.17,11.59 258.63,39.00 260.09,54.65 261.55,54.65 263.01,46.83 264.47,19.42 265.94,42.91 267.40,42.91 268.86,62.48 270.32,54.65 271.78,58.57 273.24,50.74 274.70,39.00 276.16,58.57 277.63,42.91 279.09,39.00 280.55,39.00 282.01,58.57 283.47,42.91 284.93,66.40 286.39,62.48 287.85,54.65 289.32,66.40 290.78,35.08 292.24,50.74 293.70,54.65 295.16,27.25 296.62,62.48 298.08,58.57 299.54,46.83 301.00,31.17 302.47,54.65 303.93,62.48 305.39,70.31 306.85,42.91 308.31,50.74 309.77,54.65 311.23,31.17 312.69,50.74 314.16,54.65 315.62,35.08 317.08,50.74 318.54,58.57 320.00,50.74" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-0-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-0-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-0-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103126_HFCT_500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="정상_고체_ACSR-OC_230909_203623_HFCT_1500" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938789">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.938789</span>
+  </div>
+  <h3>정상_고체_ACSR-OC_230909_203623_HFCT_1500</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC_230909_203623_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,45.57 1.46,73.99 2.92,23.47 4.38,45.57 5.84,39.26 7.31,51.89 8.77,48.73 10.23,51.89 11.69,58.21 13.15,70.84 14.61,48.73 16.07,61.36 17.53,32.94 19.00,45.57 20.46,51.89 21.92,48.73 23.38,36.10 24.84,48.73 26.30,61.36 27.76,39.26 29.22,36.10 30.68,55.05 32.15,42.42 33.61,36.10 35.07,42.42 36.53,55.05 37.99,61.36 39.45,51.89 40.91,45.57 42.37,45.57 43.84,55.05 45.30,39.26 46.76,58.21 48.22,61.36 49.68,26.63 51.14,39.26 52.60,45.57 54.06,48.73 55.53,55.05 56.99,36.10 58.45,26.63 59.91,42.42 61.37,58.21 62.83,51.89 64.29,36.10 65.75,64.52 67.21,51.89 68.68,61.36 70.14,39.26 71.60,42.42 73.06,26.63 74.52,64.52 75.98,51.89 77.44,39.26 78.90,39.26 80.37,51.89 81.83,39.26 83.29,58.21 84.75,45.57 86.21,61.36 87.67,61.36 89.13,51.89 90.59,29.78 92.05,51.89 93.52,39.26 94.98,45.57 96.44,58.21 97.90,23.47 99.36,45.57 100.82,55.05 102.28,51.89 103.74,48.73 105.21,58.21 106.67,39.26 108.13,51.89 109.59,23.47 111.05,23.47 112.51,51.89 113.97,61.36 115.43,55.05 116.89,32.94 118.36,42.42 119.82,58.21 121.28,51.89 122.74,64.52 124.20,48.73 125.66,26.63 127.12,48.73 128.58,48.73 130.05,58.21 131.51,39.26 132.97,67.68 134.43,32.94 135.89,45.57 137.35,45.57 138.81,61.36 140.27,29.78 141.74,20.31 143.20,61.36 144.66,42.42 146.12,55.05 147.58,48.73 149.04,26.63 150.50,61.36 151.96,48.73 153.42,67.68 154.89,45.57 156.35,55.05 157.81,51.89 159.27,42.42 160.73,42.42 162.19,29.78 163.65,51.89 165.11,51.89 166.58,51.89 168.04,32.94 169.50,55.05 170.96,48.73 172.42,61.36 173.88,51.89 175.34,36.10 176.80,58.21 178.26,51.89 179.73,42.42 181.19,67.68 182.65,42.42 184.11,48.73 185.57,51.89 187.03,42.42 188.49,29.78 189.95,58.21 191.42,61.36 192.88,36.10 194.34,55.05 195.80,45.57 197.26,36.10 198.72,51.89 200.18,55.05 201.64,39.26 203.11,48.73 204.57,51.89 206.03,36.10 207.49,14.00 208.95,55.05 210.41,36.10 211.87,61.36 213.33,7.68 214.79,67.68 216.26,51.89 217.72,48.73 219.18,58.21 220.64,48.73 222.10,61.36 223.56,20.31 225.02,45.57 226.48,51.89 227.95,51.89 229.41,64.52 230.87,55.05 232.33,58.21 233.79,55.05 235.25,36.10 236.71,48.73 238.17,26.63 239.63,51.89 241.10,51.89 242.56,58.21 244.02,48.73 245.48,51.89 246.94,45.57 248.40,17.15 249.86,61.36 251.32,58.21 252.79,48.73 254.25,29.78 255.71,55.05 257.17,58.21 258.63,45.57 260.09,36.10 261.55,42.42 263.01,39.26 264.47,55.05 265.94,29.78 267.40,55.05 268.86,58.21 270.32,58.21 271.78,51.89 273.24,23.47 274.70,48.73 276.16,55.05 277.63,64.52 279.09,64.52 280.55,42.42 282.01,61.36 283.47,48.73 284.93,61.36 286.39,51.89 287.85,61.36 289.32,42.42 290.78,58.21 292.24,29.78 293.70,45.57 295.16,45.57 296.62,51.89 298.08,48.73 299.54,55.05 301.00,64.52 302.47,51.89 303.93,48.73 305.39,42.42 306.85,48.73 308.31,61.36 309.77,55.05 311.23,51.89 312.69,51.89 314.16,42.42 315.62,51.89 317.08,48.73 318.54,51.89 320.00,39.26" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-0-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-0-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-0-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_고체_CNCV-W_230913_103146_HFCT_1000</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_고체_CNCV-W_230913_103146_HFCT_1000</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W/%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W_230913_103146_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,50.66 1.46,46.87 2.92,54.45 4.38,40.55 5.84,45.60 7.31,49.40 8.77,53.19 10.23,45.60 11.69,51.92 13.15,55.72 14.61,50.66 16.07,53.19 17.53,45.60 19.00,44.34 20.46,51.92 21.92,51.92 23.38,41.81 24.84,49.40 26.30,49.40 27.76,48.13 29.22,49.40 30.68,45.60 32.15,50.66 33.61,44.34 35.07,46.87 36.53,44.34 37.99,39.28 39.45,46.87 40.91,48.13 42.37,48.13 43.84,53.19 45.30,17.79 46.76,51.92 48.22,53.19 49.68,50.66 51.14,53.19 52.60,53.19 54.06,48.13 55.53,48.13 56.99,49.40 58.45,48.13 59.91,49.40 61.37,44.34 62.83,48.13 64.29,51.92 65.75,54.45 67.21,51.92 68.68,45.60 70.14,48.13 71.60,46.87 73.06,50.66 74.52,40.55 75.98,45.60 77.44,54.45 78.90,49.40 80.37,43.08 81.83,48.13 83.29,50.66 84.75,49.40 86.21,51.92 87.67,43.08 89.13,45.60 90.59,54.45 92.05,53.19 93.52,46.87 94.98,46.87 96.44,41.81 97.90,38.02 99.36,43.08 100.82,50.66 102.28,35.49 103.74,48.13 105.21,45.60 106.67,49.40 108.13,36.75 109.59,50.66 111.05,54.45 112.51,41.81 113.97,49.40 115.43,40.55 116.89,49.40 118.36,41.81 119.82,49.40 121.28,50.66 122.74,59.51 124.20,40.55 125.66,50.66 127.12,44.34 128.58,44.34 130.05,51.92 131.51,50.66 132.97,46.87 134.43,45.60 135.89,48.13 137.35,46.87 138.81,51.92 140.27,41.81 141.74,51.92 143.20,48.13 144.66,40.55 146.12,49.40 147.58,55.72 149.04,39.28 150.50,46.87 151.96,49.40 153.42,41.81 154.89,43.08 156.35,55.72 157.81,45.60 159.27,49.40 160.73,49.40 162.19,49.40 163.65,53.19 165.11,49.40 166.58,55.72 168.04,53.19 169.50,43.08 170.96,46.87 172.42,46.87 173.88,40.55 175.34,46.87 176.80,44.34 178.26,44.34 179.73,44.34 181.19,39.28 182.65,46.87 184.11,46.87 185.57,53.19 187.03,53.19 188.49,51.92 189.95,48.13 191.42,50.66 192.88,44.34 194.34,49.40 195.80,51.92 197.26,45.60 198.72,49.40 200.18,49.40 201.64,50.66 203.11,45.60 204.57,45.60 206.03,51.92 207.49,45.60 208.95,51.92 210.41,55.72 211.87,49.40 213.33,50.66 214.79,48.13 216.26,51.92 217.72,39.28 219.18,50.66 220.64,56.98 222.10,48.13 223.56,46.87 225.02,50.66 226.48,46.87 227.95,54.45 229.41,51.92 230.87,44.34 232.33,56.98 233.79,50.66 235.25,49.40 236.71,50.66 238.17,39.28 239.63,50.66 241.10,46.87 242.56,46.87 244.02,48.13 245.48,50.66 246.94,46.87 248.40,49.40 249.86,44.34 251.32,44.34 252.79,49.40 254.25,41.81 255.71,50.66 257.17,45.60 258.63,54.45 260.09,56.98 261.55,48.13 263.01,55.72 264.47,51.92 265.94,53.19 267.40,49.40 268.86,49.40 270.32,49.40 271.78,49.40 273.24,48.13 274.70,38.02 276.16,50.66 277.63,45.60 279.09,53.19 280.55,45.60 282.01,45.60 283.47,41.81 284.93,44.34 286.39,49.40 287.85,41.81 289.32,53.19 290.78,44.34 292.24,7.68 293.70,48.13 295.16,53.19 296.62,53.19 298.08,46.87 299.54,53.19 301.00,48.13 302.47,43.08 303.93,50.66 305.39,50.66 306.85,46.87 308.31,56.98 309.77,53.19 311.23,45.60 312.69,50.66 314.16,48.13 315.62,48.13 317.08,50.66 318.54,48.13 320.00,46.87" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: CNCV-W</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103146_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="표면방전_고체_ACSR-OC_231006_131042_HFCT_1000" data-neighbor-label-id="2" data-neighbor-label-name="표면 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.940237">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.940237</span>
+  </div>
+  <h3>표면방전_고체_ACSR-OC_231006_131042_HFCT_1000</h3>
+  <div class="label-chip">표면 방전 (2)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_131042_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,56.06 1.46,57.92 2.92,44.90 4.38,54.20 5.84,41.17 7.31,57.92 8.77,44.90 10.23,61.64 11.69,56.06 13.15,56.06 14.61,54.20 16.07,56.06 17.53,56.06 19.00,46.76 20.46,59.78 21.92,59.78 23.38,50.48 24.84,57.92 26.30,41.17 27.76,56.06 29.22,39.31 30.68,37.45 32.15,46.76 33.61,48.62 35.07,48.62 36.53,33.73 37.99,54.20 39.45,33.73 40.91,54.20 42.37,26.29 43.84,61.64 45.30,50.48 46.76,44.90 48.22,52.34 49.68,48.62 51.14,54.20 52.60,57.92 54.06,56.06 55.53,44.90 56.99,48.62 58.45,54.20 59.91,56.06 61.37,54.20 62.83,39.31 64.29,56.06 65.75,41.17 67.21,37.45 68.68,52.34 70.14,50.48 71.60,31.87 73.06,33.73 74.52,43.04 75.98,39.31 77.44,56.06 78.90,37.45 80.37,26.29 81.83,56.06 83.29,56.06 84.75,46.76 86.21,56.06 87.67,44.90 89.13,54.20 90.59,54.20 92.05,57.92 93.52,56.06 94.98,48.62 96.44,48.62 97.90,56.06 99.36,39.31 100.82,33.73 102.28,44.90 103.74,39.31 105.21,56.06 106.67,48.62 108.13,48.62 109.59,13.26 111.05,43.04 112.51,41.17 113.97,46.76 115.43,46.76 116.89,61.64 118.36,57.92 119.82,57.92 121.28,54.20 122.74,56.06 124.20,59.78 125.66,52.34 127.12,59.78 128.58,54.20 130.05,50.48 131.51,54.20 132.97,35.59 134.43,31.87 135.89,26.29 137.35,35.59 138.81,50.48 140.27,41.17 141.74,57.92 143.20,7.68 144.66,48.62 146.12,41.17 147.58,28.15 149.04,31.87 150.50,54.20 151.96,56.06 153.42,61.64 154.89,37.45 156.35,52.34 157.81,56.06 159.27,57.92 160.73,61.64 162.19,50.48 163.65,43.04 165.11,56.06 166.58,52.34 168.04,41.17 169.50,33.73 170.96,54.20 172.42,48.62 173.88,41.17 175.34,46.76 176.80,48.62 178.26,57.92 179.73,15.12 181.19,52.34 182.65,39.31 184.11,57.92 185.57,39.31 187.03,61.64 188.49,37.45 189.95,46.76 191.42,52.34 192.88,61.64 194.34,41.17 195.80,33.73 197.26,52.34 198.72,50.48 200.18,59.78 201.64,56.06 203.11,35.59 204.57,54.20 206.03,30.01 207.49,31.87 208.95,44.90 210.41,39.31 211.87,52.34 213.33,22.57 214.79,48.62 216.26,39.31 217.72,54.20 219.18,33.73 220.64,57.92 222.10,50.48 223.56,56.06 225.02,57.92 226.48,54.20 227.95,52.34 229.41,54.20 230.87,56.06 232.33,50.48 233.79,52.34 235.25,59.78 236.71,46.76 238.17,50.48 239.63,41.17 241.10,46.76 242.56,44.90 244.02,31.87 245.48,50.48 246.94,56.06 248.40,59.78 249.86,43.04 251.32,59.78 252.79,13.26 254.25,56.06 255.71,43.04 257.17,37.45 258.63,54.20 260.09,50.48 261.55,41.17 263.01,37.45 264.47,59.78 265.94,54.20 267.40,59.78 268.86,50.48 270.32,57.92 271.78,61.64 273.24,57.92 274.70,30.01 276.16,44.90 277.63,61.64 279.09,46.76 280.55,26.29 282.01,56.06 283.47,41.17 284.93,41.17 286.39,44.90 287.85,56.06 289.32,35.59 290.78,52.34 292.24,41.17 293.70,54.20 295.16,52.34 296.62,50.48 298.08,52.34 299.54,59.78 301.00,54.20 302.47,57.92 303.93,48.62 305.39,54.20 306.85,50.48 308.31,48.62 309.77,43.04 311.23,52.34 312.69,33.73 314.16,33.73 315.62,48.62 317.08,48.62 318.54,57.92 320.00,44.90" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-1-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-1-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-1-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103146_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="표면방전_고체_ACSR-OC_231006_131103_HFCT_1000" data-neighbor-label-id="2" data-neighbor-label-name="표면 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.939777">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.939777</span>
+  </div>
+  <h3>표면방전_고체_ACSR-OC_231006_131103_HFCT_1000</h3>
+  <div class="label-chip">표면 방전 (2)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_131103_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,40.50 1.46,52.08 2.92,46.29 4.38,53.05 5.84,45.32 7.31,56.91 8.77,45.32 10.23,54.98 11.69,52.08 13.15,49.18 14.61,51.12 16.07,50.15 17.53,51.12 19.00,50.15 20.46,48.22 21.92,53.05 23.38,49.18 24.84,51.12 26.30,44.36 27.76,47.25 29.22,39.53 30.68,40.50 32.15,47.25 33.61,41.46 35.07,50.15 36.53,38.57 37.99,49.18 39.45,27.95 40.91,40.50 42.37,42.43 43.84,52.08 45.30,51.12 46.76,41.46 48.22,47.25 49.68,54.01 51.14,54.01 52.60,54.98 54.06,51.12 55.53,49.18 56.99,53.05 58.45,48.22 59.91,53.05 61.37,45.32 62.83,40.50 64.29,49.18 65.75,47.25 67.21,51.12 68.68,48.22 70.14,47.25 71.60,51.12 73.06,41.46 74.52,49.18 75.98,42.43 77.44,44.36 78.90,45.32 80.37,54.01 81.83,46.29 83.29,54.01 84.75,50.15 86.21,50.15 87.67,45.32 89.13,46.29 90.59,48.22 92.05,51.12 93.52,54.98 94.98,54.98 96.44,50.15 97.90,45.32 99.36,44.36 100.82,39.53 102.28,47.25 103.74,49.18 105.21,52.08 106.67,40.50 108.13,53.05 109.59,46.29 111.05,46.29 112.51,40.50 113.97,54.98 115.43,47.25 116.89,53.05 118.36,47.25 119.82,52.08 121.28,50.15 122.74,53.05 124.20,54.01 125.66,52.08 127.12,54.98 128.58,50.15 130.05,52.08 131.51,50.15 132.97,47.25 134.43,48.22 135.89,43.39 137.35,51.12 138.81,41.46 140.27,7.68 141.74,52.08 143.20,29.88 144.66,47.25 146.12,43.39 147.58,43.39 149.04,41.46 150.50,53.05 151.96,49.18 153.42,54.01 154.89,53.05 156.35,51.12 157.81,47.25 159.27,49.18 160.73,51.12 162.19,53.05 163.65,47.25 165.11,51.12 166.58,53.05 168.04,39.53 169.50,45.32 170.96,49.18 172.42,48.22 173.88,51.12 175.34,43.39 176.80,51.12 178.26,50.15 179.73,41.46 181.19,51.12 182.65,34.71 184.11,54.98 185.57,43.39 187.03,50.15 188.49,53.05 189.95,53.05 191.42,52.08 192.88,51.12 194.34,55.94 195.80,48.22 197.26,54.01 198.72,51.12 200.18,51.12 201.64,45.32 203.11,45.32 204.57,51.12 206.03,39.53 207.49,41.46 208.95,49.18 210.41,52.08 211.87,53.05 213.33,43.39 214.79,49.18 216.26,43.39 217.72,52.08 219.18,40.50 220.64,47.25 222.10,43.39 223.56,51.12 225.02,53.05 226.48,54.01 227.95,51.12 229.41,54.01 230.87,48.22 232.33,52.08 233.79,52.08 235.25,50.15 236.71,46.29 238.17,52.08 239.63,45.32 241.10,48.22 242.56,47.25 244.02,39.53 245.48,25.05 246.94,45.32 248.40,48.22 249.86,43.39 251.32,42.43 252.79,46.29 254.25,52.08 255.71,43.39 257.17,52.08 258.63,47.25 260.09,54.01 261.55,51.12 263.01,52.08 264.47,50.15 265.94,53.05 267.40,54.01 268.86,46.29 270.32,53.05 271.78,52.08 273.24,51.12 274.70,50.15 276.16,43.39 277.63,51.12 279.09,49.18 280.55,42.43 282.01,52.08 283.47,24.09 284.93,50.15 286.39,49.18 287.85,47.25 289.32,45.32 290.78,48.22 292.24,41.46 293.70,52.08 295.16,54.98 296.62,52.08 298.08,51.12 299.54,43.39 301.00,49.18 302.47,49.18 303.93,53.05 305.39,44.36 306.85,52.08 308.31,54.98 309.77,47.25 311.23,54.01 312.69,38.57 314.16,38.57 315.62,46.29 317.08,49.18 318.54,50.15 320.00,47.25" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-1-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-1-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-1-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103146_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="표면방전_고체_ACSR-OC_231006_131330_HFCT_1000" data-neighbor-label-id="2" data-neighbor-label-name="표면 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.939520">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.939520</span>
+  </div>
+  <h3>표면방전_고체_ACSR-OC_231006_131330_HFCT_1000</h3>
+  <div class="label-chip">표면 방전 (2)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_131330_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,38.18 1.46,38.18 2.92,39.56 4.38,18.77 5.84,38.18 7.31,50.65 8.77,42.34 10.23,52.04 11.69,47.88 13.15,53.43 14.61,49.27 16.07,53.43 17.53,57.58 19.00,50.65 20.46,52.04 21.92,53.43 23.38,57.58 24.84,54.81 26.30,45.11 27.76,50.65 29.22,34.02 30.68,50.65 32.15,49.27 33.61,49.27 35.07,7.68 36.53,52.04 37.99,50.65 39.45,27.09 40.91,52.04 42.37,39.56 43.84,56.20 45.30,50.65 46.76,54.81 48.22,50.65 49.68,46.49 51.14,58.97 52.60,53.43 54.06,46.49 55.53,54.81 56.99,50.65 58.45,52.04 59.91,50.65 61.37,54.81 62.83,38.18 64.29,50.65 65.75,49.27 67.21,50.65 68.68,52.04 70.14,56.20 71.60,43.72 73.06,39.56 74.52,56.20 75.98,40.95 77.44,49.27 78.90,35.40 80.37,54.81 81.83,49.27 83.29,52.04 84.75,46.49 86.21,54.81 87.67,46.49 89.13,46.49 90.59,53.43 92.05,53.43 93.52,49.27 94.98,56.20 96.44,45.11 97.90,47.88 99.36,45.11 100.82,39.56 102.28,45.11 103.74,50.65 105.21,56.20 106.67,39.56 108.13,56.20 109.59,36.79 111.05,54.81 112.51,39.56 113.97,52.04 115.43,43.72 116.89,53.43 118.36,57.58 119.82,54.81 121.28,49.27 122.74,47.88 124.20,50.65 125.66,53.43 127.12,56.20 128.58,47.88 130.05,53.43 131.51,53.43 132.97,40.95 134.43,43.72 135.89,34.02 137.35,47.88 138.81,52.04 140.27,53.43 141.74,54.81 143.20,36.79 144.66,46.49 146.12,39.56 147.58,40.95 149.04,38.18 150.50,54.81 151.96,43.72 153.42,53.43 154.89,46.49 156.35,36.79 157.81,57.58 159.27,56.20 160.73,50.65 162.19,49.27 163.65,53.43 165.11,56.20 166.58,32.63 168.04,45.11 169.50,36.79 170.96,52.04 172.42,46.49 173.88,42.34 175.34,54.81 176.80,47.88 178.26,40.95 179.73,42.34 181.19,50.65 182.65,45.11 184.11,52.04 185.57,40.95 187.03,38.18 188.49,42.34 189.95,54.81 191.42,52.04 192.88,53.43 194.34,57.58 195.80,39.56 197.26,54.81 198.72,54.81 200.18,52.04 201.64,53.43 203.11,40.95 204.57,49.27 206.03,42.34 207.49,36.79 208.95,39.56 210.41,54.81 211.87,53.43 213.33,24.31 214.79,56.20 216.26,46.49 217.72,58.97 219.18,40.95 220.64,56.20 222.10,43.72 223.56,57.58 225.02,56.20 226.48,56.20 227.95,50.65 229.41,53.43 230.87,50.65 232.33,50.65 233.79,49.27 235.25,50.65 236.71,56.20 238.17,57.58 239.63,38.18 241.10,49.27 242.56,28.47 244.02,50.65 245.48,10.45 246.94,56.20 248.40,54.81 249.86,40.95 251.32,36.79 252.79,40.95 254.25,52.04 255.71,38.18 257.17,54.81 258.63,54.81 260.09,56.20 261.55,53.43 263.01,53.43 264.47,53.43 265.94,45.11 267.40,57.58 268.86,54.81 270.32,49.27 271.78,49.27 273.24,54.81 274.70,46.49 276.16,38.18 277.63,47.88 279.09,42.34 280.55,50.65 282.01,52.04 283.47,46.49 284.93,54.81 286.39,42.34 287.85,49.27 289.32,39.56 290.78,53.43 292.24,43.72 293.70,47.88 295.16,54.81 296.62,54.81 298.08,54.81 299.54,50.65 301.00,52.04 302.47,50.65 303.93,52.04 305.39,57.58 306.85,38.18 308.31,54.81 309.77,42.34 311.23,52.04 312.69,36.79 314.16,35.40 315.62,46.49 317.08,49.27 318.54,50.65 320.00,42.34" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-1-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-1-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-1-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_고체_CNCV-W_230913_103147_HFCT_500</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_고체_CNCV-W_230913_103147_HFCT_500</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W/%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W_230913_103147_HFCT_500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,47.45 1.46,43.60 2.92,47.45 4.38,48.73 5.84,50.02 7.31,53.87 8.77,7.68 10.23,53.87 11.69,47.45 13.15,52.58 14.61,52.58 16.07,48.73 17.53,42.32 19.00,53.87 20.46,50.02 21.92,51.30 23.38,44.89 24.84,51.30 26.30,43.60 27.76,39.75 29.22,52.58 30.68,48.73 32.15,51.30 33.61,48.73 35.07,48.73 36.53,50.02 37.99,41.04 39.45,43.60 40.91,47.45 42.37,50.02 43.84,53.87 45.30,44.89 46.76,46.17 48.22,44.89 49.68,46.17 51.14,55.15 52.60,53.87 54.06,48.73 55.53,42.32 56.99,48.73 58.45,52.58 59.91,53.87 61.37,52.58 62.83,12.81 64.29,51.30 65.75,55.15 67.21,51.30 68.68,43.60 70.14,46.17 71.60,48.73 73.06,51.30 74.52,39.75 75.98,50.02 77.44,50.02 78.90,52.58 80.37,55.15 81.83,55.15 83.29,50.02 84.75,51.30 86.21,43.60 87.67,50.02 89.13,48.73 90.59,51.30 92.05,53.87 93.52,48.73 94.98,48.73 96.44,51.30 97.90,41.04 99.36,44.89 100.82,47.45 102.28,47.45 103.74,46.17 105.21,43.60 106.67,52.58 108.13,44.89 109.59,46.17 111.05,41.04 112.51,42.32 113.97,41.04 115.43,48.73 116.89,47.45 118.36,50.02 119.82,46.17 121.28,41.04 122.74,47.45 124.20,47.45 125.66,51.30 127.12,50.02 128.58,39.75 130.05,50.02 131.51,41.04 132.97,47.45 134.43,53.87 135.89,48.73 137.35,30.77 138.81,47.45 140.27,51.30 141.74,51.30 143.20,46.17 144.66,51.30 146.12,42.32 147.58,46.17 149.04,50.02 150.50,52.58 151.96,50.02 153.42,50.02 154.89,55.15 156.35,52.58 157.81,51.30 159.27,56.43 160.73,51.30 162.19,56.43 163.65,48.73 165.11,41.04 166.58,48.73 168.04,51.30 169.50,47.45 170.96,50.02 172.42,52.58 173.88,48.73 175.34,48.73 176.80,55.15 178.26,43.60 179.73,52.58 181.19,39.75 182.65,41.04 184.11,48.73 185.57,51.30 187.03,48.73 188.49,48.73 189.95,42.32 191.42,56.43 192.88,48.73 194.34,51.30 195.80,52.58 197.26,44.89 198.72,47.45 200.18,50.02 201.64,50.02 203.11,53.87 204.57,48.73 206.03,38.47 207.49,48.73 208.95,53.87 210.41,43.60 211.87,42.32 213.33,37.19 214.79,43.60 216.26,48.73 217.72,42.32 219.18,42.32 220.64,53.87 222.10,47.45 223.56,50.02 225.02,51.30 226.48,52.58 227.95,53.87 229.41,48.73 230.87,50.02 232.33,52.58 233.79,50.02 235.25,50.02 236.71,48.73 238.17,47.45 239.63,53.87 241.10,44.89 242.56,52.58 244.02,37.19 245.48,16.66 246.94,50.02 248.40,44.89 249.86,51.30 251.32,41.04 252.79,53.87 254.25,55.15 255.71,51.30 257.17,46.17 258.63,55.15 260.09,56.43 261.55,34.62 263.01,48.73 264.47,47.45 265.94,48.73 267.40,47.45 268.86,50.02 270.32,46.17 271.78,46.17 273.24,39.75 274.70,50.02 276.16,50.02 277.63,46.17 279.09,47.45 280.55,41.04 282.01,44.89 283.47,51.30 284.93,46.17 286.39,48.73 287.85,42.32 289.32,51.30 290.78,43.60 292.24,52.58 293.70,48.73 295.16,53.87 296.62,50.02 298.08,48.73 299.54,51.30 301.00,51.30 302.47,50.02 303.93,51.30 305.39,47.45 306.85,52.58 308.31,52.58 309.77,53.87 311.23,46.17 312.69,50.02 314.16,47.45 315.62,43.60 317.08,51.30 318.54,51.30 320.00,52.58" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: CNCV-W</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103147_HFCT_500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="정상_고체_ACSR-OC_230909_201008_HFCT_1500" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938571">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.938571</span>
+  </div>
+  <h3>정상_고체_ACSR-OC_230909_201008_HFCT_1500</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC_230909_201008_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,45.64 1.46,66.08 2.92,7.68 4.38,54.40 5.84,57.32 7.31,57.32 8.77,36.88 10.23,54.40 11.69,51.48 13.15,33.96 14.61,31.04 16.07,36.88 17.53,57.32 19.00,54.40 20.46,66.08 21.92,54.40 23.38,51.48 24.84,54.40 26.30,57.32 27.76,45.64 29.22,39.80 30.68,51.48 32.15,51.48 33.61,63.16 35.07,54.40 36.53,48.56 37.99,45.64 39.45,33.96 40.91,42.72 42.37,36.88 43.84,51.48 45.30,42.72 46.76,63.16 48.22,48.56 49.68,45.64 51.14,28.12 52.60,60.24 54.06,54.40 55.53,54.40 56.99,39.80 58.45,48.56 59.91,39.80 61.37,63.16 62.83,60.24 64.29,22.28 65.75,31.04 67.21,31.04 68.68,60.24 70.14,36.88 71.60,31.04 73.06,48.56 74.52,45.64 75.98,45.64 77.44,57.32 78.90,51.48 80.37,51.48 81.83,57.32 83.29,54.40 84.75,63.16 86.21,60.24 87.67,57.32 89.13,51.48 90.59,36.88 92.05,31.04 93.52,66.08 94.98,51.48 96.44,54.40 97.90,31.04 99.36,63.16 100.82,36.88 102.28,60.24 103.74,48.56 105.21,51.48 106.67,51.48 108.13,60.24 109.59,33.96 111.05,54.40 112.51,45.64 113.97,51.48 115.43,39.80 116.89,45.64 118.36,13.52 119.82,57.32 121.28,51.48 122.74,33.96 124.20,48.56 125.66,45.64 127.12,39.80 128.58,42.72 130.05,39.80 131.51,45.64 132.97,60.24 134.43,51.48 135.89,63.16 137.35,57.32 138.81,57.32 140.27,45.64 141.74,51.48 143.20,51.48 144.66,39.80 146.12,45.64 147.58,51.48 149.04,63.16 150.50,28.12 151.96,45.64 153.42,71.92 154.89,57.32 156.35,63.16 157.81,54.40 159.27,48.56 160.73,57.32 162.19,60.24 163.65,45.64 165.11,48.56 166.58,31.04 168.04,51.48 169.50,39.80 170.96,48.56 172.42,54.40 173.88,33.96 175.34,45.64 176.80,39.80 178.26,51.48 179.73,48.56 181.19,42.72 182.65,45.64 184.11,54.40 185.57,36.88 187.03,31.04 188.49,57.32 189.95,31.04 191.42,51.48 192.88,48.56 194.34,48.56 195.80,51.48 197.26,48.56 198.72,39.80 200.18,57.32 201.64,25.20 203.11,42.72 204.57,36.88 206.03,54.40 207.49,45.64 208.95,51.48 210.41,42.72 211.87,51.48 213.33,54.40 214.79,48.56 216.26,51.48 217.72,60.24 219.18,45.64 220.64,51.48 222.10,42.72 223.56,54.40 225.02,51.48 226.48,57.32 227.95,57.32 229.41,51.48 230.87,57.32 232.33,36.88 233.79,39.80 235.25,48.56 236.71,42.72 238.17,51.48 239.63,51.48 241.10,51.48 242.56,42.72 244.02,54.40 245.48,48.56 246.94,48.56 248.40,63.16 249.86,48.56 251.32,39.80 252.79,28.12 254.25,51.48 255.71,19.36 257.17,31.04 258.63,33.96 260.09,54.40 261.55,57.32 263.01,31.04 264.47,48.56 265.94,51.48 267.40,57.32 268.86,48.56 270.32,51.48 271.78,45.64 273.24,45.64 274.70,45.64 276.16,54.40 277.63,51.48 279.09,25.20 280.55,42.72 282.01,66.08 283.47,51.48 284.93,57.32 286.39,63.16 287.85,63.16 289.32,42.72 290.78,54.40 292.24,45.64 293.70,51.48 295.16,45.64 296.62,54.40 298.08,48.56 299.54,45.64 301.00,36.88 302.47,51.48 303.93,48.56 305.39,63.16 306.85,57.32 308.31,33.96 309.77,60.24 311.23,31.04 312.69,25.20 314.16,51.48 315.62,48.56 317.08,42.72 318.54,60.24 320.00,42.72" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-2-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-2-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-2-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103147_HFCT_500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="정상_고체_ACSR-OC_230909_203623_HFCT_1500" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938462">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.938462</span>
+  </div>
+  <h3>정상_고체_ACSR-OC_230909_203623_HFCT_1500</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC_230909_203623_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,45.57 1.46,73.99 2.92,23.47 4.38,45.57 5.84,39.26 7.31,51.89 8.77,48.73 10.23,51.89 11.69,58.21 13.15,70.84 14.61,48.73 16.07,61.36 17.53,32.94 19.00,45.57 20.46,51.89 21.92,48.73 23.38,36.10 24.84,48.73 26.30,61.36 27.76,39.26 29.22,36.10 30.68,55.05 32.15,42.42 33.61,36.10 35.07,42.42 36.53,55.05 37.99,61.36 39.45,51.89 40.91,45.57 42.37,45.57 43.84,55.05 45.30,39.26 46.76,58.21 48.22,61.36 49.68,26.63 51.14,39.26 52.60,45.57 54.06,48.73 55.53,55.05 56.99,36.10 58.45,26.63 59.91,42.42 61.37,58.21 62.83,51.89 64.29,36.10 65.75,64.52 67.21,51.89 68.68,61.36 70.14,39.26 71.60,42.42 73.06,26.63 74.52,64.52 75.98,51.89 77.44,39.26 78.90,39.26 80.37,51.89 81.83,39.26 83.29,58.21 84.75,45.57 86.21,61.36 87.67,61.36 89.13,51.89 90.59,29.78 92.05,51.89 93.52,39.26 94.98,45.57 96.44,58.21 97.90,23.47 99.36,45.57 100.82,55.05 102.28,51.89 103.74,48.73 105.21,58.21 106.67,39.26 108.13,51.89 109.59,23.47 111.05,23.47 112.51,51.89 113.97,61.36 115.43,55.05 116.89,32.94 118.36,42.42 119.82,58.21 121.28,51.89 122.74,64.52 124.20,48.73 125.66,26.63 127.12,48.73 128.58,48.73 130.05,58.21 131.51,39.26 132.97,67.68 134.43,32.94 135.89,45.57 137.35,45.57 138.81,61.36 140.27,29.78 141.74,20.31 143.20,61.36 144.66,42.42 146.12,55.05 147.58,48.73 149.04,26.63 150.50,61.36 151.96,48.73 153.42,67.68 154.89,45.57 156.35,55.05 157.81,51.89 159.27,42.42 160.73,42.42 162.19,29.78 163.65,51.89 165.11,51.89 166.58,51.89 168.04,32.94 169.50,55.05 170.96,48.73 172.42,61.36 173.88,51.89 175.34,36.10 176.80,58.21 178.26,51.89 179.73,42.42 181.19,67.68 182.65,42.42 184.11,48.73 185.57,51.89 187.03,42.42 188.49,29.78 189.95,58.21 191.42,61.36 192.88,36.10 194.34,55.05 195.80,45.57 197.26,36.10 198.72,51.89 200.18,55.05 201.64,39.26 203.11,48.73 204.57,51.89 206.03,36.10 207.49,14.00 208.95,55.05 210.41,36.10 211.87,61.36 213.33,7.68 214.79,67.68 216.26,51.89 217.72,48.73 219.18,58.21 220.64,48.73 222.10,61.36 223.56,20.31 225.02,45.57 226.48,51.89 227.95,51.89 229.41,64.52 230.87,55.05 232.33,58.21 233.79,55.05 235.25,36.10 236.71,48.73 238.17,26.63 239.63,51.89 241.10,51.89 242.56,58.21 244.02,48.73 245.48,51.89 246.94,45.57 248.40,17.15 249.86,61.36 251.32,58.21 252.79,48.73 254.25,29.78 255.71,55.05 257.17,58.21 258.63,45.57 260.09,36.10 261.55,42.42 263.01,39.26 264.47,55.05 265.94,29.78 267.40,55.05 268.86,58.21 270.32,58.21 271.78,51.89 273.24,23.47 274.70,48.73 276.16,55.05 277.63,64.52 279.09,64.52 280.55,42.42 282.01,61.36 283.47,48.73 284.93,61.36 286.39,51.89 287.85,61.36 289.32,42.42 290.78,58.21 292.24,29.78 293.70,45.57 295.16,45.57 296.62,51.89 298.08,48.73 299.54,55.05 301.00,64.52 302.47,51.89 303.93,48.73 305.39,42.42 306.85,48.73 308.31,61.36 309.77,55.05 311.23,51.89 312.69,51.89 314.16,42.42 315.62,51.89 317.08,48.73 318.54,51.89 320.00,39.26" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-2-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-2-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-2-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103147_HFCT_500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="정상_고체_ACSR-OC_230909_204406_HFCT_1500" data-neighbor-label-id="0" data-neighbor-label-name="정상" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.938347">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.938347</span>
+  </div>
+  <h3>정상_고체_ACSR-OC_230909_204406_HFCT_1500</h3>
+  <div class="label-chip">정상 (0)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%A0%95%EC%83%81_%EA%B3%A0%EC%B2%B4_ACSR-OC_230909_204406_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,50.74 1.46,54.65 2.92,58.57 4.38,50.74 5.84,54.65 7.31,66.40 8.77,62.48 10.23,54.65 11.69,35.08 13.15,54.65 14.61,39.00 16.07,62.48 17.53,58.57 19.00,62.48 20.46,50.74 21.92,46.83 23.38,54.65 24.84,58.57 26.30,46.83 27.76,46.83 29.22,50.74 30.68,39.00 32.15,58.57 33.61,39.00 35.07,66.40 36.53,50.74 37.99,50.74 39.45,27.25 40.91,62.48 42.37,54.65 43.84,39.00 45.30,54.65 46.76,70.31 48.22,46.83 49.68,50.74 51.14,46.83 52.60,62.48 54.06,7.68 55.53,58.57 56.99,35.08 58.45,50.74 59.91,50.74 61.37,54.65 62.83,50.74 64.29,42.91 65.75,58.57 67.21,42.91 68.68,39.00 70.14,62.48 71.60,46.83 73.06,42.91 74.52,62.48 75.98,46.83 77.44,66.40 78.90,7.68 80.37,42.91 81.83,54.65 83.29,50.74 84.75,54.65 86.21,62.48 87.67,70.31 89.13,78.14 90.59,46.83 92.05,27.25 93.52,50.74 94.98,39.00 96.44,23.34 97.90,42.91 99.36,19.42 100.82,50.74 102.28,42.91 103.74,50.74 105.21,46.83 106.67,35.08 108.13,62.48 109.59,42.91 111.05,50.74 112.51,42.91 113.97,39.00 115.43,23.34 116.89,46.83 118.36,42.91 119.82,54.65 121.28,42.91 122.74,50.74 124.20,54.65 125.66,35.08 127.12,54.65 128.58,39.00 130.05,58.57 131.51,54.65 132.97,39.00 134.43,46.83 135.89,54.65 137.35,54.65 138.81,23.34 140.27,39.00 141.74,70.31 143.20,58.57 144.66,54.65 146.12,42.91 147.58,54.65 149.04,35.08 150.50,54.65 151.96,39.00 153.42,39.00 154.89,7.68 156.35,54.65 157.81,54.65 159.27,58.57 160.73,58.57 162.19,46.83 163.65,62.48 165.11,50.74 166.58,58.57 168.04,50.74 169.50,58.57 170.96,42.91 172.42,54.65 173.88,46.83 175.34,58.57 176.80,15.51 178.26,39.00 179.73,31.17 181.19,27.25 182.65,50.74 184.11,46.83 185.57,39.00 187.03,74.23 188.49,7.68 189.95,23.34 191.42,50.74 192.88,58.57 194.34,35.08 195.80,54.65 197.26,35.08 198.72,35.08 200.18,62.48 201.64,50.74 203.11,46.83 204.57,58.57 206.03,54.65 207.49,50.74 208.95,42.91 210.41,46.83 211.87,78.14 213.33,46.83 214.79,35.08 216.26,42.91 217.72,50.74 219.18,35.08 220.64,42.91 222.10,46.83 223.56,58.57 225.02,54.65 226.48,42.91 227.95,62.48 229.41,62.48 230.87,58.57 232.33,50.74 233.79,58.57 235.25,58.57 236.71,39.00 238.17,19.42 239.63,54.65 241.10,50.74 242.56,54.65 244.02,27.25 245.48,62.48 246.94,50.74 248.40,15.51 249.86,31.17 251.32,54.65 252.79,11.59 254.25,54.65 255.71,42.91 257.17,11.59 258.63,39.00 260.09,54.65 261.55,54.65 263.01,46.83 264.47,19.42 265.94,42.91 267.40,42.91 268.86,62.48 270.32,54.65 271.78,58.57 273.24,50.74 274.70,39.00 276.16,58.57 277.63,42.91 279.09,39.00 280.55,39.00 282.01,58.57 283.47,42.91 284.93,66.40 286.39,62.48 287.85,54.65 289.32,66.40 290.78,35.08 292.24,50.74 293.70,54.65 295.16,27.25 296.62,62.48 298.08,58.57 299.54,46.83 301.00,31.17 302.47,54.65 303.93,62.48 305.39,70.31 306.85,42.91 308.31,50.74 309.77,54.65 311.23,31.17 312.69,50.74 314.16,54.65 315.62,35.08 317.08,50.74 318.54,58.57 320.00,50.74" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-2-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-2-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-2-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_고체_CNCV-W_230913_103202_HFCT_1500</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_고체_CNCV-W_230913_103202_HFCT_1500</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W/%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W_230913_103202_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,49.81 1.46,52.29 2.92,42.38 4.38,34.94 5.84,48.57 7.31,48.57 8.77,46.10 10.23,53.53 11.69,52.29 13.15,53.53 14.61,53.53 16.07,54.77 17.53,51.05 19.00,49.81 20.46,48.57 21.92,33.70 23.38,44.86 24.84,56.01 26.30,46.10 27.76,53.53 29.22,52.29 30.68,32.46 32.15,43.62 33.61,53.53 35.07,48.57 36.53,38.66 37.99,37.42 39.45,52.29 40.91,48.57 42.37,51.05 43.84,47.34 45.30,52.29 46.76,54.77 48.22,49.81 49.68,46.10 51.14,49.81 52.60,51.05 54.06,54.77 55.53,44.86 56.99,48.57 58.45,49.81 59.91,54.77 61.37,52.29 62.83,49.81 64.29,42.38 65.75,51.05 67.21,44.86 68.68,39.90 70.14,44.86 71.60,38.66 73.06,53.53 74.52,38.66 75.98,44.86 77.44,43.62 78.90,42.38 80.37,49.81 81.83,51.05 83.29,47.34 84.75,56.01 86.21,46.10 87.67,48.57 89.13,48.57 90.59,52.29 92.05,42.38 93.52,54.77 94.98,46.10 96.44,49.81 97.90,48.57 99.36,52.29 100.82,44.86 102.28,53.53 103.74,49.81 105.21,47.34 106.67,48.57 108.13,49.81 109.59,54.77 111.05,41.14 112.51,49.81 113.97,58.49 115.43,48.57 116.89,51.05 118.36,52.29 119.82,41.14 121.28,52.29 122.74,51.05 124.20,51.05 125.66,51.05 127.12,7.68 128.58,42.38 130.05,54.77 131.51,47.34 132.97,52.29 134.43,41.14 135.89,54.77 137.35,47.34 138.81,47.34 140.27,47.34 141.74,48.57 143.20,53.53 144.66,33.70 146.12,43.62 147.58,43.62 149.04,46.10 150.50,44.86 151.96,51.05 153.42,48.57 154.89,52.29 156.35,48.57 157.81,56.01 159.27,52.29 160.73,48.57 162.19,48.57 163.65,42.38 165.11,49.81 166.58,37.42 168.04,46.10 169.50,53.53 170.96,41.14 172.42,48.57 173.88,47.34 175.34,49.81 176.80,48.57 178.26,37.42 179.73,49.81 181.19,39.90 182.65,49.81 184.11,47.34 185.57,32.46 187.03,53.53 188.49,51.05 189.95,48.57 191.42,48.57 192.88,48.57 194.34,51.05 195.80,48.57 197.26,49.81 198.72,49.81 200.18,54.77 201.64,46.10 203.11,52.29 204.57,49.81 206.03,39.90 207.49,47.34 208.95,46.10 210.41,53.53 211.87,41.14 213.33,52.29 214.79,44.86 216.26,38.66 217.72,49.81 219.18,48.57 220.64,58.49 222.10,47.34 223.56,53.53 225.02,43.62 226.48,54.77 227.95,51.05 229.41,56.01 230.87,48.57 232.33,43.62 233.79,54.77 235.25,51.05 236.71,52.29 238.17,38.66 239.63,56.01 241.10,51.05 242.56,47.34 244.02,47.34 245.48,53.53 246.94,27.51 248.40,52.29 249.86,43.62 251.32,42.38 252.79,39.90 254.25,52.29 255.71,51.05 257.17,54.77 258.63,52.29 260.09,49.81 261.55,47.34 263.01,47.34 264.47,53.53 265.94,53.53 267.40,46.10 268.86,46.10 270.32,54.77 271.78,49.81 273.24,56.01 274.70,49.81 276.16,47.34 277.63,49.81 279.09,54.77 280.55,39.90 282.01,52.29 283.47,38.66 284.93,47.34 286.39,43.62 287.85,38.66 289.32,49.81 290.78,51.05 292.24,43.62 293.70,51.05 295.16,47.34 296.62,51.05 298.08,41.14 299.54,51.05 301.00,56.01 302.47,48.57 303.93,49.81 305.39,52.29 306.85,49.81 308.31,43.62 309.77,54.77 311.23,49.81 312.69,48.57 314.16,44.86 315.62,49.81 317.08,37.42 318.54,51.05 320.00,33.70" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: CNCV-W</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103202_HFCT_1500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="코로나방전_고체_ACSR-OC_231006_195040_HFCT_1500" data-neighbor-label-id="3" data-neighbor-label-name="코로나 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.951314">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.951314</span>
+  </div>
+  <h3>코로나방전_고체_ACSR-OC_231006_195040_HFCT_1500</h3>
+  <div class="label-chip">코로나 방전 (3)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%BD%94%EB%A1%9C%EB%82%98%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%BD%94%EB%A1%9C%EB%82%98%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_195040_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,54.57 1.46,54.57 2.92,22.69 4.38,54.57 5.84,43.32 7.31,41.44 8.77,48.95 10.23,48.95 11.69,52.70 13.15,58.33 14.61,45.19 16.07,37.69 17.53,41.44 19.00,47.07 20.46,45.19 21.92,52.70 23.38,43.32 24.84,43.32 26.30,50.82 27.76,48.95 29.22,50.82 30.68,52.70 32.15,54.57 33.61,50.82 35.07,43.32 36.53,43.32 37.99,58.33 39.45,18.93 40.91,45.19 42.37,48.95 43.84,56.45 45.30,45.19 46.76,45.19 48.22,50.82 49.68,56.45 51.14,43.32 52.60,45.19 54.06,50.82 55.53,48.95 56.99,50.82 58.45,45.19 59.91,50.82 61.37,52.70 62.83,37.69 64.29,50.82 65.75,62.08 67.21,48.95 68.68,45.19 70.14,48.95 71.60,54.57 73.06,41.44 74.52,43.32 75.98,43.32 77.44,47.07 78.90,43.32 80.37,47.07 81.83,52.70 83.29,50.82 84.75,52.70 86.21,35.82 87.67,60.20 89.13,35.82 90.59,54.57 92.05,45.19 93.52,52.70 94.98,48.95 96.44,56.45 97.90,35.82 99.36,52.70 100.82,54.57 102.28,52.70 103.74,47.07 105.21,50.82 106.67,48.95 108.13,43.32 109.59,43.32 111.05,58.33 112.51,35.82 113.97,37.69 115.43,47.07 116.89,45.19 118.36,58.33 119.82,58.33 121.28,48.95 122.74,52.70 124.20,45.19 125.66,50.82 127.12,41.44 128.58,47.07 130.05,52.70 131.51,50.82 132.97,50.82 134.43,43.32 135.89,50.82 137.35,50.82 138.81,52.70 140.27,47.07 141.74,37.69 143.20,17.06 144.66,33.94 146.12,43.32 147.58,50.82 149.04,39.57 150.50,47.07 151.96,48.95 153.42,41.44 154.89,52.70 156.35,56.45 157.81,47.07 159.27,48.95 160.73,45.19 162.19,50.82 163.65,52.70 165.11,54.57 166.58,45.19 168.04,47.07 169.50,54.57 170.96,43.32 172.42,45.19 173.88,45.19 175.34,56.45 176.80,48.95 178.26,54.57 179.73,47.07 181.19,47.07 182.65,54.57 184.11,60.20 185.57,45.19 187.03,45.19 188.49,50.82 189.95,50.82 191.42,39.57 192.88,56.45 194.34,41.44 195.80,32.06 197.26,48.95 198.72,47.07 200.18,43.32 201.64,45.19 203.11,7.68 204.57,35.82 206.03,50.82 207.49,52.70 208.95,52.70 210.41,47.07 211.87,50.82 213.33,48.95 214.79,56.45 216.26,50.82 217.72,52.70 219.18,43.32 220.64,48.95 222.10,48.95 223.56,56.45 225.02,47.07 226.48,48.95 227.95,52.70 229.41,47.07 230.87,50.82 232.33,52.70 233.79,54.57 235.25,52.70 236.71,50.82 238.17,52.70 239.63,54.57 241.10,45.19 242.56,50.82 244.02,50.82 245.48,45.19 246.94,22.69 248.40,60.20 249.86,50.82 251.32,52.70 252.79,43.32 254.25,52.70 255.71,45.19 257.17,56.45 258.63,60.20 260.09,52.70 261.55,41.44 263.01,47.07 264.47,54.57 265.94,54.57 267.40,48.95 268.86,48.95 270.32,43.32 271.78,52.70 273.24,35.82 274.70,48.95 276.16,50.82 277.63,52.70 279.09,47.07 280.55,43.32 282.01,52.70 283.47,48.95 284.93,48.95 286.39,22.69 287.85,41.44 289.32,48.95 290.78,56.45 292.24,47.07 293.70,48.95 295.16,45.19 296.62,48.95 298.08,56.45 299.54,50.82 301.00,45.19 302.47,48.95 303.93,48.95 305.39,47.07 306.85,50.82 308.31,52.70 309.77,50.82 311.23,52.70 312.69,37.69 314.16,50.82 315.62,54.57 317.08,52.70 318.54,56.45 320.00,41.44" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-3-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-3-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-3-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103202_HFCT_1500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="코로나방전_고체_ACSR-OC_231006_194937_HFCT_1500" data-neighbor-label-id="3" data-neighbor-label-name="코로나 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.951031">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.951031</span>
+  </div>
+  <h3>코로나방전_고체_ACSR-OC_231006_194937_HFCT_1500</h3>
+  <div class="label-chip">코로나 방전 (3)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%BD%94%EB%A1%9C%EB%82%98%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%BD%94%EB%A1%9C%EB%82%98%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_194937_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,47.64 1.46,43.20 2.92,18.78 4.38,56.52 5.84,54.30 7.31,49.86 8.77,40.98 10.23,60.96 11.69,52.08 13.15,52.08 14.61,54.30 16.07,45.42 17.53,54.30 19.00,47.64 20.46,49.86 21.92,58.74 23.38,52.08 24.84,54.30 26.30,56.52 27.76,58.74 29.22,36.54 30.68,52.08 32.15,49.86 33.61,54.30 35.07,54.30 36.53,52.08 37.99,49.86 39.45,52.08 40.91,49.86 42.37,36.54 43.84,56.52 45.30,58.74 46.76,54.30 48.22,52.08 49.68,45.42 51.14,47.64 52.60,49.86 54.06,60.96 55.53,52.08 56.99,47.64 58.45,49.86 59.91,34.32 61.37,29.88 62.83,52.08 64.29,49.86 65.75,43.20 67.21,47.64 68.68,60.96 70.14,36.54 71.60,40.98 73.06,56.52 74.52,52.08 75.98,27.66 77.44,45.42 78.90,52.08 80.37,52.08 81.83,52.08 83.29,54.30 84.75,54.30 86.21,47.64 87.67,32.10 89.13,47.64 90.59,49.86 92.05,47.64 93.52,58.74 94.98,47.64 96.44,47.64 97.90,49.86 99.36,45.42 100.82,36.54 102.28,54.30 103.74,54.30 105.21,45.42 106.67,29.88 108.13,56.52 109.59,27.66 111.05,45.42 112.51,52.08 113.97,56.52 115.43,52.08 116.89,52.08 118.36,63.18 119.82,56.52 121.28,40.98 122.74,40.98 124.20,45.42 125.66,54.30 127.12,43.20 128.58,36.54 130.05,43.20 131.51,45.42 132.97,36.54 134.43,56.52 135.89,56.52 137.35,54.30 138.81,38.76 140.27,60.96 141.74,27.66 143.20,47.64 144.66,58.74 146.12,40.98 147.58,52.08 149.04,47.64 150.50,54.30 151.96,54.30 153.42,45.42 154.89,47.64 156.35,45.42 157.81,34.32 159.27,56.52 160.73,47.64 162.19,49.86 163.65,58.74 165.11,38.76 166.58,60.96 168.04,52.08 169.50,58.74 170.96,52.08 172.42,54.30 173.88,43.20 175.34,32.10 176.80,45.42 178.26,52.08 179.73,38.76 181.19,47.64 182.65,27.66 184.11,54.30 185.57,43.20 187.03,45.42 188.49,47.64 189.95,60.96 191.42,43.20 192.88,52.08 194.34,43.20 195.80,54.30 197.26,58.74 198.72,45.42 200.18,47.64 201.64,45.42 203.11,56.52 204.57,45.42 206.03,52.08 207.49,54.30 208.95,49.86 210.41,47.64 211.87,47.64 213.33,14.34 214.79,45.42 216.26,36.54 217.72,54.30 219.18,47.64 220.64,54.30 222.10,49.86 223.56,40.98 225.02,54.30 226.48,52.08 227.95,43.20 229.41,43.20 230.87,49.86 232.33,45.42 233.79,47.64 235.25,52.08 236.71,52.08 238.17,49.86 239.63,56.52 241.10,49.86 242.56,52.08 244.02,29.88 245.48,47.64 246.94,52.08 248.40,52.08 249.86,36.54 251.32,7.68 252.79,43.20 254.25,52.08 255.71,58.74 257.17,45.42 258.63,34.32 260.09,56.52 261.55,52.08 263.01,58.74 264.47,52.08 265.94,63.18 267.40,47.64 268.86,56.52 270.32,43.20 271.78,52.08 273.24,54.30 274.70,47.64 276.16,52.08 277.63,56.52 279.09,40.98 280.55,47.64 282.01,52.08 283.47,32.10 284.93,43.20 286.39,54.30 287.85,54.30 289.32,9.90 290.78,52.08 292.24,43.20 293.70,40.98 295.16,34.32 296.62,54.30 298.08,45.42 299.54,47.64 301.00,47.64 302.47,49.86 303.93,56.52 305.39,43.20 306.85,47.64 308.31,58.74 309.77,54.30 311.23,32.10 312.69,47.64 314.16,45.42 315.62,52.08 317.08,54.30 318.54,58.74 320.00,25.44" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-3-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-3-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-3-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103202_HFCT_1500" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="코로나방전_고체_ACSR-OC_231006_194958_HFCT_1500" data-neighbor-label-id="3" data-neighbor-label-name="코로나 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.950896">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.950896</span>
+  </div>
+  <h3>코로나방전_고체_ACSR-OC_231006_194958_HFCT_1500</h3>
+  <div class="label-chip">코로나 방전 (3)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EC%BD%94%EB%A1%9C%EB%82%98%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%EC%BD%94%EB%A1%9C%EB%82%98%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_194958_HFCT_1500.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,55.79 1.46,48.91 2.92,43.76 4.38,55.79 5.84,38.61 7.31,48.91 8.77,48.91 10.23,52.35 11.69,50.63 13.15,48.91 14.61,45.48 16.07,48.91 17.53,54.07 19.00,47.20 20.46,47.20 21.92,48.91 23.38,43.76 24.84,45.48 26.30,47.20 27.76,47.20 29.22,47.20 30.68,38.61 32.15,48.91 33.61,52.35 35.07,42.04 36.53,52.35 37.99,48.91 39.45,52.35 40.91,36.89 42.37,55.79 43.84,50.63 45.30,47.20 46.76,48.91 48.22,43.76 49.68,47.20 51.14,52.35 52.60,50.63 54.06,52.35 55.53,45.48 56.99,52.35 58.45,48.91 59.91,50.63 61.37,52.35 62.83,52.35 64.29,43.76 65.75,55.79 67.21,50.63 68.68,48.91 70.14,54.07 71.60,38.61 73.06,43.76 74.52,50.63 75.98,57.50 77.44,52.35 78.90,47.20 80.37,43.76 81.83,45.48 83.29,54.07 84.75,43.76 86.21,57.50 87.67,47.20 89.13,50.63 90.59,43.76 92.05,38.61 93.52,50.63 94.98,43.76 96.44,48.91 97.90,48.91 99.36,55.79 100.82,38.61 102.28,42.04 103.74,57.50 105.21,54.07 106.67,48.91 108.13,43.76 109.59,24.86 111.05,36.89 112.51,42.04 113.97,43.76 115.43,47.20 116.89,43.76 118.36,55.79 119.82,48.91 121.28,40.32 122.74,55.79 124.20,50.63 125.66,48.91 127.12,38.61 128.58,38.61 130.05,47.20 131.51,48.91 132.97,45.48 134.43,48.91 135.89,48.91 137.35,47.20 138.81,52.35 140.27,35.17 141.74,48.91 143.20,50.63 144.66,55.79 146.12,45.48 147.58,57.50 149.04,40.32 150.50,45.48 151.96,52.35 153.42,52.35 154.89,52.35 156.35,43.76 157.81,42.04 159.27,54.07 160.73,38.61 162.19,52.35 163.65,50.63 165.11,48.91 166.58,57.50 168.04,45.48 169.50,55.79 170.96,47.20 172.42,55.79 173.88,50.63 175.34,52.35 176.80,40.32 178.26,50.63 179.73,47.20 181.19,50.63 182.65,48.91 184.11,50.63 185.57,43.76 187.03,50.63 188.49,48.91 189.95,50.63 191.42,54.07 192.88,55.79 194.34,57.50 195.80,47.20 197.26,50.63 198.72,52.35 200.18,60.94 201.64,43.76 203.11,60.94 204.57,47.20 206.03,50.63 207.49,47.20 208.95,43.76 210.41,48.91 211.87,57.50 213.33,16.27 214.79,52.35 216.26,7.68 217.72,54.07 219.18,43.76 220.64,52.35 222.10,45.48 223.56,52.35 225.02,54.07 226.48,45.48 227.95,50.63 229.41,52.35 230.87,45.48 232.33,36.89 233.79,52.35 235.25,52.35 236.71,52.35 238.17,52.35 239.63,50.63 241.10,43.76 242.56,33.45 244.02,50.63 245.48,52.35 246.94,47.20 248.40,54.07 249.86,48.91 251.32,48.91 252.79,54.07 254.25,50.63 255.71,42.04 257.17,47.20 258.63,48.91 260.09,59.22 261.55,42.04 263.01,50.63 264.47,33.45 265.94,48.91 267.40,52.35 268.86,50.63 270.32,45.48 271.78,47.20 273.24,48.91 274.70,42.04 276.16,55.79 277.63,47.20 279.09,54.07 280.55,14.55 282.01,50.63 283.47,55.79 284.93,31.73 286.39,33.45 287.85,55.79 289.32,47.20 290.78,50.63 292.24,57.50 293.70,47.20 295.16,52.35 296.62,54.07 298.08,52.35 299.54,54.07 301.00,48.91 302.47,48.91 303.93,52.35 305.39,45.48 306.85,40.32 308.31,52.35 309.77,38.61 311.23,48.91 312.69,50.63 314.16,48.91 315.62,33.45 317.08,42.04 318.54,48.91 320.00,47.20" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1500mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-3-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-3-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-3-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+<section class="failure">
+  <div class="failure-head">
+    <div>
+      <p class="kicker">Query</p>
+      <h2>노이즈_고체_CNCV-W_230913_103207_HFCT_1000</h2>
+    </div>
+    <div class="label-chip danger">노이즈 (1)</div>
+  </div>
+  <div class="comparison-grid">
+    
+<article class="case-panel query-panel">
+  <div class="case-topline">
+    <span>Holdout Query</span>
+    
+  </div>
+  <h3>노이즈_고체_CNCV-W_230913_103207_HFCT_1000</h3>
+  <div class="label-chip">노이즈 (1)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W/%EB%85%B8%EC%9D%B4%EC%A6%88_%EA%B3%A0%EC%B2%B4_CNCV-W_230913_103207_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,49.13 1.46,22.75 2.92,30.29 4.38,45.36 5.84,56.67 7.31,41.59 8.77,60.44 10.23,60.44 11.69,34.06 13.15,67.97 14.61,34.06 16.07,52.90 17.53,52.90 19.00,41.59 20.46,49.13 21.92,34.06 23.38,52.90 24.84,56.67 26.30,56.67 27.76,30.29 29.22,45.36 30.68,52.90 32.15,60.44 33.61,49.13 35.07,49.13 36.53,71.74 37.99,34.06 39.45,22.75 40.91,60.44 42.37,56.67 43.84,52.90 45.30,60.44 46.76,64.20 48.22,71.74 49.68,56.67 51.14,41.59 52.60,52.90 54.06,41.59 55.53,49.13 56.99,49.13 58.45,49.13 59.91,64.20 61.37,64.20 62.83,49.13 64.29,37.83 65.75,37.83 67.21,26.52 68.68,52.90 70.14,60.44 71.60,37.83 73.06,64.20 74.52,34.06 75.98,52.90 77.44,41.59 78.90,64.20 80.37,30.29 81.83,52.90 83.29,56.67 84.75,49.13 86.21,37.83 87.67,41.59 89.13,52.90 90.59,41.59 92.05,49.13 93.52,41.59 94.98,52.90 96.44,67.97 97.90,52.90 99.36,45.36 100.82,60.44 102.28,52.90 103.74,56.67 105.21,45.36 106.67,15.22 108.13,15.22 109.59,56.67 111.05,75.51 112.51,49.13 113.97,41.59 115.43,45.36 116.89,64.20 118.36,41.59 119.82,45.36 121.28,60.44 122.74,26.52 124.20,41.59 125.66,56.67 127.12,41.59 128.58,52.90 130.05,71.74 131.51,52.90 132.97,37.83 134.43,49.13 135.89,37.83 137.35,45.36 138.81,49.13 140.27,37.83 141.74,30.29 143.20,49.13 144.66,26.52 146.12,22.75 147.58,60.44 149.04,41.59 150.50,41.59 151.96,45.36 153.42,67.97 154.89,71.74 156.35,56.67 157.81,41.59 159.27,67.97 160.73,41.59 162.19,37.83 163.65,22.75 165.11,64.20 166.58,64.20 168.04,26.52 169.50,49.13 170.96,41.59 172.42,60.44 173.88,30.29 175.34,71.74 176.80,56.67 178.26,45.36 179.73,37.83 181.19,22.75 182.65,64.20 184.11,71.74 185.57,56.67 187.03,49.13 188.49,41.59 189.95,52.90 191.42,60.44 192.88,45.36 194.34,49.13 195.80,49.13 197.26,30.29 198.72,41.59 200.18,60.44 201.64,64.20 203.11,45.36 204.57,34.06 206.03,56.67 207.49,37.83 208.95,30.29 210.41,26.52 211.87,56.67 213.33,41.59 214.79,60.44 216.26,15.22 217.72,45.36 219.18,37.83 220.64,64.20 222.10,41.59 223.56,60.44 225.02,26.52 226.48,41.59 227.95,49.13 229.41,52.90 230.87,37.83 232.33,49.13 233.79,34.06 235.25,56.67 236.71,56.67 238.17,64.20 239.63,64.20 241.10,37.83 242.56,41.59 244.02,41.59 245.48,45.36 246.94,41.59 248.40,56.67 249.86,49.13 251.32,37.83 252.79,7.68 254.25,45.36 255.71,67.97 257.17,34.06 258.63,64.20 260.09,52.90 261.55,52.90 263.01,71.74 264.47,49.13 265.94,60.44 267.40,41.59 268.86,49.13 270.32,45.36 271.78,67.97 273.24,60.44 274.70,52.90 276.16,49.13 277.63,34.06 279.09,45.36 280.55,22.75 282.01,41.59 283.47,26.52 284.93,60.44 286.39,11.45 287.85,34.06 289.32,45.36 290.78,67.97 292.24,49.13 293.70,41.59 295.16,49.13 296.62,67.97 298.08,75.51 299.54,56.67 301.00,64.20 302.47,60.44 303.93,64.20 305.39,41.59 306.85,60.44 308.31,45.36 309.77,49.13 311.23,60.44 312.69,56.67 314.16,15.22 315.62,56.67 317.08,34.06 318.54,52.90 320.00,15.22" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: CNCV-W</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+</article>
+
+    <div class="neighbor-stack">
+      
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103207_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="1" data-neighbor-sample-id="표면방전_고체_ACSR-OC_231006_131042_HFCT_1000" data-neighbor-label-id="2" data-neighbor-label-name="표면 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.940432">
+  <div class="case-topline">
+    <span>Rank 1</span>
+    <span class="score">0.940432</span>
+  </div>
+  <h3>표면방전_고체_ACSR-OC_231006_131042_HFCT_1000</h3>
+  <div class="label-chip">표면 방전 (2)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_131042_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,56.06 1.46,57.92 2.92,44.90 4.38,54.20 5.84,41.17 7.31,57.92 8.77,44.90 10.23,61.64 11.69,56.06 13.15,56.06 14.61,54.20 16.07,56.06 17.53,56.06 19.00,46.76 20.46,59.78 21.92,59.78 23.38,50.48 24.84,57.92 26.30,41.17 27.76,56.06 29.22,39.31 30.68,37.45 32.15,46.76 33.61,48.62 35.07,48.62 36.53,33.73 37.99,54.20 39.45,33.73 40.91,54.20 42.37,26.29 43.84,61.64 45.30,50.48 46.76,44.90 48.22,52.34 49.68,48.62 51.14,54.20 52.60,57.92 54.06,56.06 55.53,44.90 56.99,48.62 58.45,54.20 59.91,56.06 61.37,54.20 62.83,39.31 64.29,56.06 65.75,41.17 67.21,37.45 68.68,52.34 70.14,50.48 71.60,31.87 73.06,33.73 74.52,43.04 75.98,39.31 77.44,56.06 78.90,37.45 80.37,26.29 81.83,56.06 83.29,56.06 84.75,46.76 86.21,56.06 87.67,44.90 89.13,54.20 90.59,54.20 92.05,57.92 93.52,56.06 94.98,48.62 96.44,48.62 97.90,56.06 99.36,39.31 100.82,33.73 102.28,44.90 103.74,39.31 105.21,56.06 106.67,48.62 108.13,48.62 109.59,13.26 111.05,43.04 112.51,41.17 113.97,46.76 115.43,46.76 116.89,61.64 118.36,57.92 119.82,57.92 121.28,54.20 122.74,56.06 124.20,59.78 125.66,52.34 127.12,59.78 128.58,54.20 130.05,50.48 131.51,54.20 132.97,35.59 134.43,31.87 135.89,26.29 137.35,35.59 138.81,50.48 140.27,41.17 141.74,57.92 143.20,7.68 144.66,48.62 146.12,41.17 147.58,28.15 149.04,31.87 150.50,54.20 151.96,56.06 153.42,61.64 154.89,37.45 156.35,52.34 157.81,56.06 159.27,57.92 160.73,61.64 162.19,50.48 163.65,43.04 165.11,56.06 166.58,52.34 168.04,41.17 169.50,33.73 170.96,54.20 172.42,48.62 173.88,41.17 175.34,46.76 176.80,48.62 178.26,57.92 179.73,15.12 181.19,52.34 182.65,39.31 184.11,57.92 185.57,39.31 187.03,61.64 188.49,37.45 189.95,46.76 191.42,52.34 192.88,61.64 194.34,41.17 195.80,33.73 197.26,52.34 198.72,50.48 200.18,59.78 201.64,56.06 203.11,35.59 204.57,54.20 206.03,30.01 207.49,31.87 208.95,44.90 210.41,39.31 211.87,52.34 213.33,22.57 214.79,48.62 216.26,39.31 217.72,54.20 219.18,33.73 220.64,57.92 222.10,50.48 223.56,56.06 225.02,57.92 226.48,54.20 227.95,52.34 229.41,54.20 230.87,56.06 232.33,50.48 233.79,52.34 235.25,59.78 236.71,46.76 238.17,50.48 239.63,41.17 241.10,46.76 242.56,44.90 244.02,31.87 245.48,50.48 246.94,56.06 248.40,59.78 249.86,43.04 251.32,59.78 252.79,13.26 254.25,56.06 255.71,43.04 257.17,37.45 258.63,54.20 260.09,50.48 261.55,41.17 263.01,37.45 264.47,59.78 265.94,54.20 267.40,59.78 268.86,50.48 270.32,57.92 271.78,61.64 273.24,57.92 274.70,30.01 276.16,44.90 277.63,61.64 279.09,46.76 280.55,26.29 282.01,56.06 283.47,41.17 284.93,41.17 286.39,44.90 287.85,56.06 289.32,35.59 290.78,52.34 292.24,41.17 293.70,54.20 295.16,52.34 296.62,50.48 298.08,52.34 299.54,59.78 301.00,54.20 302.47,57.92 303.93,48.62 305.39,54.20 306.85,50.48 308.31,48.62 309.77,43.04 311.23,52.34 312.69,33.73 314.16,33.73 315.62,48.62 317.08,48.62 318.54,57.92 320.00,44.90" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-4-0" value="similar"> 유사</label>
+    <label><input type="radio" name="review-4-0" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-4-0" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103207_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="2" data-neighbor-sample-id="표면방전_고체_ACSR-OC_231006_131103_HFCT_1000" data-neighbor-label-id="2" data-neighbor-label-name="표면 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.939449">
+  <div class="case-topline">
+    <span>Rank 2</span>
+    <span class="score">0.939449</span>
+  </div>
+  <h3>표면방전_고체_ACSR-OC_231006_131103_HFCT_1000</h3>
+  <div class="label-chip">표면 방전 (2)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_131103_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,40.50 1.46,52.08 2.92,46.29 4.38,53.05 5.84,45.32 7.31,56.91 8.77,45.32 10.23,54.98 11.69,52.08 13.15,49.18 14.61,51.12 16.07,50.15 17.53,51.12 19.00,50.15 20.46,48.22 21.92,53.05 23.38,49.18 24.84,51.12 26.30,44.36 27.76,47.25 29.22,39.53 30.68,40.50 32.15,47.25 33.61,41.46 35.07,50.15 36.53,38.57 37.99,49.18 39.45,27.95 40.91,40.50 42.37,42.43 43.84,52.08 45.30,51.12 46.76,41.46 48.22,47.25 49.68,54.01 51.14,54.01 52.60,54.98 54.06,51.12 55.53,49.18 56.99,53.05 58.45,48.22 59.91,53.05 61.37,45.32 62.83,40.50 64.29,49.18 65.75,47.25 67.21,51.12 68.68,48.22 70.14,47.25 71.60,51.12 73.06,41.46 74.52,49.18 75.98,42.43 77.44,44.36 78.90,45.32 80.37,54.01 81.83,46.29 83.29,54.01 84.75,50.15 86.21,50.15 87.67,45.32 89.13,46.29 90.59,48.22 92.05,51.12 93.52,54.98 94.98,54.98 96.44,50.15 97.90,45.32 99.36,44.36 100.82,39.53 102.28,47.25 103.74,49.18 105.21,52.08 106.67,40.50 108.13,53.05 109.59,46.29 111.05,46.29 112.51,40.50 113.97,54.98 115.43,47.25 116.89,53.05 118.36,47.25 119.82,52.08 121.28,50.15 122.74,53.05 124.20,54.01 125.66,52.08 127.12,54.98 128.58,50.15 130.05,52.08 131.51,50.15 132.97,47.25 134.43,48.22 135.89,43.39 137.35,51.12 138.81,41.46 140.27,7.68 141.74,52.08 143.20,29.88 144.66,47.25 146.12,43.39 147.58,43.39 149.04,41.46 150.50,53.05 151.96,49.18 153.42,54.01 154.89,53.05 156.35,51.12 157.81,47.25 159.27,49.18 160.73,51.12 162.19,53.05 163.65,47.25 165.11,51.12 166.58,53.05 168.04,39.53 169.50,45.32 170.96,49.18 172.42,48.22 173.88,51.12 175.34,43.39 176.80,51.12 178.26,50.15 179.73,41.46 181.19,51.12 182.65,34.71 184.11,54.98 185.57,43.39 187.03,50.15 188.49,53.05 189.95,53.05 191.42,52.08 192.88,51.12 194.34,55.94 195.80,48.22 197.26,54.01 198.72,51.12 200.18,51.12 201.64,45.32 203.11,45.32 204.57,51.12 206.03,39.53 207.49,41.46 208.95,49.18 210.41,52.08 211.87,53.05 213.33,43.39 214.79,49.18 216.26,43.39 217.72,52.08 219.18,40.50 220.64,47.25 222.10,43.39 223.56,51.12 225.02,53.05 226.48,54.01 227.95,51.12 229.41,54.01 230.87,48.22 232.33,52.08 233.79,52.08 235.25,50.15 236.71,46.29 238.17,52.08 239.63,45.32 241.10,48.22 242.56,47.25 244.02,39.53 245.48,25.05 246.94,45.32 248.40,48.22 249.86,43.39 251.32,42.43 252.79,46.29 254.25,52.08 255.71,43.39 257.17,52.08 258.63,47.25 260.09,54.01 261.55,51.12 263.01,52.08 264.47,50.15 265.94,53.05 267.40,54.01 268.86,46.29 270.32,53.05 271.78,52.08 273.24,51.12 274.70,50.15 276.16,43.39 277.63,51.12 279.09,49.18 280.55,42.43 282.01,52.08 283.47,24.09 284.93,50.15 286.39,49.18 287.85,47.25 289.32,45.32 290.78,48.22 292.24,41.46 293.70,52.08 295.16,54.98 296.62,52.08 298.08,51.12 299.54,43.39 301.00,49.18 302.47,49.18 303.93,53.05 305.39,44.36 306.85,52.08 308.31,54.98 309.77,47.25 311.23,54.01 312.69,38.57 314.16,38.57 315.62,46.29 317.08,49.18 318.54,50.15 320.00,47.25" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-4-1" value="similar"> 유사</label>
+    <label><input type="radio" name="review-4-1" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-4-1" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+<article class="case-panel neighbor-panel" data-query-sample-id="노이즈_고체_CNCV-W_230913_103207_HFCT_1000" data-query-label-id="1" data-query-label-name="노이즈" data-neighbor-rank="3" data-neighbor-sample-id="표면방전_고체_ACSR-OC_231006_131330_HFCT_1000" data-neighbor-label-id="2" data-neighbor-label-name="표면 방전" data-query-equipment-name="CNCV-W" data-query-sensor-type="HFCT" data-neighbor-equipment-name="ACSR-OC" data-neighbor-sensor-type="HFCT" data-similarity-score="0.939120">
+  <div class="case-topline">
+    <span>Rank 3</span>
+    <span class="score">0.939120</span>
+  </div>
+  <h3>표면방전_고체_ACSR-OC_231006_131330_HFCT_1000</h3>
+  <div class="label-chip">표면 방전 (2)</div>
+  <div class="media-grid">
+    <figure>
+      <img src="../data/01.%EC%9B%90%EC%B2%9C%EB%8D%B0%EC%9D%B4%ED%84%B0/VS_%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC/%ED%91%9C%EB%A9%B4%EB%B0%A9%EC%A0%84_%EA%B3%A0%EC%B2%B4_ACSR-OC_231006_131330_HFCT_1000.png" alt="">
+      <figcaption>PRPD</figcaption>
+    </figure>
+    <figure>
+      
+<svg class="waveform" viewBox="0 0 320 96" role="img" aria-label="time-series waveform">
+  <line x1="0" y1="48.0" x2="320" y2="48.0" />
+  <polyline points="0.00,38.18 1.46,38.18 2.92,39.56 4.38,18.77 5.84,38.18 7.31,50.65 8.77,42.34 10.23,52.04 11.69,47.88 13.15,53.43 14.61,49.27 16.07,53.43 17.53,57.58 19.00,50.65 20.46,52.04 21.92,53.43 23.38,57.58 24.84,54.81 26.30,45.11 27.76,50.65 29.22,34.02 30.68,50.65 32.15,49.27 33.61,49.27 35.07,7.68 36.53,52.04 37.99,50.65 39.45,27.09 40.91,52.04 42.37,39.56 43.84,56.20 45.30,50.65 46.76,54.81 48.22,50.65 49.68,46.49 51.14,58.97 52.60,53.43 54.06,46.49 55.53,54.81 56.99,50.65 58.45,52.04 59.91,50.65 61.37,54.81 62.83,38.18 64.29,50.65 65.75,49.27 67.21,50.65 68.68,52.04 70.14,56.20 71.60,43.72 73.06,39.56 74.52,56.20 75.98,40.95 77.44,49.27 78.90,35.40 80.37,54.81 81.83,49.27 83.29,52.04 84.75,46.49 86.21,54.81 87.67,46.49 89.13,46.49 90.59,53.43 92.05,53.43 93.52,49.27 94.98,56.20 96.44,45.11 97.90,47.88 99.36,45.11 100.82,39.56 102.28,45.11 103.74,50.65 105.21,56.20 106.67,39.56 108.13,56.20 109.59,36.79 111.05,54.81 112.51,39.56 113.97,52.04 115.43,43.72 116.89,53.43 118.36,57.58 119.82,54.81 121.28,49.27 122.74,47.88 124.20,50.65 125.66,53.43 127.12,56.20 128.58,47.88 130.05,53.43 131.51,53.43 132.97,40.95 134.43,43.72 135.89,34.02 137.35,47.88 138.81,52.04 140.27,53.43 141.74,54.81 143.20,36.79 144.66,46.49 146.12,39.56 147.58,40.95 149.04,38.18 150.50,54.81 151.96,43.72 153.42,53.43 154.89,46.49 156.35,36.79 157.81,57.58 159.27,56.20 160.73,50.65 162.19,49.27 163.65,53.43 165.11,56.20 166.58,32.63 168.04,45.11 169.50,36.79 170.96,52.04 172.42,46.49 173.88,42.34 175.34,54.81 176.80,47.88 178.26,40.95 179.73,42.34 181.19,50.65 182.65,45.11 184.11,52.04 185.57,40.95 187.03,38.18 188.49,42.34 189.95,54.81 191.42,52.04 192.88,53.43 194.34,57.58 195.80,39.56 197.26,54.81 198.72,54.81 200.18,52.04 201.64,53.43 203.11,40.95 204.57,49.27 206.03,42.34 207.49,36.79 208.95,39.56 210.41,54.81 211.87,53.43 213.33,24.31 214.79,56.20 216.26,46.49 217.72,58.97 219.18,40.95 220.64,56.20 222.10,43.72 223.56,57.58 225.02,56.20 226.48,56.20 227.95,50.65 229.41,53.43 230.87,50.65 232.33,50.65 233.79,49.27 235.25,50.65 236.71,56.20 238.17,57.58 239.63,38.18 241.10,49.27 242.56,28.47 244.02,50.65 245.48,10.45 246.94,56.20 248.40,54.81 249.86,40.95 251.32,36.79 252.79,40.95 254.25,52.04 255.71,38.18 257.17,54.81 258.63,54.81 260.09,56.20 261.55,53.43 263.01,53.43 264.47,53.43 265.94,45.11 267.40,57.58 268.86,54.81 270.32,49.27 271.78,49.27 273.24,54.81 274.70,46.49 276.16,38.18 277.63,47.88 279.09,42.34 280.55,50.65 282.01,52.04 283.47,46.49 284.93,54.81 286.39,42.34 287.85,49.27 289.32,39.56 290.78,53.43 292.24,43.72 293.70,47.88 295.16,54.81 296.62,54.81 298.08,54.81 299.54,50.65 301.00,52.04 302.47,50.65 303.93,52.04 305.39,57.58 306.85,38.18 308.31,54.81 309.77,42.34 311.23,52.04 312.69,36.79 314.16,35.40 315.62,46.49 317.08,49.27 318.54,50.65 320.00,42.34" />
+</svg>
+
+      <figcaption>Time-series</figcaption>
+    </figure>
+  </div>
+  <div class="metadata-row"><span>equipment_name: ACSR-OC</span><span>sensor_type: HFCT</span><span>insulator_type: 고체</span><span>clearance_distance: [&#x27;1000mm&#x27;]</span><span>equipment_rated_voltage: 22900V</span></div>
+  
+<div class="review-box">
+  <div class="review-heading">Human relevance</div>
+  <div class="review-options" role="radiogroup" aria-label="Human relevance">
+    <label><input type="radio" name="review-4-2" value="similar"> 유사</label>
+    <label><input type="radio" name="review-4-2" value="uncertain"> 애매</label>
+    <label><input type="radio" name="review-4-2" value="not_similar"> 비유사</label>
+  </div>
+  <textarea data-review-note rows="2" placeholder="판정 메모"></textarea>
+</div>
+
+</article>
+
+    </div>
+  </div>
+</section>
+
+
+</main>
+</body>
+</html>

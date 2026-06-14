@@ -73,7 +73,7 @@ text:
 ### Image Input
 
 ```text
-image_path from Train/manifest.csv
+image_path from data/manifest.csv
 -> PRPD PNG
 -> VLM processor image input
 ```
@@ -198,9 +198,9 @@ Do not train the vision tower at first. Let the pretrained vision encoder extrac
 Files:
 
 ```text
-vlm/src/schema.py
-vlm/src/prompts.py
-vlm/tests/test_prompts.py
+ml/vlm/src/schema.py
+ml/vlm/src/prompts.py
+ml/vlm/tests/test_prompts.py
 ```
 
 Tasks:
@@ -216,12 +216,12 @@ Tasks:
 File:
 
 ```text
-vlm/scripts/export_ts_context.py
+ml/vlm/scripts/export_ts_context.py
 ```
 
 Tasks:
 
-- Generate per-sample feature/context from `Train/manifest.csv`.
+- Generate per-sample feature/context from `data/manifest.csv`.
 - Join prediction/probability columns if time-series model results exist.
 - Do not export raw CSV arrays or path strings.
 
@@ -230,9 +230,9 @@ Tasks:
 Files:
 
 ```text
-vlm/scripts/build_instruction_dataset.py
-vlm/scripts/validate_instruction_dataset.py
-vlm/tests/test_instruction_dataset.py
+ml/vlm/scripts/build_instruction_dataset.py
+ml/vlm/scripts/validate_instruction_dataset.py
+ml/vlm/tests/test_instruction_dataset.py
 ```
 
 Outputs:
@@ -271,13 +271,13 @@ JSONL row shape:
 File:
 
 ```text
-vlm/scripts/run_inference.py
+ml/vlm/scripts/run_inference.py
 ```
 
 Validation command:
 
 ```powershell
-python vlm/scripts/run_inference.py `
+python ml/vlm/scripts/run_inference.py `
   --dataset results/vlm/instruction_smoke/valid.jsonl `
   --index 0 `
   --model-id Qwen/Qwen3-VL-2B-Instruct `
@@ -298,15 +298,15 @@ Success criteria:
 Files:
 
 ```text
-vlm/scripts/train_sft.py
-vlm/configs/qwen3_vl_2b_smoke.yaml
+ml/vlm/scripts/train_sft.py
+ml/vlm/configs/qwen3_vl_2b_smoke.yaml
 ```
 
 Validation command:
 
 ```powershell
-python vlm/scripts/train_sft.py `
-  --config vlm/configs/qwen3_vl_2b_smoke.yaml `
+python ml/vlm/scripts/train_sft.py `
+  --config ml/vlm/configs/qwen3_vl_2b_smoke.yaml `
   --max-steps 10
 ```
 
@@ -322,13 +322,13 @@ Success criteria:
 File:
 
 ```text
-vlm/scripts/evaluate_outputs.py
+ml/vlm/scripts/evaluate_outputs.py
 ```
 
 Evaluation command:
 
 ```powershell
-python vlm/scripts/evaluate_outputs.py `
+python ml/vlm/scripts/evaluate_outputs.py `
   --predictions results/vlm/predictions_smoke.jsonl `
   --output results/vlm/eval_smoke.json
 ```
@@ -430,7 +430,7 @@ Cautions:
 
 ## Final Implementation Checklist
 
-- [ ] Create the `vlm/` directory.
+- [ ] Create the `ml/vlm/` directory.
 - [ ] Implement prompt/schema code.
 - [ ] Implement forbidden-field leakage tests.
 - [ ] Implement time-series context export.

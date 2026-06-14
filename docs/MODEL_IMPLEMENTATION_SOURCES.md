@@ -66,7 +66,7 @@ Principles:
 
 ## Current Code-State Interpretation
 
-Except for GRU, `ml/src/models` should point toward official or external wrappers.
+Except for GRU, `ml/timeseries/src/models` should point toward official or external wrappers.
 
 Keep direct implementation:
 

@@ -453,7 +453,7 @@ Then extend:
 10. Feature baseline / TabPFN (optional CPU-only feature baseline)
 ```
 
-Use `ml/scripts/run_sktime_classifier.py` or a dedicated runner for classical TSC models provided by `sktime`. Prioritize `Catch22Classifier` and `SummaryClassifier` as fast baselines. Do not run `RandomIntervalClassifier`, `TSFreshClassifier`, `FreshPRINCE`, or `Arsenal` on the full dataset immediately.
+Use `ml/timeseries/scripts/run_sktime_classifier.py` or a dedicated runner for classical TSC models provided by `sktime`. Prioritize `Catch22Classifier` and `SummaryClassifier` as fast baselines. Do not run `RandomIntervalClassifier`, `TSFreshClassifier`, `FreshPRINCE`, or `Arsenal` on the full dataset immediately.
 
 ## Final Goal
 

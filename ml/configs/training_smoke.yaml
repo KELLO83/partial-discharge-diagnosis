@@ -1,0 +1,32 @@
+version: 1
+jobs:
+  - name: timeseries_list_models
+    task: timeseries
+    enabled: true
+    description: Verify the time-series training entrypoint and available models.
+    args:
+      list_models: true
+
+  - name: vision_small_cnn_dry_run
+    task: vision
+    enabled: true
+    description: Validate PRPD image manifest resolution and SmallPrpdCnn output paths.
+    args:
+      manifest: data/manifest.csv
+      output_dir: .omo/config-smoke/vision
+      sample_size: 20
+      epochs: 1
+      batch_size: 8
+      dry_run: true
+
+  - name: vlm_smolvlm_dry_run
+    task: vlm
+    enabled: true
+    description: Build a small instruction dataset and validate low-VRAM VLM QLoRA settings.
+    args:
+      model_profile: smolvlm2_2b_qlora
+      manifest: data/manifest.csv
+      dataset_output: .omo/config-smoke/vlm/instruction_dataset.jsonl
+      output_dir: .omo/config-smoke/vlm
+      sample_size: 2
+      dry_run: true

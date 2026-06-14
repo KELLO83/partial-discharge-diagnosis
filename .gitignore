@@ -1,10 +1,10 @@
 # Local data
+data/
 Train/
 Sample/
-/data/
 external/
 
-# Experiment outputs
+# Experiment outputs and generated artifacts
 results/
 outputs/
 checkpoints/
@@ -13,11 +13,13 @@ wandb/
 mlruns/
 reports/
 service/uploads/
+service/uploads/*
 
 # Model/data artifacts
 *.ckpt
 *.h5
 *.joblib
+*.jsonl
 *.npy
 *.npz
 *.onnx
@@ -30,16 +32,20 @@ service/uploads/
 # Python
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
+*.pyd
+*.ipynb_checkpoints/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .venv/
 .venv*/
+dist/
+build/
 
 # JavaScript / frontend
 node_modules/
-dist/
-build/
 coverage/
 .vite/
 *.tsbuildinfo
@@ -71,9 +77,18 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Hidden local/tooling directories
+# Tooling and cache directories
 .codegraph/
 .cursor/
 .omo/
 .playwright-mcp/
 .serena/
+
+# Packaging and test artifacts
+*.egg-info/
+*.whl
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+site/

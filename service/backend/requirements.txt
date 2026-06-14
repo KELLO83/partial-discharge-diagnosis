@@ -3,3 +3,5 @@ uvicorn
 python-multipart
 pydantic
 openai-agents
+psycopg[binary]
+sentence-transformers

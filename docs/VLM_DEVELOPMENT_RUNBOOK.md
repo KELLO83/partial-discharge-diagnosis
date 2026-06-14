@@ -13,17 +13,17 @@ VLM experiments are a separate track from time-series classification experiments
 ## Build Data
 
 ```bash
-python vlm/scripts/export_ts_context.py --manifest Train/manifest.csv --sample-size 20 --output .omo/evidence/vlm-task-5-ts-context.csv
-python vlm/scripts/build_instruction_dataset.py --manifest Train/manifest.csv --sample-size 20 --ts-context .omo/evidence/vlm-task-5-ts-context.csv --output .omo/evidence/vlm-smoke.jsonl
-python vlm/scripts/validate_instruction_dataset.py --input .omo/evidence/vlm-smoke.jsonl --output .omo/evidence/vlm-task-7-validate.json
+python ml/vlm/scripts/export_ts_context.py --manifest data/manifest.csv --sample-size 20 --output .omo/evidence/vlm-task-5-ts-context.csv
+python ml/vlm/train.py --model-profile smolvlm2_2b_qlora --manifest data/manifest.csv --sample-size 20 --ts-context .omo/evidence/vlm-task-5-ts-context.csv --dataset-output .omo/evidence/vlm-smoke.jsonl --dry-run
+python ml/vlm/scripts/validate_instruction_dataset.py --input .omo/evidence/vlm-smoke.jsonl --output .omo/evidence/vlm-task-7-validate.json
 ```
 
 ## Dry-Run Pipeline
 
 ```bash
-python vlm/scripts/run_inference.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --load-in-4bit --limit 20 --dry-run --output .omo/evidence/vlm-task-8-predictions.jsonl
-python vlm/scripts/evaluate_outputs.py --predictions .omo/evidence/vlm-task-8-predictions.jsonl --output .omo/evidence/vlm-task-7-evaluation.json
-python vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --output-dir .omo/evidence/vlm-task-9-adapter --load-in-4bit --max-steps 10 --dry-run
+python ml/vlm/scripts/run_inference.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --load-in-4bit --limit 20 --dry-run --output .omo/evidence/vlm-task-8-predictions.jsonl
+python ml/vlm/scripts/evaluate_outputs.py --predictions .omo/evidence/vlm-task-8-predictions.jsonl --output .omo/evidence/vlm-task-7-evaluation.json
+python ml/vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --output-dir .omo/evidence/vlm-task-9-adapter --load-in-4bit --max-steps 10 --dry-run
 ```
 
 ## Real Training
@@ -31,13 +31,13 @@ python vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-
 Install VLM dependencies first:
 
 ```bash
-pip install -r vlm/requirements.txt
+pip install -r ml/vlm/requirements.txt
 ```
 
 Then run:
 
 ```bash
-python vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --output-dir results/vlm/qwen3_vl_2b_lora --load-in-4bit --max-steps 10
+python ml/vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --output-dir results/vlm/qwen3_vl_2b_lora --load-in-4bit --max-steps 10
 ```
 
 Keep these first-run constraints:

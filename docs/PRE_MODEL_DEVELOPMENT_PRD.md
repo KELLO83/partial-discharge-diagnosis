@@ -29,7 +29,7 @@ future models plug into the same service and evaluation workflow.
   "model_name": "mock_patchtst",
   "model_version": "pre_model_mock",
   "label_id": 3,
-  "label_name": "코로나 방전",
+  "label_name": "�ڷγ� ����",
   "confidence": 0.87,
   "probabilities": {"0": 0.02, "1": 0.04, "2": 0.06, "3": 0.87, "4": 0.01},
   "features": {
@@ -49,8 +49,8 @@ future models plug into the same service and evaluation workflow.
   "model_name": "mock_qwen3_vl_2b",
   "model_version": "pre_model_mock",
   "label_id": 3,
-  "diagnosis": "코로나 방전",
-  "risk_level": "주의",
+  "diagnosis": "�ڷγ� ����",
+  "risk_level": "����",
   "confidence": 0.89,
   "reason": "...",
   "recommended_action": "..."
@@ -102,7 +102,7 @@ tool outputs.
 
 Start model development only after:
 
-- `pytest service/backend/tests vlm/tests/test_export_ts_context.py` passes.
+- `pytest service/backend/tests ml/vlm/tests/test_export_ts_context.py` passes.
 - The offline evaluator writes a summary JSON.
 - Time-series context export uses the same summary feature code as service
   tools.
@@ -178,7 +178,7 @@ Output:
   "model_name": "prpd_vision_classifier",
   "model_version": "v0",
   "label_id": 3,
-  "label_name": "코로나 방전",
+  "label_name": "�ڷγ� ����",
   "confidence": 0.81,
   "probabilities": {"0": 0.03, "1": 0.05, "2": 0.08, "3": 0.81, "4": 0.03}
 }

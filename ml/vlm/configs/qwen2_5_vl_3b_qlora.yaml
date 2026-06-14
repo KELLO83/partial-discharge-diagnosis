@@ -1,0 +1,17 @@
+model_profile: qwen2_5_vl_3b_qlora
+model_id: Qwen/Qwen2.5-VL-3B-Instruct
+training_strategy: 4bit_qlora_sft_text_projector_only
+quantization: 4bit_nf4
+lora_r: 8
+lora_alpha: 16
+lora_dropout: 0.05
+target_modules: all-linear
+train_vision_tower: false
+train_projector: false
+batch_size: 1
+gradient_accumulation_steps: 8
+gradient_checkpointing: true
+image_max_pixels: 512x512
+attn_implementation: sdpa
+precision: fp16
+max_steps: 10

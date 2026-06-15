@@ -29,16 +29,26 @@ NORMALIZE_STD: tuple[float, float, float] = (0.229, 0.224, 0.225)
 class VisionTrainingConfig:
     manifest_path: Path = Path("data/manifest.csv")
     output_dir: Path = Path("artifacts/models/vision")
+    publish_dir: Path | None = None
     model_name: str = "small_prpd_cnn"
     image_size: int = DEFAULT_IMAGE_SIZE
     sample_size: int | None = None
     valid_ratio: float = DEFAULT_VALID_RATIO
     seed: int = DEFAULT_SEED
     epochs: int = 3
-    batch_size: int = 16
+    batch_size: int | None = None
+    auto_batch_start_size: int = 64
+    gpu_memory_fraction: float = 0.9
+    max_auto_batch_size: int = 512
     learning_rate: float = 1e-3
+    weight_decay: float = 1e-2
+    scheduler: str = "onecycle"
+    mixed_precision: str = "fp16"
+    early_stop_patience: int = 3
+    min_delta: float = 0.0
     num_workers: int = 0
     device: str = "auto"
+    resume_from: Path | None = None
     dry_run: bool = False
 
 

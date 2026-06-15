@@ -41,6 +41,7 @@ export type TraceEvent = {
   readonly name: string;
   readonly kind: string;
   readonly summary: Record<string, unknown>;
+  readonly created_at?: string;
 };
 
 export type TraceResponse = {
@@ -141,6 +142,7 @@ export type RagDocument = {
   readonly excerpt: string;
   readonly relevance: number;
   readonly source_type: string | null;
+  readonly retrieval_mode: string | null;
   readonly metadata: Record<string, string | number | null>;
 };
 
@@ -149,8 +151,15 @@ export type RagSourceCount = {
   readonly chunks: number;
 };
 
+export type RagAppliedFilter = {
+  readonly key: string;
+  readonly label: string;
+  readonly value: string;
+};
+
 export type RagStatusResponse = {
   readonly ready: boolean;
+  readonly database_connected: boolean;
   readonly database_name: string;
   readonly vector_extension: string | null;
   readonly embedding_model: string;
@@ -161,6 +170,8 @@ export type RagStatusResponse = {
   readonly chunk_count: number;
   readonly query_log_count: number;
   readonly source_counts: Record<string, RagSourceCount>;
+  readonly last_indexed_at: string | null;
+  readonly metadata_missing_counts: Record<string, number>;
   readonly error: string | null;
 };
 
@@ -171,6 +182,26 @@ export type RagDocumentListItem = {
   readonly source_path: string | null;
   readonly updated_at: string;
   readonly chunk_count: number;
+};
+
+export type RagDocumentChunk = {
+  readonly chunk_key: string;
+  readonly chunk_index: number;
+  readonly text: string;
+  readonly source_ref: string | null;
+  readonly metadata: Record<string, string | number | null>;
+};
+
+export type RagDocumentDetailResponse = {
+  readonly document_key: string;
+  readonly source_type: string;
+  readonly title: string;
+  readonly source_path: string | null;
+  readonly updated_at: string;
+  readonly metadata: Record<string, string | number | null>;
+  readonly chunks: readonly RagDocumentChunk[];
+  readonly text: string;
+  readonly error: string | null;
 };
 
 export type RagDocumentListResponse = {
@@ -195,6 +226,23 @@ export type RagQueryLogResponse = {
 export type RagSearchResponse = {
   readonly query: string;
   readonly documents: readonly RagDocument[];
+  readonly applied_filters: readonly RagAppliedFilter[];
+  readonly retrieval_mode: string | null;
+  readonly result_count: number;
+  readonly error: string | null;
+};
+
+export type RagChatMessage = {
+  readonly role: "user" | "assistant";
+  readonly content: string;
+};
+
+export type RagChatResponse = {
+  readonly answer: string;
+  readonly answer_mode: string | null;
+  readonly documents: readonly RagDocument[];
+  readonly model: string | null;
+  readonly ready: boolean;
   readonly error: string | null;
 };
 
@@ -216,6 +264,7 @@ export type SimilarCase = {
   readonly similarity: number;
   readonly reason: string;
   readonly image_url: string;
+  readonly timeseries_url: string | null;
   readonly metadata: Record<string, string | number | null>;
 };
 

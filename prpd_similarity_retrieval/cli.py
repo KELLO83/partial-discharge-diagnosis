@@ -27,12 +27,14 @@ from prpd_similarity_retrieval.hard_split_evaluation import (
     DEFAULT_SPLIT_FIELD,
     SPLIT_FIELDS,
     default_progress_writer as default_hard_split_progress_writer,
+    evaluate_learned_hard_split_report,
     evaluate_hard_split_report,
     evaluate_feature_hard_split,
     evaluate_prototype_hard_split,
     evaluate_prototype_hard_split_report,
     hard_split_failures_to_markdown,
     hard_split_report_to_markdown,
+    learned_hard_split_report_to_markdown,
     prototype_hard_split_report_to_markdown,
     sample_feature_hard_split_failures,
 )
@@ -40,6 +42,15 @@ from prpd_similarity_retrieval.human_review import (
     evaluate_human_reviews,
     human_review_metrics_to_markdown,
     load_human_review_records,
+)
+from prpd_similarity_retrieval.learned_encoder import (
+    LEARNED_ENCODER_VERSION,
+    LearnedEncoderConfig,
+    build_learned_embedding_index,
+    evaluate_learned_index,
+    learned_results_to_json,
+    load_learned_embedding_index,
+    save_learned_embedding_index,
 )
 from prpd_similarity_retrieval.models import CaseFeatures, CaseRecord, SearchResult
 from prpd_similarity_retrieval.prototype_encoder import (
@@ -64,6 +75,7 @@ from prpd_similarity_retrieval.review_artifact import hard_split_failure_review_
 
 DEFAULT_INDEX_PATH = Path("prpd_similarity_retrieval/case_feature_index.npz")
 DEFAULT_PROTOTYPE_INDEX_PATH = Path("prpd_similarity_retrieval/case_embedding_index.prototype.npz")
+DEFAULT_LEARNED_INDEX_PATH = Path("prpd_similarity_retrieval/case_embedding_index.learned.npz")
 FeatureIndex = CompactFeatureIndex | list[CaseFeatures]
 
 
@@ -199,6 +211,28 @@ def build_parser() -> argparse.ArgumentParser:
     prototype_hard_split_report_parser.add_argument("--output", type=Path, default=None)
     prototype_hard_split_report_parser.set_defaults(handler=handle_evaluate_prototype_hard_split_report)
 
+    learned_hard_split_report_parser = subparsers.add_parser(
+        "evaluate-learned-hard-split-report",
+        help="Evaluate every holdout group with the learned projection encoder only.",
+    )
+    learned_hard_split_report_parser.add_argument("--index", type=Path, default=DEFAULT_INDEX_PATH)
+    learned_hard_split_report_parser.add_argument("--split-field", choices=SPLIT_FIELDS, default=DEFAULT_SPLIT_FIELD)
+    learned_hard_split_report_parser.add_argument("--min-query-count", type=int, default=1)
+    learned_hard_split_report_parser.add_argument("--max-holdouts", type=int, default=None)
+    learned_hard_split_report_parser.add_argument("--limit-per-holdout", type=int, default=None)
+    learned_hard_split_report_parser.add_argument("--top-k", type=int, default=3)
+    learned_hard_split_report_parser.add_argument("--batch-size", type=int, default=256)
+    learned_hard_split_report_parser.add_argument("--progress-every", type=int, default=0)
+    learned_hard_split_report_parser.add_argument("--image-dim", type=int, default=64)
+    learned_hard_split_report_parser.add_argument("--timeseries-dim", type=int, default=32)
+    learned_hard_split_report_parser.add_argument("--centroid-weight", type=float, default=0.25)
+    learned_hard_split_report_parser.add_argument("--image-weight", type=float, default=0.55)
+    learned_hard_split_report_parser.add_argument("--timeseries-weight", type=float, default=0.45)
+    learned_hard_split_report_parser.add_argument("--variance-floor", type=float, default=1e-6)
+    learned_hard_split_report_parser.add_argument("--format", choices=("json", "markdown"), default="json")
+    learned_hard_split_report_parser.add_argument("--output", type=Path, default=None)
+    learned_hard_split_report_parser.set_defaults(handler=handle_evaluate_learned_hard_split_report)
+
     hard_split_failure_parser = subparsers.add_parser(
         "sample-hard-split-failures",
         help="Sample holdout queries whose top-k retrieved cases miss the query label.",
@@ -251,6 +285,30 @@ def build_parser() -> argparse.ArgumentParser:
     prototype_eval_parser.add_argument("--top-k", type=int, default=3)
     prototype_eval_parser.add_argument("--batch-size", type=int, default=256)
     prototype_eval_parser.set_defaults(handler=handle_evaluate_prototype_index)
+
+    learned_build_parser = subparsers.add_parser("build-learned-index", help="Build learned projection embedding index from feature index.")
+    learned_build_parser.add_argument("--feature-index", type=Path, default=DEFAULT_INDEX_PATH)
+    learned_build_parser.add_argument("--output", type=Path, default=DEFAULT_LEARNED_INDEX_PATH)
+    learned_build_parser.add_argument("--image-dim", type=int, default=64)
+    learned_build_parser.add_argument("--timeseries-dim", type=int, default=32)
+    learned_build_parser.add_argument("--centroid-weight", type=float, default=0.25)
+    learned_build_parser.add_argument("--image-weight", type=float, default=0.55)
+    learned_build_parser.add_argument("--timeseries-weight", type=float, default=0.45)
+    learned_build_parser.add_argument("--variance-floor", type=float, default=1e-6)
+    learned_build_parser.set_defaults(handler=handle_build_learned_index)
+
+    learned_query_parser = subparsers.add_parser("query-learned-sample", help="Find similar cases with learned projection embedding index.")
+    learned_query_parser.add_argument("--index", type=Path, default=DEFAULT_LEARNED_INDEX_PATH)
+    learned_query_parser.add_argument("--sample-id", required=True)
+    learned_query_parser.add_argument("--top-k", type=int, default=5)
+    learned_query_parser.set_defaults(handler=handle_query_learned_sample)
+
+    learned_eval_parser = subparsers.add_parser("evaluate-learned-index", help="Evaluate learned projection index by leave-one-out label match.")
+    learned_eval_parser.add_argument("--index", type=Path, default=DEFAULT_LEARNED_INDEX_PATH)
+    learned_eval_parser.add_argument("--limit", type=int, default=None)
+    learned_eval_parser.add_argument("--top-k", type=int, default=3)
+    learned_eval_parser.add_argument("--batch-size", type=int, default=256)
+    learned_eval_parser.set_defaults(handler=handle_evaluate_learned_index)
     return parser
 
 
@@ -510,6 +568,31 @@ def handle_build_prototype_index(args: argparse.Namespace) -> None:
     )
 
 
+def handle_build_learned_index(args: argparse.Namespace) -> None:
+    feature_index = _load_compact_feature_index_for_prototype(args.feature_index)
+    config = _learned_config_from_args(args)
+    learned_index = build_learned_embedding_index(feature_index, config)
+    save_learned_embedding_index(args.output, learned_index)
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "encoder_version": LEARNED_ENCODER_VERSION,
+                "case_count": learned_index.case_count,
+                "embedding_dim": int(learned_index.embeddings.shape[1]),
+                "image_dim": config.image_dim,
+                "timeseries_dim": config.timeseries_dim,
+                "centroid_weight": config.centroid_weight,
+                "image_weight": config.image_weight,
+                "timeseries_weight": config.timeseries_weight,
+                "variance_floor": config.variance_floor,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
 def handle_evaluate_hard_split(args: argparse.Namespace) -> None:
     index = _load_compact_feature_index_for_hard_split(args.index)
     holdout_values = tuple(args.holdout_value)
@@ -633,6 +716,40 @@ def handle_evaluate_prototype_hard_split_report(args: argparse.Namespace) -> Non
     )
 
 
+def handle_evaluate_learned_hard_split_report(args: argparse.Namespace) -> None:
+    index = _load_compact_feature_index_for_hard_split(args.index)
+    report = evaluate_learned_hard_split_report(
+        index=index,
+        config=_learned_config_from_args(args),
+        split_field=args.split_field,
+        min_query_count=args.min_query_count,
+        max_holdouts=args.max_holdouts,
+        limit_per_holdout=args.limit_per_holdout,
+        top_k=args.top_k,
+        batch_size=args.batch_size,
+        progress_every=args.progress_every,
+        progress_writer=default_hard_split_progress_writer,
+    )
+    content = _format_learned_hard_split_report(report, args.format)
+    if args.output is None:
+        print(content)
+        return
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(content, encoding="utf-8")
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "format": args.format,
+                "split_field": report.split_field,
+                "holdout_count": len(report.metrics),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
 def handle_sample_hard_split_failures(args: argparse.Namespace) -> None:
     index = _load_compact_feature_index_for_hard_split(args.index)
     sample = sample_feature_hard_split_failures(
@@ -719,6 +836,30 @@ def handle_evaluate_prototype_index(args: argparse.Namespace) -> None:
     )
 
 
+def handle_query_learned_sample(args: argparse.Namespace) -> None:
+    index = load_learned_embedding_index(args.index)
+    results = index.search_sample(args.sample_id, top_k=args.top_k)
+    print(learned_results_to_json(results))
+
+
+def handle_evaluate_learned_index(args: argparse.Namespace) -> None:
+    index = load_learned_embedding_index(args.index)
+    metrics = evaluate_learned_index(index, limit=args.limit, top_k=args.top_k, batch_size=args.batch_size)
+    print(
+        json.dumps(
+            {
+                "evaluated": metrics.evaluated,
+                "top_k": args.top_k,
+                "encoder_version": LEARNED_ENCODER_VERSION,
+                "top1_label_match_rate": metrics.top1_label_match_rate,
+                "topk_label_match_rate": metrics.topk_label_match_rate,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
 def _save_index(path: Path, features: list[CaseFeatures]) -> None:
     if is_compact_index_path(path):
         save_compact_feature_index(path, features)
@@ -757,6 +898,17 @@ def _prototype_config_from_args(args: argparse.Namespace) -> PrototypeEncoderCon
     )
 
 
+def _learned_config_from_args(args: argparse.Namespace) -> LearnedEncoderConfig:
+    return LearnedEncoderConfig(
+        image_dim=args.image_dim,
+        timeseries_dim=args.timeseries_dim,
+        centroid_weight=args.centroid_weight,
+        image_weight=args.image_weight,
+        timeseries_weight=args.timeseries_weight,
+        variance_floor=args.variance_floor,
+    )
+
+
 def _format_hard_split_report(report, output_format: str) -> str:
     if output_format == "markdown":
         return hard_split_report_to_markdown(report)
@@ -766,6 +918,12 @@ def _format_hard_split_report(report, output_format: str) -> str:
 def _format_prototype_hard_split_report(report, output_format: str) -> str:
     if output_format == "markdown":
         return prototype_hard_split_report_to_markdown(report)
+    return json.dumps(report.to_dict(), ensure_ascii=False, indent=2)
+
+
+def _format_learned_hard_split_report(report, output_format: str) -> str:
+    if output_format == "markdown":
+        return learned_hard_split_report_to_markdown(report)
     return json.dumps(report.to_dict(), ensure_ascii=False, indent=2)
 
 

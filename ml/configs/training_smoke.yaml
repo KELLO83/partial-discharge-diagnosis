@@ -1,11 +1,17 @@
 version: 1
 jobs:
-  - name: timeseries_list_models
+  - name: timeseries_gru_dry_run
     task: timeseries
     enabled: true
-    description: Verify the time-series training entrypoint and available models.
+    description: Dry-run a lightweight GRU time-series run for one-command smoke checks.
     args:
-      list_models: true
+      model: gru
+      manifest: data/manifest.csv
+      artifact-dir: .omo/config-smoke/time_series
+      output: .omo/config-smoke/time_series_experiments.csv
+      sample-size: 20
+      epochs: 1
+      dry-run: true
 
   - name: vision_small_cnn_dry_run
     task: vision

@@ -24,7 +24,15 @@ from prpd_similarity_retrieval.prototype_encoder import (
     fit_prototype_encoder_state,
     transform_prototype_embeddings,
 )
-from prpd_similarity_retrieval.retrieval import IMAGE_WEIGHT, LABEL_WEIGHT, METADATA_WEIGHTS, METADATA_WEIGHT, TIMESERIES_WEIGHT
+from prpd_similarity_retrieval.retrieval import (
+    IMAGE_WEIGHT,
+    LABEL_BASELINE_WEIGHT,
+    LABEL_WEIGHT,
+    METADATA_BASELINE_WEIGHT,
+    METADATA_WEIGHTS,
+    METADATA_WEIGHT,
+    TIMESERIES_WEIGHT,
+)
 
 
 ProgressWriter = Callable[[dict[str, int | float | str]], None]
@@ -744,7 +752,7 @@ def _feature_score_matrix_for_batch(
         else _missing_matrix(query_indices.size, candidate_indices.size)
     )
     if metadata_baseline:
-        return _weighted_score_matrix([(metadata_scores, METADATA_WEIGHT), (label_scores, LABEL_WEIGHT)])
+        return _weighted_score_matrix([(metadata_scores, METADATA_BASELINE_WEIGHT), (label_scores, LABEL_BASELINE_WEIGHT)])
     return _weighted_score_matrix(
         [
             (

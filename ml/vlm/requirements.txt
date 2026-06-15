@@ -6,3 +6,4 @@ bitsandbytes
 qwen-vl-utils
 pillow
 pyyaml
+num2words

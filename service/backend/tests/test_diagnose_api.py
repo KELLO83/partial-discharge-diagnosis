@@ -163,6 +163,13 @@ def test_hybrid_diagnosis_runs_time_series_vision_and_vlm_tools() -> None:
     assert csv_response.headers["content-type"].startswith("text/csv")
     assert similar_event["summary"]["case_count"] == 5
     assert similar_event["summary"]["cases"][0]["image_url"].startswith("/dataset/cases/")
+    assert similar_event["summary"]["model_name"] == "domain_feature_case_retriever"
+    case_metadata = similar_event["summary"]["cases"][0]["metadata"]
+    assert "feature_component_prpd" in case_metadata
+    assert case_metadata["feature_component_timeseries"] is not None
+    assert "feature_component_metadata" not in case_metadata
+    assert "feature_component_label" not in case_metadata
+    assert "retriever_validation_equipment" not in case_metadata
     assert fusion_event["summary"]["agreement_level"] in {"agreement", "partial_agreement", "conflict"}
     assert fusion_event["summary"]["evidence"][0]["top_factors"]
     assert len(report_response.json()["reference_cases"]) == 5
@@ -246,10 +253,17 @@ def test_rag_admin_endpoints_return_operational_state() -> None:
     status = status_response.json()
     assert status["embedding_model"] == "dragonkue/multilingual-e5-small-ko-v2"
     assert "ready" in status
+    assert "database_connected" in status
+    assert "last_indexed_at" in status
+    assert "metadata_missing_counts" in status
     assert "source_counts" in status
     assert "items" in documents_response.json()
     assert "items" in logs_response.json()
-    assert "documents" in search_response.json()
+    search_payload = search_response.json()
+    assert "documents" in search_payload
+    assert "applied_filters" in search_payload
+    assert "retrieval_mode" in search_payload
+    assert "result_count" in search_payload
 
 
 def test_diagnosis_detail_actions_comments_and_report() -> None:
@@ -290,11 +304,15 @@ def test_dataset_case_endpoints_expose_reference_images() -> None:
     assert cases_response.status_code == 200
     case = cases_response.json()["items"][0]
     image_response = client.get(case["image_url"])
+    timeseries_response = client.get(case["timeseries_url"])
     detail_response = client.get(f"/dataset/cases/{case['sample_id']}")
     assert image_response.status_code == 200
     assert image_response.headers["content-type"] == "image/png"
+    assert timeseries_response.status_code == 200
+    assert timeseries_response.headers["content-type"].startswith("text/csv")
     assert detail_response.status_code == 200
     assert detail_response.json()["sample_id"] == case["sample_id"]
+    assert detail_response.json()["timeseries_url"] == case["timeseries_url"]
 
 
 def test_dataset_case_search_filters_by_label_and_sensor() -> None:

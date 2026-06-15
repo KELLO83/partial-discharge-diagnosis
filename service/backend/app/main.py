@@ -17,10 +17,12 @@ from service.backend.app.infrastructure.openai_agents_adapter import check_agent
 from service.backend.app.rag.admin import (
     list_rag_documents,
     list_rag_query_logs,
+    read_rag_document,
     read_rag_status,
     reindex_rag_documents,
     search_rag_documents,
 )
+from service.backend.app.rag.chat import RagChatInput, answer_rag_chat
 from service.backend.app.schemas import (
     DemoScenarioActivationResponse,
     DemoScenarioListResponse,
@@ -33,6 +35,9 @@ from service.backend.app.schemas import (
     DiagnosisReportResponse,
     DiagnosisResponse,
     ModelRuntimeStatus,
+    RagChatRequest,
+    RagChatResponse,
+    RagDocumentDetailResponse,
     RagDocumentListResponse,
     RagQueryLogResponse,
     RagReindexRequest,
@@ -54,7 +59,6 @@ from service.backend.app.application.adapters import (
     similar_case_adapter,
     time_series_adapter,
     vision_adapter,
-    vlm_adapter,
 )
 from service.backend.app.infrastructure.validation import inspect_csv_shape, is_png_upload, summarize_csv_signal
 from service.backend.app.application.workflow import WorkflowInput, parse_metadata, run_diagnosis_workflow
@@ -69,6 +73,8 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://localhost:5174",
         "http://127.0.0.1:5174",
+        "http://localhost:55001",
+        "http://127.0.0.1:55001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -93,6 +99,7 @@ def model_status() -> ModelRuntimeStatus:
     time_series_info = model_runtime.info_for("time_series")
     vision_info = model_runtime.info_for("vision")
     vlm_info = model_runtime.info_for("vlm")
+    base_vlm_adapter = model_runtime.vlm_adapter
     return ModelRuntimeStatus(
         agent_mode="local_deterministic",
         agents_sdk_installed=agents_sdk.installed,
@@ -117,8 +124,8 @@ def model_status() -> ModelRuntimeStatus:
         case_version=similar_case_adapter.model_version,
         rag_retriever=rag_adapter.model_name,
         rag_version=rag_adapter.model_version,
-        vlm_model=vlm_adapter.model_name,
-        vlm_version=vlm_adapter.model_version,
+        vlm_model=base_vlm_adapter.model_name,
+        vlm_version=base_vlm_adapter.model_version,
         vlm_adapter=vlm_info.adapter_kind,
         vlm_ready=vlm_info.ready,
         vlm_manifest=vlm_info.manifest_path,
@@ -142,6 +149,14 @@ def rag_documents(source_type: str | None = None, limit: int = 50) -> RagDocumen
     return list_rag_documents(source_type=source_type, limit=limit)
 
 
+@app.get("/rag/documents/{document_key}", response_model=RagDocumentDetailResponse)
+def rag_document_detail(document_key: str) -> RagDocumentDetailResponse:
+    detail = read_rag_document(document_key)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="RAG document not found")
+    return detail
+
+
 @app.get("/rag/query-logs", response_model=RagQueryLogResponse)
 def rag_query_logs(limit: int = 20) -> RagQueryLogResponse:
     return list_rag_query_logs(limit=limit)
@@ -150,6 +165,17 @@ def rag_query_logs(limit: int = 20) -> RagQueryLogResponse:
 @app.post("/rag/search", response_model=RagSearchResponse)
 def rag_search(request: RagSearchRequest) -> RagSearchResponse:
     return search_rag_documents(query=request.query, top_k=request.top_k)
+
+
+@app.post("/rag/chat", response_model=RagChatResponse)
+def rag_chat(request: RagChatRequest) -> RagChatResponse:
+    return answer_rag_chat(
+        RagChatInput(
+            question=request.question,
+            history=list(request.messages),
+            top_k=request.top_k,
+        )
+    )
 
 
 @app.post("/rag/reindex", response_model=RagReindexResponse)
@@ -261,6 +287,14 @@ def dataset_case_image(sample_id: str) -> FileResponse:
     if case is None or not case.image_path.exists():
         raise HTTPException(status_code=404, detail="dataset case image not found")
     return FileResponse(case.image_path, media_type="image/png")
+
+
+@app.get("/dataset/cases/{sample_id}/timeseries")
+def dataset_case_timeseries(sample_id: str) -> FileResponse:
+    case = dataset_case_repository.get(sample_id)
+    if case is None or not case.timeseries_path.exists():
+        raise HTTPException(status_code=404, detail="dataset case timeseries not found")
+    return FileResponse(case.timeseries_path, media_type="text/csv")
 
 
 @app.get("/demo/scenarios", response_model=DemoScenarioListResponse)

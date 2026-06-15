@@ -91,7 +91,18 @@ class TrainPreset:
 
 
 MODEL_PRESETS: dict[str, TrainPreset] = {
-    "gru": TrainPreset(auto_batch_start_size=16, learning_rate=1e-3),
+    "gru": TrainPreset(
+        auto_batch_start_size=16,
+        learning_rate=1e-3,
+        model_params={
+            "hidden_size": 32,
+            "num_layers": 1,
+            "bidirectional": False,
+            "dropout": 0.1,
+            "use_cudnn": True,
+            "seq_len": 1024,
+        },
+    ),
     "tcn": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
     "inception_time": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
     "resnet1d": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
@@ -166,19 +177,39 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument(
+        "--artifact-dir",
+        type=Path,
+        default=Path("artifacts/models/time_series"),
+        help="Directory for checkpoint and manifest artifacts used by runtime.",
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=None,
         help="Manual batch size. If omitted, train.py auto-resolves a CUDA batch size under the GPU memory target.",
     )
     parser.add_argument("--target-gpu-memory-utilization", type=float, default=0.90)
+    parser.add_argument(
+        "--gpu-memory-fraction",
+        "--gpu-memory-fracion",
+        dest="gpu_memory_fraction",
+        type=float,
+        default=None,
+        help="CUDA memory fraction target for process cap and auto batch sizing. Default: 0.90.",
+    )
     parser.add_argument("--max-auto-batch-size", type=int, default=256)
     parser.add_argument("--learning-rate", type=float, default=None, help="Override per-model learning-rate preset.")
+    parser.add_argument("--weight-decay", type=float, default=1e-2)
+    parser.add_argument("--scheduler", default="onecycle", choices=("onecycle", "none"))
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--pin-memory", action="store_true")
     parser.add_argument("--mixed-precision", default="fp16", choices=("off", "fp16", "bf16"))
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--torch-compile", action="store_true")
     parser.add_argument("--torch-compile-mode", default="default", choices=("default", "reduce-overhead", "max-autotune"))
+    parser.add_argument("--early-stopping-patience", type=int, default=5)
+    parser.add_argument("--early-stopping-min-delta", type=float, default=0.0)
+    parser.add_argument("--resume-from", type=Path, default=None)
     parser.add_argument(
         "--model-param",
         action="append",
@@ -272,9 +303,15 @@ def main() -> None:
         return
 
     if not torch.cuda.is_available():
-        LOGGER.info("CUDA GPU is not available. CPU training is disabled for this project; no training was started.")
-        return
-    LOGGER.info("CUDA GPU detected: %s", torch.cuda.get_device_name(0))
+        if args.dry_run:
+            LOGGER.info("CUDA not available. Running validation-only dry-run.")
+        else:
+            LOGGER.info(
+                "CUDA GPU is not available. CPU training is disabled for this project; no training was started."
+            )
+            return
+    else:
+        LOGGER.info("CUDA GPU detected: %s", torch.cuda.get_device_name(0))
 
     preset = MODEL_PRESETS[model_name]
     model_params = dict(preset.model_params)
@@ -282,14 +319,17 @@ def main() -> None:
     batch_size = args.batch_size
     auto_batch_start_size = preset.auto_batch_start_size
     learning_rate = args.learning_rate if args.learning_rate is not None else preset.learning_rate
+    gpu_memory_fraction = (
+        args.gpu_memory_fraction if args.gpu_memory_fraction is not None else args.target_gpu_memory_utilization
+    )
 
     LOGGER.info(
-        "Starting model=%s runner=%s batch_size=%s auto_batch_start_size=%s target_gpu_memory_utilization=%.2f lr=%s model_params=%s",
+        "Starting model=%s runner=%s batch_size=%s auto_batch_start_size=%s gpu_memory_fraction=%.2f lr=%s model_params=%s",
         model_name,
         preset.runner,
         batch_size if batch_size is not None else "auto",
         auto_batch_start_size,
-        args.target_gpu_memory_utilization,
+        gpu_memory_fraction,
         learning_rate,
         model_params,
     )
@@ -304,9 +344,10 @@ def main() -> None:
             epochs=args.epochs,
             batch_size=batch_size,
             auto_batch_start_size=auto_batch_start_size,
-            target_gpu_memory_utilization=args.target_gpu_memory_utilization,
+            target_gpu_memory_utilization=gpu_memory_fraction,
             max_auto_batch_size=args.max_auto_batch_size,
             learning_rate=learning_rate,
+            weight_decay=args.weight_decay,
             num_workers=args.num_workers,
             pin_memory=args.pin_memory,
             device="cuda",
@@ -314,6 +355,12 @@ def main() -> None:
             mixed_precision=args.mixed_precision,
             torch_compile=args.torch_compile,
             torch_compile_mode=args.torch_compile_mode,
+            artifact_dir=args.artifact_dir,
+            early_stopping_patience=args.early_stopping_patience,
+            early_stopping_min_delta=args.early_stopping_min_delta,
+            scheduler_name=args.scheduler,
+            resume_from=args.resume_from,
+            dry_run=args.dry_run,
         )
     else:
         run_special_runner(

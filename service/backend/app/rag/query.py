@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from service.backend.app.domain.policy import label_name
+from service.backend.app.domain.policy import LABEL_POLICIES, label_name
 from service.backend.app.schemas import MetadataInput, SimilarCaseResult, TimeSeriesResult, VisionResult
 
 
@@ -42,6 +42,18 @@ def candidate_label_ids(timeseries_result: TimeSeriesResult | None, vision_resul
     return tuple(dict.fromkeys(label_ids))
 
 
+def infer_label_ids_from_text(query: str) -> tuple[int, ...]:
+    normalized_query = _compact_text(query)
+    if normalized_query == "":
+        return ()
+    label_ids = [
+        policy.label_id
+        for policy in LABEL_POLICIES.values()
+        if _compact_text(policy.label_name) in normalized_query
+    ]
+    return tuple(label_ids)
+
+
 def _metadata_text(metadata: MetadataInput | None) -> str:
     if metadata is None:
         return "metadata=unknown"
@@ -52,6 +64,10 @@ def _metadata_text(metadata: MetadataInput | None) -> str:
         f"clearance={metadata.clearance_distance or 'unknown'}; "
         f"temperature={metadata.temperature}; humidity={metadata.humidity}"
     )
+
+
+def _compact_text(value: str) -> str:
+    return "".join(character for character in value.lower() if character.isalnum())
 
 
 def _time_series_text(result: TimeSeriesResult | None) -> str:

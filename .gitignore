@@ -3,10 +3,12 @@ data/
 Train/
 Sample/
 external/
+artifacts/
 
 # Experiment outputs and generated artifacts
 results/
 outputs/
+logs/
 checkpoints/
 runs/
 wandb/
@@ -14,12 +16,14 @@ mlruns/
 reports/
 service/uploads/
 service/uploads/*
+models/
 
 # Model/data artifacts
 *.ckpt
 *.h5
+*.keras
 *.joblib
-*.jsonl
+*.onnx
 *.npy
 *.npz
 *.onnx
@@ -27,7 +31,24 @@ service/uploads/*
 *.pkl
 *.pt
 *.pth
+*.bin
+*.weights
+*.pb
 *.safetensors
+*.tf
+*.tflite
+*.onnx
+*.model
+*.onnxdata
+*.pth.tar
+*.pt.*
+*.ckpt.*
+*.index
+*.data-00000-of-*
+*.meta
+*.sqlite3
+*.ipynb
+*.onnxmodel
 
 # Python
 __pycache__/
@@ -35,30 +56,49 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.pyc.*
 *.ipynb_checkpoints/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .venv/
 .venv*/
+venv/
+env/
+ENV/
 dist/
 build/
+pip-wheel-metadata/
+*.egg-info/
+*.dist-info/
 
 # JavaScript / frontend
 node_modules/
+jspm_packages/
 coverage/
 .vite/
 *.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Logs
 *.log
-logs/
+logs/**
+*.trace
 
 # Environment and secrets
 .env
 .env.*
 *.pem
 *.key
+*.pfx
+*.crt
+*.cer
+*.secret
+/.env
+.envrc
 
 # Generated media / screenshots
 *.bmp
@@ -70,12 +110,20 @@ logs/
 *.tif
 *.tiff
 *.webp
+*.eps
+*.raw
+*.heic
+*.heif
+*.avif
+*.ppm
+*.pgm
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+.idea/**
 
 # Tooling and cache directories
 .codegraph/
@@ -83,9 +131,14 @@ Thumbs.db
 .omo/
 .playwright-mcp/
 .serena/
+*.log
+*.tmp
+tmp/
+.cache/
+__pypackages__/
+piplog.txt
 
 # Packaging and test artifacts
-*.egg-info/
 *.whl
 .coverage
 .coverage.*

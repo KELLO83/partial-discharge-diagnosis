@@ -22,4 +22,5 @@ model_runtime = build_service_model_runtime(
 )
 time_series_adapter = model_runtime.time_series_adapter
 vision_adapter = model_runtime.vision_adapter
-vlm_adapter, llm_rag_status = build_llm_rag_reporter(model_runtime.vlm_adapter)
+vlm_adapter = model_runtime.vlm_adapter
+_, llm_rag_status = build_llm_rag_reporter(model_runtime.vlm_adapter)

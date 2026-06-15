@@ -2,39 +2,45 @@ version: 1
 jobs:
   - name: timeseries_gru_baseline
     task: timeseries
-    enabled: false
+    enabled: true
     description: First CSV time-series neural baseline.
     args:
       model: gru
       manifest: data/manifest.csv
       output: artifacts/models/timeseries/experiments.csv
-      sample_size: 500
-      epochs: 5
-      batch_size: 16
+      sample_size: 10
+      epochs: 1
+      batch_size: 1
+      gpu_memory_fraction: 0.9
+      early_stopping_patience: 3
       mixed_precision: fp16
 
   - name: vision_small_cnn_baseline
     task: vision
-    enabled: false
+    enabled: true
     description: First lightweight PRPD image baseline for service checkpoint artifacts.
     args:
       manifest: data/manifest.csv
       output_dir: artifacts/models/vision
       model_name: small_prpd_cnn
-      sample_size: 500
-      epochs: 5
-      batch_size: 16
+      sample_size: 100
+      epochs: 3
+      gpu_memory_fraction: 0.9
+      early_stop_patience: 3
       learning_rate: 0.001
       device: auto
 
-  - name: vlm_qwen2_5_report_sft
+  - name: vlm_smolvlm2_2b_report_sft
     task: vlm
-    enabled: false
-    description: Default VLM report generator SFT profile with 4-bit QLoRA.
+    enabled: true
+    description: SmolVLM2 2.2B report generator SFT profile with 4-bit QLoRA.
     args:
-      model_profile: qwen2_5_vl_3b_qlora
+      model_profile: smolvlm2_2b_qlora
       manifest: data/manifest.csv
       dataset_output: artifacts/models/vlm/instruction_dataset.jsonl
       output_dir: artifacts/models/vlm
-      sample_size: 500
-      max_steps: 100
+      sample_size: 50
+      max_steps: 10
+      save_steps: 1
+      gpu_memory_fraction: 0.9
+      early_stop_patience: 3

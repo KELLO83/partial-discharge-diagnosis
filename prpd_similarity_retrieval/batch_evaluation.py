@@ -10,7 +10,15 @@ from typing import Any
 import numpy as np
 
 from prpd_similarity_retrieval.compact_index import CompactFeatureIndex
-from prpd_similarity_retrieval.retrieval import IMAGE_WEIGHT, LABEL_WEIGHT, METADATA_WEIGHTS, METADATA_WEIGHT, TIMESERIES_WEIGHT
+from prpd_similarity_retrieval.retrieval import (
+    IMAGE_WEIGHT,
+    LABEL_BASELINE_WEIGHT,
+    LABEL_WEIGHT,
+    METADATA_BASELINE_WEIGHT,
+    METADATA_WEIGHTS,
+    METADATA_WEIGHT,
+    TIMESERIES_WEIGHT,
+)
 
 
 ProgressWriter = Callable[[dict[str, int | float | str]], None]
@@ -113,7 +121,7 @@ def _top_indices_for_batch(
     metadata_scores = _metadata_score_matrix(index, query_indices)
     label_scores = _label_score_matrix(index, query_indices) if use_query_label else _missing_matrix(query_indices.size, index.case_count)
     if metadata_baseline:
-        total_scores = _weighted_score_matrix([(metadata_scores, METADATA_WEIGHT), (label_scores, LABEL_WEIGHT)])
+        total_scores = _weighted_score_matrix([(metadata_scores, METADATA_BASELINE_WEIGHT), (label_scores, LABEL_BASELINE_WEIGHT)])
     else:
         total_scores = _weighted_score_matrix(
             [

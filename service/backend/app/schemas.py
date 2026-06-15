@@ -87,6 +87,7 @@ class RagDocument(BaseModel):
     excerpt: str
     relevance: float
     source_type: str | None = None
+    retrieval_mode: str | None = None
     metadata: dict[str, str | int | float | None] = Field(default_factory=dict)
 
 
@@ -103,6 +104,7 @@ class SimilarCase(BaseModel):
     similarity: float
     reason: str
     image_url: str
+    timeseries_url: str | None = None
     metadata: dict[str, str | int | float | None]
 
 
@@ -138,10 +140,19 @@ class RagSourceCount(BaseModel):
     chunks: int
 
 
+class RagAppliedFilter(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    key: str
+    label: str
+    value: str
+
+
 class RagStatusResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     ready: bool
+    database_connected: bool = False
     database_name: str
     vector_extension: str | None = None
     embedding_model: str
@@ -152,6 +163,8 @@ class RagStatusResponse(BaseModel):
     chunk_count: int
     query_log_count: int
     source_counts: dict[str, RagSourceCount] = Field(default_factory=dict)
+    last_indexed_at: str | None = None
+    metadata_missing_counts: dict[str, int] = Field(default_factory=dict)
     error: str | None = None
 
 
@@ -164,6 +177,30 @@ class RagDocumentListItem(BaseModel):
     source_path: str | None = None
     updated_at: str
     chunk_count: int
+
+
+class RagDocumentChunk(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    chunk_key: str
+    chunk_index: int
+    text: str
+    source_ref: str | None = None
+    metadata: dict[str, str | int | float | None] = Field(default_factory=dict)
+
+
+class RagDocumentDetailResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    document_key: str
+    source_type: str
+    title: str
+    source_path: str | None = None
+    updated_at: str
+    metadata: dict[str, str | int | float | None] = Field(default_factory=dict)
+    chunks: list[RagDocumentChunk]
+    text: str
+    error: str | None = None
 
 
 class RagDocumentListResponse(BaseModel):
@@ -195,7 +232,7 @@ class RagSearchRequest(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     query: str = Field(min_length=1)
-    top_k: int = Field(default=6, ge=1, le=20)
+    top_k: int = Field(default=3, ge=1, le=20)
 
 
 class RagSearchResponse(BaseModel):
@@ -203,7 +240,36 @@ class RagSearchResponse(BaseModel):
 
     query: str
     documents: list[RagDocument]
+    applied_filters: list[RagAppliedFilter] = Field(default_factory=list)
+    retrieval_mode: str | None = None
+    result_count: int = 0
     error: str | None = None
+
+
+class RagChatMessage(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class RagChatRequest(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    question: str = Field(min_length=1, max_length=4000)
+    messages: list[RagChatMessage] = Field(default_factory=list, max_length=12)
+    top_k: int = Field(default=3, ge=1, le=12)
+
+
+class RagChatResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    answer: str
+    documents: list[RagDocument]
+    model: str | None = None
+    ready: bool
+    error: str | None = None
+    answer_mode: str | None = None
 
 
 class RagReindexRequest(BaseModel):

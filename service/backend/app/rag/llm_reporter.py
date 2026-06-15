@@ -7,6 +7,7 @@ from typing import Protocol
 
 from pydantic import BaseModel, Field, ValidationError
 
+from service.backend.app.config.env import load_project_env
 from service.backend.app.application.contracts import VlmInferenceAdapter, VlmToolInput
 from service.backend.app.domain.fusion import vlm_evidence
 from service.backend.app.domain.policy import label_name, recommended_action, risk_level
@@ -127,6 +128,7 @@ def parse_llm_rag_payload(content: str) -> LlmRagReportPayload:
 
 
 def _provider_from_env() -> str:
+    load_project_env()
     provider = os.getenv("LLM_RAG_PROVIDER", DEFAULT_LLM_RAG_PROVIDER).strip().lower()
     if provider in SUPPORTED_LLM_RAG_PROVIDERS:
         return provider

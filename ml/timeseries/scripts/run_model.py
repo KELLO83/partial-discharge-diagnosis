@@ -24,6 +24,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument(
+        "--artifact-dir",
+        type=Path,
+        default=Path("artifacts/models/time_series"),
+        help="Directory for checkpoint and manifest artifacts.",
+    )
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--learning-rate", type=float, default=1e-3)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--pin-memory", action="store_true", help="Enable DataLoader pinned memory.")
@@ -53,6 +60,8 @@ def main() -> None:
         mixed_precision=args.mixed_precision,
         torch_compile=args.torch_compile,
         torch_compile_mode=args.torch_compile_mode,
+        artifact_dir=args.artifact_dir,
+        dry_run=args.dry_run,
     )
 
 

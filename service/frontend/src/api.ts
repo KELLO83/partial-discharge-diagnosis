@@ -9,16 +9,20 @@ import type {
   HealthResponse,
   MetadataForm,
   ModelRuntimeStatus,
+  RagChatMessage,
+  RagChatResponse,
+  RagDocumentDetailResponse,
   RagDocumentListResponse,
   RagQueryLogResponse,
   RagReindexResponse,
   RagSearchResponse,
   RagStatusResponse,
   ReviewAction,
+  SimilarCase,
   TraceResponse,
 } from "./types";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8001";
 
 export function apiAssetUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -99,6 +103,14 @@ export async function fetchRagDocuments(input: {
   return await response.json() as RagDocumentListResponse;
 }
 
+export async function fetchRagDocumentDetail(documentKey: string): Promise<RagDocumentDetailResponse> {
+  const response = await fetch(`${API_BASE}/rag/documents/${encodeURIComponent(documentKey)}`);
+  if (!response.ok) {
+    throw new Error(`rag document detail request failed: ${response.status}`);
+  }
+  return await response.json() as RagDocumentDetailResponse;
+}
+
 export async function fetchRagQueryLogs(limit = 20): Promise<RagQueryLogResponse> {
   const response = await fetch(`${API_BASE}/rag/query-logs?limit=${limit}`);
   if (!response.ok) {
@@ -120,6 +132,26 @@ export async function searchRagDocuments(input: {
     throw new Error(`rag search request failed: ${response.status}`);
   }
   return await response.json() as RagSearchResponse;
+}
+
+export async function askRagChat(input: {
+  readonly messages: readonly RagChatMessage[];
+  readonly question: string;
+  readonly topK: number;
+}): Promise<RagChatResponse> {
+  const response = await fetch(`${API_BASE}/rag/chat`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      messages: input.messages,
+      question: input.question,
+      top_k: input.topK,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`rag chat request failed: ${response.status}`);
+  }
+  return await response.json() as RagChatResponse;
 }
 
 export async function reindexRagDocuments(datasetLimit: number | null): Promise<RagReindexResponse> {
@@ -193,6 +225,14 @@ export async function fetchDiagnosisReport(diagnosisId: string): Promise<Diagnos
     throw new Error(`diagnosis report request failed: ${response.status}`);
   }
   return await response.json() as DiagnosisReportResponse;
+}
+
+export async function fetchDatasetCaseDetail(sampleId: string): Promise<SimilarCase> {
+  const response = await fetch(`${API_BASE}/dataset/cases/${encodeURIComponent(sampleId)}`);
+  if (!response.ok) {
+    throw new Error(`dataset case detail request failed: ${response.status}`);
+  }
+  return await response.json() as SimilarCase;
 }
 
 export async function fetchDemoScenarios(): Promise<DemoScenarioListResponse> {

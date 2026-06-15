@@ -7,9 +7,11 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from service.backend.app.config.env import load_project_env
+
 
 OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
+DEFAULT_OPENROUTER_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 DEFAULT_SITE_URL = "http://127.0.0.1:5173"
 DEFAULT_APP_NAME = "Partial Discharge Diagnosis"
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -33,6 +35,7 @@ class OpenRouterSettings:
 
     @classmethod
     def from_env(cls) -> OpenRouterSettings:
+        load_project_env()
         api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
         if not api_key:
             raise OpenRouterConfigError("OPENROUTER_API_KEY is not set")

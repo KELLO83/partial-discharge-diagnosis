@@ -11,10 +11,12 @@ from prpd_similarity_retrieval.features import extract_case_features
 from prpd_similarity_retrieval.models import CaseFeatures, CaseRecord, SearchResult
 
 
-IMAGE_WEIGHT = 0.45
-TIMESERIES_WEIGHT = 0.35
-METADATA_WEIGHT = 0.10
-LABEL_WEIGHT = 0.10
+IMAGE_WEIGHT = 0.55
+TIMESERIES_WEIGHT = 0.45
+METADATA_WEIGHT = 0.0
+LABEL_WEIGHT = 0.0
+METADATA_BASELINE_WEIGHT = 0.75
+LABEL_BASELINE_WEIGHT = 0.25
 METADATA_WEIGHTS = {
     "equipment_name": 0.25,
     "sensor_type": 0.20,
@@ -90,13 +92,9 @@ def _search_with_scorer(
 def _score_candidate(query: CaseFeatures, candidate: CaseFeatures) -> SearchResult:
     image_score = _cosine_similarity(query.image_vector, candidate.image_vector)
     timeseries_score = _cosine_similarity(query.timeseries_vector, candidate.timeseries_vector)
-    metadata_score = _metadata_similarity(query.metadata, candidate.metadata)
-    label_score = _label_similarity(query.label_id, candidate.label_id)
     weighted_scores = [
         (image_score, IMAGE_WEIGHT),
         (timeseries_score, TIMESERIES_WEIGHT),
-        (metadata_score, METADATA_WEIGHT),
-        (label_score, LABEL_WEIGHT),
     ]
     score = _weighted_average(weighted_scores)
     return SearchResult(
@@ -104,9 +102,9 @@ def _score_candidate(query: CaseFeatures, candidate: CaseFeatures) -> SearchResu
         score=score,
         image_score=image_score,
         timeseries_score=timeseries_score,
-        metadata_score=metadata_score,
-        label_score=label_score,
-        reason=_reason(image_score, timeseries_score, metadata_score, label_score),
+        metadata_score=None,
+        label_score=None,
+        reason=_reason(image_score, timeseries_score, None, None),
     )
 
 
@@ -115,8 +113,8 @@ def _score_metadata_candidate(query: CaseFeatures, candidate: CaseFeatures) -> S
     label_score = _label_similarity(query.label_id, candidate.label_id)
     score = _weighted_average(
         [
-            (metadata_score, METADATA_WEIGHT),
-            (label_score, LABEL_WEIGHT),
+            (metadata_score, METADATA_BASELINE_WEIGHT),
+            (label_score, LABEL_BASELINE_WEIGHT),
         ]
     )
     return SearchResult(
@@ -182,11 +180,7 @@ def _reason(
         reasons.append("PRPD 패턴 유사")
     if timeseries_score is not None and timeseries_score >= 0.82:
         reasons.append("시계열 파형 유사")
-    if metadata_score is not None and metadata_score >= 0.60:
-        reasons.append("설비 조건 유사")
-    if label_score == 1.0:
-        reasons.append("방전 유형 라벨 일치")
-    return ", ".join(reasons) if reasons else "가용 feature 기준 근접 사례"
+    return ", ".join(reasons) if reasons else "PRPD/시계열 feature 기준 근접 사례"
 
 
 def _normalize_metadata(value: str) -> str:

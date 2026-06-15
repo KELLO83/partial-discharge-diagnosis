@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ml.vlm.scripts.train_sft import SUPPORTED_ATTENTION_IMPLEMENTATIONS, TORCH_SDPA_ATTENTION
+
 
 def run_dry_inference(
     dataset_path: Path,
@@ -13,7 +15,7 @@ def run_dry_inference(
     load_in_4bit: bool,
     limit: int | None,
     index: int | None = None,
-    attn_implementation: str = "sdpa",
+    attn_implementation: str = TORCH_SDPA_ATTENTION,
 ) -> int:
     records = _load_records(dataset_path)
     selected_records = _select_records(records, index, limit)
@@ -42,7 +44,7 @@ def run_model_inference(
     limit: int | None,
     max_new_tokens: int,
     index: int | None = None,
-    attn_implementation: str = "sdpa",
+    attn_implementation: str = TORCH_SDPA_ATTENTION,
 ) -> int:
     try:
         import torch
@@ -174,7 +176,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--index", type=int, default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--max-new-tokens", type=int, default=256)
-    parser.add_argument("--attn-implementation", default="sdpa", choices=("sdpa", "eager", "flash_attention_2"))
+    parser.add_argument("--attn-implementation", default=TORCH_SDPA_ATTENTION, choices=SUPPORTED_ATTENTION_IMPLEMENTATIONS)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 

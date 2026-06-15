@@ -36,6 +36,26 @@ def test_repository_resolves_train_prefix_and_returns_similar_cases(tmp_path: Pa
     assert repository.get("case").image_path == image_path
 
 
+def test_repository_excludes_cases_outside_model_label_candidates(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "manifest.csv"
+    manifest_path.write_text(
+        "\n".join(
+            [
+                "sample_id,json_path,image_path,timeseries_path,label_id,label_name,insulator_type,equipment_name,equipment_rated_voltage,equipment_rated_current,sensor_type,temperature,humidity,clearance_distance,max_discharge_value",
+                "noise_case,noise.json,noise.png,noise.csv,1,노이즈,고체,ACSR-OC,22900V,268A,HFCT,19,66,['1000mm'],78",
+                "corona_case,corona.json,corona.png,corona.csv,3,코로나 방전,고체,ACSR-OC,22900V,268A,HFCT,19,66,['1000mm'],82",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    repository = DatasetCaseRepository(manifest_path=manifest_path, data_root=tmp_path)
+
+    cases = repository.similar_cases(_metadata(), _timeseries_result(), _vision_result())
+
+    assert cases
+    assert {case.label_id for case in cases} == {3}
+
+
 def _metadata() -> MetadataInput:
     return MetadataInput(
         equipment_name="ACSR-OC",

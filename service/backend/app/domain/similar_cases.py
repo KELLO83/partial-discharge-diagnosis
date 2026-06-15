@@ -102,9 +102,10 @@ class DatasetCaseRepository:
             label_ids=_candidate_label_ids(ts_result, vision_result),
             abs_p99=_abs_p99(ts_result),
         )
+        candidates = _cases_matching_candidate_labels(self.cases, query.label_ids)
         scored = [
             (_case_score(case, query), case)
-            for case in self.cases
+            for case in candidates
         ]
         scored.sort(key=lambda item: (item[0], item[1].sample_id), reverse=True)
         return [
@@ -151,6 +152,15 @@ def _candidate_label_ids(ts_result: TimeSeriesResult | None, vision_result: Visi
     if vision_result is not None:
         label_ids.append(vision_result.label_id)
     return tuple(dict.fromkeys(label_ids))
+
+
+def _cases_matching_candidate_labels(
+    cases: tuple[DatasetCase, ...],
+    label_ids: tuple[int, ...],
+) -> tuple[DatasetCase, ...]:
+    if not label_ids:
+        return cases
+    return tuple(case for case in cases if case.label_id in label_ids)
 
 
 def _abs_p99(ts_result: TimeSeriesResult | None) -> float | None:
@@ -210,6 +220,7 @@ def to_similar_case(case: DatasetCase, score: float, reason: str) -> SimilarCase
         similarity=score,
         reason=reason,
         image_url=f"/dataset/cases/{quote(case.sample_id, safe='')}/image",
+        timeseries_url=f"/dataset/cases/{quote(case.sample_id, safe='')}/timeseries" if case.timeseries_path.exists() else None,
         metadata={
             "equipment_rated_voltage": case.equipment_rated_voltage,
             "equipment_rated_current": case.equipment_rated_current,

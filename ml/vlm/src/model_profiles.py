@@ -30,7 +30,7 @@ VLM_TRAINING_PROFILES: dict[str, VlmTrainingProfile] = {
     "qwen2_5_vl_3b_qlora": VlmTrainingProfile(
         key="qwen2_5_vl_3b_qlora",
         model_id="Qwen/Qwen2.5-VL-3B-Instruct",
-        description="Default quality profile for Korean PRPD report SFT with 4-bit QLoRA.",
+        description="Stable fallback profile for Korean PRPD report SFT with 4-bit QLoRA.",
         training_strategy="4bit_qlora_sft_text_projector_only",
         min_vram_gb=8,
         load_in_4bit=True,
@@ -66,7 +66,7 @@ VLM_TRAINING_PROFILES: dict[str, VlmTrainingProfile] = {
     "qwen3_vl_2b_qlora": VlmTrainingProfile(
         key="qwen3_vl_2b_qlora",
         model_id="Qwen/Qwen3-VL-2B-Instruct",
-        description="Experimental Qwen3-VL 2B profile kept for compatibility with earlier configs.",
+        description="Default Qwen3-VL 2B profile for Korean PRPD report SFT with 4-bit QLoRA.",
         training_strategy="4bit_qlora_sft_text_projector_only",
         min_vram_gb=8,
         load_in_4bit=True,

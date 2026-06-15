@@ -24,6 +24,18 @@ python ml/train_from_config.py --config ml/configs/training_smoke.yaml
 python ml/train_from_config.py --config ml/configs/training_service_baseline.yaml --only vision
 ```
 
+권장 사용:
+
+```powershell
+# 개발용 스모크(세 트랙 모두 dry-run)
+python ml/train_from_config.py --config ml/configs/training_smoke.yaml
+
+# 실제 학습(샘플 수를 줄여 빠른 검증 후 확장)
+python ml/timeseries/train.py --model gru --manifest data/manifest.csv --artifact-dir artifacts/models/time_series --output results/experiments.csv --sample-size 20 --epochs 1
+python ml/vision/train.py --manifest data/manifest.csv --output-dir artifacts/models/vision --sample-size 20 --epochs 1
+python ml/vlm/train.py --model-profile qwen3_vl_2b_qlora --manifest data/manifest.csv --sample-size 20 --dry-run  # 최초엔 dry-run으로 점검
+```
+
 Config shape:
 
 ```yaml

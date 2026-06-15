@@ -10,8 +10,10 @@ from prpd_similarity_retrieval import FEATURE_SCHEMA_VERSION
 from prpd_similarity_retrieval.models import CaseFeatures, SearchResult
 from prpd_similarity_retrieval.retrieval import (
     IMAGE_WEIGHT,
+    LABEL_BASELINE_WEIGHT,
     LABEL_WEIGHT,
     METADATA_WEIGHTS,
+    METADATA_BASELINE_WEIGHT,
     METADATA_WEIGHT,
     TIMESERIES_WEIGHT,
     _normalize_metadata,
@@ -87,16 +89,24 @@ class CompactFeatureIndex:
             image_scores = _missing_scores(self.case_count)
             timeseries_scores = _missing_scores(self.case_count)
 
-        metadata_scores = _metadata_scores(query.metadata, self.metadata_values, self.case_count)
-        label_scores = _label_scores(query.label_id, self.label_ids, self.label_available)
-        total_scores = _weighted_scores(
-            [
-                (image_scores, IMAGE_WEIGHT),
-                (timeseries_scores, TIMESERIES_WEIGHT),
-                (metadata_scores, METADATA_WEIGHT),
-                (label_scores, LABEL_WEIGHT),
-            ]
-        )
+        if include_feature_scores:
+            metadata_scores = _missing_scores(self.case_count)
+            label_scores = _missing_scores(self.case_count)
+            total_scores = _weighted_scores(
+                [
+                    (image_scores, IMAGE_WEIGHT),
+                    (timeseries_scores, TIMESERIES_WEIGHT),
+                ]
+            )
+        else:
+            metadata_scores = _metadata_scores(query.metadata, self.metadata_values, self.case_count)
+            label_scores = _label_scores(query.label_id, self.label_ids, self.label_available)
+            total_scores = _weighted_scores(
+                [
+                    (metadata_scores, METADATA_BASELINE_WEIGHT),
+                    (label_scores, LABEL_BASELINE_WEIGHT),
+                ]
+            )
         if exclude_self:
             for index, case in enumerate(self.cases):
                 if case.sample_id == query.sample_id:

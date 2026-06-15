@@ -1,0 +1,48 @@
+﻿{
+    "label": {
+        "PD_type": 1,
+        "image_path": "./원천데이터/노이즈/고체/ACSR-OC/노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.png",
+        "timeseries_path": "./원천데이터/노이즈/고체/ACSR-OC/노이즈_고체_ACSR-OC_230910_195222_HFCT_1000.csv"
+    },
+    "metadata": {
+        "equipment_information": {
+            "insulator_type": "고체",
+            "insulator_name": "XLPE",
+            "equipment_name": "ACSR-OC",
+            "equipment_manufacturer": "금화전선",
+            "equipment_id": "-",
+            "equipment_rated_voltage": "22900V",
+            "equipment_rated_current": "268A"
+        },
+        "environment": {
+            "recording_time": "230910_195222",
+            "recording_time_length": 20,
+            "data_collector": "KE-01, KE-02",
+            "power_supply_id": "YWHVTR160701",
+            "power_supply_voltage type": "AC",
+            "power_supply_frequency": "60Hz",
+            "power_supply_ramping_up_time": "1000V/s",
+            "power_supply_cutoff_current": "60mA",
+            "sensor_type": "HFCT",
+            "temperature": "19",
+            "humidity": "66",
+            "clearance_distance": "['1000mm']",
+            "IEC_standard": "IEC-60270",
+            "engage_start_time": "230910-114044"
+        },
+        "discharge_information": {
+            "defect_nums": "0",
+            "defect_details": [
+                [
+                    "0"
+                ],
+                [
+                    "0"
+                ]
+            ]
+        },
+        "discharge_evaluation_factors": {
+            "max_discharge_value": 82
+        }
+    }
+}

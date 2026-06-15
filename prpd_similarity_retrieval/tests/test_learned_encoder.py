@@ -32,6 +32,17 @@ def test_learned_search_returns_same_label_neighbor(tmp_path: Path) -> None:
     assert result.case.label_id == 1
 
 
+def test_learned_search_case_uses_persisted_encoder_state(tmp_path: Path) -> None:
+    learned_index = _learned_index(tmp_path, _cases())
+    output_path = tmp_path / "case_embedding_index.learned.npz"
+    save_learned_embedding_index(output_path, learned_index)
+    loaded = load_learned_embedding_index(output_path)
+
+    result = loaded.search_case(_case("external", 1, [0.95, 0.05, 0.0]), top_k=1)[0]
+
+    assert result.case.label_id == 1
+
+
 def test_learned_evaluation_reports_label_match(tmp_path: Path) -> None:
     learned_index = _learned_index(tmp_path, _cases())
 

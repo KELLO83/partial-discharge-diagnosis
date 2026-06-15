@@ -15,6 +15,7 @@
 |---|---:|---:|---:|
 | Feature retrieval | 30,010 | 1.000000 | 1.000000 |
 | Prototype encoder | 30,010 | 1.000000 | 1.000000 |
+| Learned projection | 30,010 | 0.998834 | 0.999367 |
 | Metadata baseline | 30,010 | 0.233322 | 0.233322 |
 | Delta | 30,010 | +0.766678 | +0.766678 |
 
@@ -28,6 +29,17 @@
 - Top-3 label match: `1.000000`
 
 This prototype validates the embedding index/search/evaluation path. It is not yet a production neural encoder because it uses supervised label centroids fitted on the available index. The next evaluation should use hard splits or human-reviewed neighbor relevance.
+
+## Learned Projection Encoder
+
+- Index: `prpd_similarity_retrieval/case_embedding_index.learned.npz`
+- Encoder: feature standardization + PCA projection + label centroid affinity
+- Encoder version: `supervised_projection_encoder_v1`
+- Embedding dimension: `94`
+- Top-1 label match: `0.998834`
+- Top-3 label match: `0.999367`
+
+The learned projection index stores the encoder state with the embedding matrix, so backend runtime can transform a new inspection case into the same embedding space. This is still not a final CNN/TS2Vec model; it is the operational embedding retrieval path used as the next baseline.
 
 ## Hard Split Sanity Check
 
@@ -111,16 +123,27 @@ The full report confirms that the strongest issue is not only `CNCV-W`; `단상 
 
 Prototype hard split improves several weak feature groups, especially `단상 유입변압기`, `CNCV-W`, and `계기용 변압기`, but it does not solve every domain gap. `25.8kV GIS` remains near the feature baseline and `ACSR-OC` top-1 is slightly lower than the handcrafted feature baseline. This confirms that the prototype encoder is useful for evaluation plumbing but still not a substitute for a trained PRPD/time-series embedding model.
 
-## Learned Projection Encoder Status
+## Full Equipment Learned Projection Hard Split
 
-- Module: `prpd_similarity_retrieval/learned_encoder.py`
-- Encoder: feature standardization + PCA projection + label centroid affinity
-- Purpose: lock down the embedding index/search/evaluation path before replacing the projection input with CNN/TS2Vec encoder outputs.
-- Verified scope: unit tests for index save/load, sample search, leave-one-out evaluation, and hard split report plumbing.
-- Not yet run: full dataset learned projection report.
-- Not yet exposed: CLI commands for learned index build/query/evaluation.
+- Report file: `prpd_similarity_retrieval/hard_split_report.full.learned.md`
+- Command: `python -m prpd_similarity_retrieval.cli evaluate-learned-hard-split-report --index prpd_similarity_retrieval\case_feature_index.npz --split-field equipment_name --top-k 3 --batch-size 256 --progress-every 1000 --format markdown --output prpd_similarity_retrieval\hard_split_report.full.learned.md`
+- Scope: all `equipment_name` holdout groups
+- Query label usage: hidden
+- Encoder: `supervised_projection_encoder_v1`
 
-This is an implementation scaffold, not a final model result. The authoritative full-dataset retrieval scores remain the feature/metadata hard split and prototype hard split reports above.
+| Holdout | Query | Train | Learned top-1 | Learned top-3 |
+|---|---:|---:|---:|---:|
+| 25.8kV GIS | 5,000 | 25,010 | 0.244000 | 0.262400 |
+| ACSR-OC | 3,335 | 26,675 | 0.476162 | 0.519340 |
+| CNCV-W | 3,335 | 26,675 | 0.320540 | 0.353523 |
+| TFR-CV | 3,335 | 26,675 | 0.589805 | 0.614093 |
+| 계기용 변압기 | 3,335 | 26,675 | 0.538831 | 0.594003 |
+| 단상 유입변압기 | 3,335 | 26,675 | 0.482459 | 0.498351 |
+| 전력용 유입변압기 | 3,335 | 26,675 | 0.730435 | 0.750825 |
+| 22.9kV 배전반 | 2,500 | 27,510 | 0.885200 | 0.908800 |
+| 7.2kV 배전반 | 2,500 | 27,510 | 0.883200 | 0.913600 |
+
+Learned projection improves the weak feature/prototype groups `ACSR-OC`, `TFR-CV`, `계기용 변압기`, `단상 유입변압기`, `전력용 유입변압기`, and `7.2kV 배전반`. It is worse for `25.8kV GIS`, `CNCV-W`, and `22.9kV 배전반`, so production scoring should keep fallback/ensemble logic rather than assuming one embedding is uniformly better.
 
 ## Hard Split Failure Samples
 

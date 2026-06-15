@@ -57,7 +57,7 @@ def test_parse_llm_rag_payload_accepts_json_fence() -> None:
 
 def test_build_llm_rag_reporter_falls_back_without_openrouter_key(monkeypatch) -> None:
     monkeypatch.setenv("LLM_RAG_PROVIDER", "auto")
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "")
     fallback = _FallbackAdapter()
 
     adapter, status = build_llm_rag_reporter(fallback)

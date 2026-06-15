@@ -7,6 +7,7 @@ from typing import Any
 import torch
 from torch import nn
 
+from ml.timeseries.src.models.adapters import resize_time_axis_time_first
 from ml.timeseries.src.models.base import BaseTimeSeriesModel
 from ml.timeseries.src.schema import DEFAULT_PSEUDO_CHANNELS, N_CLASSES
 
@@ -23,6 +24,7 @@ class GRUModel(BaseTimeSeriesModel):
         num_layers = int(cfg.get("num_layers", 2))
         dropout = float(cfg.get("dropout", 0.2))
         bidirectional = bool(cfg.get("bidirectional", True))
+        self.seq_len = int(cfg.get("seq_len", 7680))
         self.gru = nn.GRU(
             input_size=int(cfg.get("input_size", DEFAULT_PSEUDO_CHANNELS)),
             hidden_size=hidden_size,
@@ -40,6 +42,7 @@ class GRUModel(BaseTimeSeriesModel):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = resize_time_axis_time_first(x, self.seq_len)
         if self.use_cudnn:
             _, hidden = self.gru(x)
         else:

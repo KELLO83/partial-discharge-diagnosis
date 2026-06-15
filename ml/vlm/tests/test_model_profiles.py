@@ -5,10 +5,10 @@ import pytest
 from ml.vlm.src.model_profiles import profile_keys, resolve_training_profile
 
 
-def test_default_qwen_profile_uses_qlora_guardrails() -> None:
-    profile = resolve_training_profile("qwen2_5_vl_3b_qlora")
+def test_default_qwen3_2b_profile_uses_qlora_guardrails() -> None:
+    profile = resolve_training_profile("qwen3_vl_2b_qlora")
 
-    assert profile.model_id == "Qwen/Qwen2.5-VL-3B-Instruct"
+    assert profile.model_id == "Qwen/Qwen3-VL-2B-Instruct"
     assert profile.load_in_4bit is True
     assert profile.train_vision_tower is False
     assert profile.train_projector is False
@@ -29,5 +29,6 @@ def test_unknown_profile_reports_supported_profiles() -> None:
         resolve_training_profile("unknown")
 
     message = str(exc_info.value)
+    assert "qwen3_vl_2b_qlora" in message
     assert "qwen2_5_vl_3b_qlora" in message
     assert "smolvlm2_2b_qlora" in profile_keys()

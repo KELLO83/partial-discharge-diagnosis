@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -32,6 +33,7 @@ class TraceEvent:
     name: str
     kind: str
     summary: dict[str, Any]
+    created_at: str
 
 
 @dataclass(slots=True)
@@ -39,13 +41,17 @@ class TraceRecorder:
     events: list[TraceEvent] = field(default_factory=list)
 
     def record(self, name: str, kind: str, summary: dict[str, Any]) -> None:
-        self.events.append(TraceEvent(name=name, kind=kind, summary=summary))
+        self.events.append(TraceEvent(name=name, kind=kind, summary=summary, created_at=_now_iso()))
 
     def public_events(self) -> list[dict[str, Any]]:
         return [
-            {"name": event.name, "kind": event.kind, "summary": event.summary}
+            {"name": event.name, "kind": event.kind, "summary": event.summary, "created_at": event.created_at}
             for event in self.events
         ]
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 @dataclass(frozen=True, slots=True)

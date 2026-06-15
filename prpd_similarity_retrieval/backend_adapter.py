@@ -3,7 +3,9 @@
 import os
 from functools import cached_property
 from pathlib import Path
+from urllib.parse import quote
 
+from service.backend.app.config.env import load_project_env
 from prpd_similarity_retrieval import FEATURE_SCHEMA_VERSION
 from prpd_similarity_retrieval.compact_index import CompactFeatureIndex, is_compact_index_path, load_compact_feature_index
 from prpd_similarity_retrieval.features import extract_case_features
@@ -11,7 +13,6 @@ from prpd_similarity_retrieval.models import CaseRecord, SearchResult
 from prpd_similarity_retrieval.retrieval import load_feature_index, search_similar_cases
 from service.backend.app.domain.policy import label_name
 from service.backend.app.schemas import MetadataInput, SimilarCase, SimilarCaseResult, TimeSeriesResult, VisionResult
-from service.backend.app.domain.similar_cases import build_similarity_query, dataset_case_repository
 from service.backend.app.application.contracts import SimilarCaseRetrievalAdapter, SimilarCaseToolInput
 
 
@@ -35,10 +36,10 @@ class FeatureSimilarityCaseRetrievalAdapter(SimilarCaseRetrievalAdapter):
         return _load_index(index_path)
 
     def run(self, tool_input: SimilarCaseToolInput) -> SimilarCaseResult:
+        query = _query_features(tool_input)
         indexed_cases = self._indexed_cases
         if indexed_cases is None:
             return _metadata_fallback_result(tool_input)
-        query = _query_features(tool_input)
         results = _search_index(indexed_cases, query)
         return SimilarCaseResult(
             retriever_name=self.model_name,
@@ -49,6 +50,7 @@ class FeatureSimilarityCaseRetrievalAdapter(SimilarCaseRetrievalAdapter):
 
 
 def _feature_index_path() -> Path | None:
+    load_project_env()
     raw_path = os.getenv("PRPD_CASE_FEATURE_INDEX")
     candidates = (
         [Path(raw_path)]
@@ -127,40 +129,35 @@ def _to_backend_case(result: SearchResult) -> SimilarCase:
         clearance_distance=metadata.get("clearance_distance", ""),
         similarity=round(result.score, 6),
         reason=result.reason,
-        image_url=f"/dataset/cases/{result.case.sample_id}/image",
+        image_url=_dataset_case_asset_url(result.case.sample_id, "image"),
+        timeseries_url=_dataset_case_asset_url(result.case.sample_id, "timeseries") if result.case.timeseries_path else None,
         metadata={
             "equipment_rated_voltage": metadata.get("equipment_rated_voltage", ""),
             "equipment_rated_current": metadata.get("equipment_rated_current", ""),
+            "retriever_mode": "domain_feature_retriever",
             "feature_component_prpd": result.image_score,
             "feature_component_timeseries": result.timeseries_score,
-            "feature_component_metadata": result.metadata_score,
-            "feature_component_label": result.label_score,
         },
     )
 
 
-def _feature_query_text(tool_input: SimilarCaseToolInput) -> str:
+def _dataset_case_asset_url(sample_id: str, asset: str) -> str:
+    return f"/dataset/cases/{quote(sample_id, safe='')}/{asset}"
+
+
+def _feature_query_text(tool_input: SimilarCaseToolInput, retrieval_mode: str = "prpd_image+timeseries") -> str:
     return (
         f"route={tool_input.route}; "
         f"image={tool_input.image_path is not None}; "
         f"timeseries={tool_input.timeseries_path is not None}; "
-        "feature=prpd_image+timeseries+metadata+label"
+        f"feature={retrieval_mode}"
     )
 
 
 def _metadata_fallback_result(tool_input: SimilarCaseToolInput) -> SimilarCaseResult:
-    cases = dataset_case_repository.similar_cases(
-        tool_input.safe_metadata,
-        tool_input.timeseries_result,
-        tool_input.vision_result,
-    )
     return SimilarCaseResult(
-        retriever_name="metadata_weighted_case_retriever_fallback",
-        retriever_version="legacy",
-        query=build_similarity_query(
-            tool_input.safe_metadata,
-            tool_input.timeseries_result,
-            tool_input.vision_result,
-        ),
-        cases=cases,
+        retriever_name="prpd_timeseries_case_retriever_unavailable",
+        retriever_version="no_feature_index",
+        query=_feature_query_text(tool_input, retrieval_mode="prpd_image+timeseries_required"),
+        cases=[],
     )

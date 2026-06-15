@@ -66,6 +66,7 @@ class LearnedEmbeddingIndex:
     label_available: np.ndarray
     sample_tie_ranks: np.ndarray
     config: LearnedEncoderConfig
+    state: LearnedEncoderState | None = None
 
     @property
     def case_count(self) -> int:
@@ -82,6 +83,17 @@ class LearnedEmbeddingIndex:
         scores = _cosine_scores(self.embeddings[query_index], self.embeddings, self.embedding_norms)
         if exclude_self:
             scores[query_index] = -np.inf
+        return [LearnedSearchResult(self.cases[index], float(scores[index])) for index in _top_indices(scores, self.sample_tie_ranks, top_k)]
+
+    def search_case(self, query: CaseFeatures, top_k: int = 5, exclude_self: bool = True) -> list[LearnedSearchResult]:
+        if self.state is None:
+            raise ValueError("learned index does not include encoder state for external queries")
+        query_embedding = transform_learned_case(query, self.state)
+        scores = _cosine_scores(query_embedding, self.embeddings, self.embedding_norms)
+        if exclude_self:
+            for index, case in enumerate(self.cases):
+                if case.sample_id == query.sample_id:
+                    scores[index] = -np.inf
         return [LearnedSearchResult(self.cases[index], float(scores[index])) for index in _top_indices(scores, self.sample_tie_ranks, top_k)]
 
 
@@ -114,6 +126,7 @@ def build_learned_embedding_index(
         label_available=feature_index.label_available,
         sample_tie_ranks=feature_index.sample_tie_ranks,
         config=config,
+        state=state,
     )
 
 
@@ -175,9 +188,36 @@ def transform_learned_embeddings(
     )
 
 
+def transform_learned_case(query: CaseFeatures, state: LearnedEncoderState) -> np.ndarray:
+    image_vector = _case_vector(query.image_vector, state.image_state.mean.size)
+    timeseries_vector = _case_vector(query.timeseries_vector, state.timeseries_state.mean.size)
+    image_embedding = _transform_modality_embeddings(
+        vectors=image_vector.reshape(1, -1),
+        available=np.asarray([query.image_vector is not None]),
+        state=state.image_state,
+        centroid_weight=state.config.centroid_weight,
+    )
+    timeseries_embedding = _transform_modality_embeddings(
+        vectors=timeseries_vector.reshape(1, -1),
+        available=np.asarray([query.timeseries_vector is not None]),
+        state=state.timeseries_state,
+        centroid_weight=state.config.centroid_weight,
+    )
+    return _normalize_rows(
+        np.concatenate(
+            [
+                image_embedding * state.config.image_weight,
+                timeseries_embedding * state.config.timeseries_weight,
+            ],
+            axis=1,
+        )
+    )[0]
+
+
 def save_learned_embedding_index(path: Path, index: LearnedEmbeddingIndex) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     cases_json = json.dumps([case.to_dict() for case in index.cases], ensure_ascii=False)
+    state_payload = _state_arrays(index.state)
     np.savez_compressed(
         path,
         schema_version=np.asarray(FEATURE_SCHEMA_VERSION),
@@ -189,6 +229,7 @@ def save_learned_embedding_index(path: Path, index: LearnedEmbeddingIndex) -> No
         label_ids=index.label_ids.astype(np.int32),
         label_available=index.label_available.astype(bool),
         sample_tie_ranks=index.sample_tie_ranks.astype(np.int32),
+        **state_payload,
     )
 
 
@@ -202,6 +243,7 @@ def load_learned_embedding_index(path: Path) -> LearnedEmbeddingIndex:
             raise ValueError(f"Unsupported learned encoder: {encoder_version}")
         cases = [CaseFeatures.from_dict(item) for item in json.loads(str(archive["cases_json"].item()))]
         embeddings = np.asarray(archive["embeddings"], dtype=np.float32)
+        config = LearnedEncoderConfig(**json.loads(str(archive["config_json"].item())))
         return LearnedEmbeddingIndex(
             cases=cases,
             embeddings=embeddings,
@@ -209,7 +251,8 @@ def load_learned_embedding_index(path: Path) -> LearnedEmbeddingIndex:
             label_ids=np.asarray(archive["label_ids"], dtype=np.int32),
             label_available=np.asarray(archive["label_available"], dtype=bool),
             sample_tie_ranks=np.asarray(archive["sample_tie_ranks"], dtype=np.int32),
-            config=LearnedEncoderConfig(**json.loads(str(archive["config_json"].item()))),
+            config=config,
+            state=_state_from_archive(archive, config),
         )
 
 
@@ -251,6 +294,61 @@ def evaluate_learned_index(
 
 def learned_results_to_json(results: list[LearnedSearchResult]) -> str:
     return json.dumps({"results": [result.to_dict() for result in results]}, ensure_ascii=False, indent=2)
+
+
+def _case_vector(vector: list[float] | None, expected_dim: int) -> np.ndarray:
+    if expected_dim == 0:
+        return np.zeros(0, dtype=np.float32)
+    if vector is None:
+        return np.zeros(expected_dim, dtype=np.float32)
+    if len(vector) != expected_dim:
+        raise ValueError(f"query vector dimension mismatch: expected {expected_dim}, got {len(vector)}")
+    return np.asarray(vector, dtype=np.float32)
+
+
+def _state_arrays(state: LearnedEncoderState | None) -> dict[str, np.ndarray]:
+    if state is None:
+        return {}
+    return {
+        "image_mean": state.image_state.mean.astype(np.float32),
+        "image_std": state.image_state.std.astype(np.float32),
+        "image_components": state.image_state.components.astype(np.float32),
+        "image_centroids": state.image_state.centroids.astype(np.float32),
+        "timeseries_mean": state.timeseries_state.mean.astype(np.float32),
+        "timeseries_std": state.timeseries_state.std.astype(np.float32),
+        "timeseries_components": state.timeseries_state.components.astype(np.float32),
+        "timeseries_centroids": state.timeseries_state.centroids.astype(np.float32),
+    }
+
+
+def _state_from_archive(archive, config: LearnedEncoderConfig) -> LearnedEncoderState | None:
+    required_keys = {
+        "image_mean",
+        "image_std",
+        "image_components",
+        "image_centroids",
+        "timeseries_mean",
+        "timeseries_std",
+        "timeseries_components",
+        "timeseries_centroids",
+    }
+    if not required_keys.issubset(set(archive.files)):
+        return None
+    return LearnedEncoderState(
+        config=config,
+        image_state=ModalityProjectionState(
+            mean=np.asarray(archive["image_mean"], dtype=np.float32),
+            std=np.asarray(archive["image_std"], dtype=np.float32),
+            components=np.asarray(archive["image_components"], dtype=np.float32),
+            centroids=np.asarray(archive["image_centroids"], dtype=np.float32),
+        ),
+        timeseries_state=ModalityProjectionState(
+            mean=np.asarray(archive["timeseries_mean"], dtype=np.float32),
+            std=np.asarray(archive["timeseries_std"], dtype=np.float32),
+            components=np.asarray(archive["timeseries_components"], dtype=np.float32),
+            centroids=np.asarray(archive["timeseries_centroids"], dtype=np.float32),
+        ),
+    )
 
 
 def _fit_modality_state(

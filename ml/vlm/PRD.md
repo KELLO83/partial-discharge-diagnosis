@@ -146,9 +146,9 @@ unknown
 First candidates:
 
 ```text
+Qwen/Qwen3-VL-2B-Instruct
 Qwen/Qwen2.5-VL-3B-Instruct
 HuggingFaceTB/SmolVLM2-2.2B-Instruct
-Qwen/Qwen3-VL-2B-Instruct
 ```
 
 Training priority:
@@ -200,20 +200,20 @@ python ml/vlm/train.py --model-profile smolvlm2_2b_qlora --manifest data/manifes
 Actual adapter training:
 
 ```powershell
-python ml/vlm/train.py --model-profile qwen2_5_vl_3b_qlora --manifest data/manifest.csv --sample-size 500 --max-steps 100
+python ml/vlm/train.py --model-profile qwen3_vl_2b_qlora --manifest data/manifest.csv --sample-size 500 --max-steps 100
 ```
 
 Available model profiles:
 
 ```text
+qwen3_vl_2b_qlora
+  Default Qwen3-VL 2B profile. 4-bit QLoRA, frozen vision tower, frozen projector, 512x512 image budget.
+
 qwen2_5_vl_3b_qlora
-  Default quality profile. 4-bit QLoRA, frozen vision tower, frozen projector, 512x512 image budget.
+  Stable fallback profile when Qwen3-VL support is unstable or quality comparison is needed.
 
 smolvlm2_2b_qlora
   Low-VRAM smoke profile. Use before longer Qwen-family runs.
-
-qwen3_vl_2b_qlora
-  Compatibility/experimental profile for earlier Qwen3-VL configs.
 ```
 
 Input construction:

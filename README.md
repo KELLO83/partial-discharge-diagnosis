@@ -14,16 +14,18 @@ Current limitation: this is a solo portfolio project and uses the available loca
 
 Current service adapters are intentionally mock-backed until trained model checkpoints are connected. After model development, replace the mock time-series and VLM adapters with checkpoint-backed adapters; the admin dashboard, trace API, review workflow, and report export are already structured around that handoff.
 
-Model serving is wired through a manifest-based adapter registry. Keep `MODEL_ADAPTER_MODE=mock` while checkpoints are absent. When ML artifacts are ready, copy the templates from `service/backend/model_artifact_templates/<task>/model_manifest.json` into `artifacts/models/<task>/model_manifest.json`, place the referenced checkpoint/preprocessor files next to the manifest, implement the matching `ml/<task>/src/service_adapter.py` entrypoint, and set `MODEL_ADAPTER_MODE=checkpoint` or `auto`.
+Runtime configuration is centralized in the repository root `.env`. Database URLs, RAG settings, OpenRouter keys, model adapter mode, model artifact paths, and the frontend API base should be changed there instead of setting per-service environment files.
+
+Model serving is wired through a manifest-based adapter registry. Keep `MODEL_ADAPTER_MODE=mock` in `.env` while checkpoints are absent. When ML artifacts are ready, copy the templates from `service/backend/model_artifact_templates/<task>/model_manifest.json` into `artifacts/models/<task>/model_manifest.json`, place the referenced checkpoint/preprocessor files next to the manifest, implement the matching `ml/<task>/src/service_adapter.py` entrypoint, and set `MODEL_ADAPTER_MODE=checkpoint` or `auto`.
 
 RAG is production-shaped but still lightweight. The service uses PostgreSQL + pgvector under the `partial_discharge_diagnosis` database with `rag.documents`, `rag.chunks`, and `rag.query_logs`. Text retrieval is configured for `dragonkue/multilingual-e5-small-ko-v2` with 384-dimensional vectors, while deterministic fallback embeddings keep the local demo usable before the embedding dependency is installed. The customer dashboard does not expose RAG administration; RAG runs behind the diagnosis workflow as evidence retrieval for the LLM/VLM report.
 
-LLM RAG can call OpenRouter through the OpenAI-compatible chat completions API. Keep `LLM_RAG_PROVIDER=auto`; when `OPENROUTER_API_KEY` is present, the service uses OpenRouter for the final RAG-grounded diagnosis report, and otherwise falls back to the local development VLM adapter.
+LLM RAG can call OpenRouter through the OpenAI-compatible chat completions API. Keep `LLM_RAG_PROVIDER=auto`; when `OPENROUTER_API_KEY` is present in root `.env`, the service uses OpenRouter for the final RAG-grounded diagnosis report, and otherwise falls back to the local development VLM adapter.
 
 Local RAG setup:
 
 ```powershell
-$env:DATABASE_URL="postgresql://postgres:<password>@localhost:5432/partial_discharge_diagnosis"
+# Edit DATABASE_URL in .env first.
 python service/backend/scripts/rag_init_db.py
 python service/backend/scripts/rag_ingest_sources.py
 ```

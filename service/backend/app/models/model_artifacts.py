@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from service.backend.app.config.env import load_project_env
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_MODEL_ARTIFACT_ROOT = PROJECT_ROOT / "artifacts" / "models"
@@ -80,6 +82,7 @@ class ModelAdapterSettings:
 
     @classmethod
     def from_env(cls) -> "ModelAdapterSettings":
+        load_project_env()
         return cls(
             mode=_env_mode("MODEL_ADAPTER_MODE", "mock"),
             artifact_root=_artifact_root(os.getenv("MODEL_ARTIFACT_ROOT")),

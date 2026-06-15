@@ -8,7 +8,13 @@ from service.backend.app.models.checkpoint_adapters import (
     CheckpointVisionInferenceAdapter,
     CheckpointVlmInferenceAdapter,
 )
-from service.backend.app.models.model_artifacts import ModelAdapterSettings, ModelArtifactRegistry, ModelTask
+from service.backend.app.models.model_artifacts import (
+    ModelAdapterSettings,
+    ModelArtifactOverride,
+    ModelArtifactRecord,
+    ModelArtifactRegistry,
+    ModelTask,
+)
 from service.backend.app.models.model_runtime import MockModelAdapters, build_service_model_runtime
 from service.backend.app.application.contracts import TimeSeriesToolInput, VisionToolInput, VlmToolInput
 from service.backend.app.schemas import MetadataInput
@@ -24,6 +30,23 @@ def test_model_artifact_registry_loads_ready_manifest(tmp_path: Path) -> None:
     assert record.manifest.model_name == "test_time_series_model"
     assert record.checkpoint_path is not None
     assert record.checkpoint_path.exists()
+
+
+def test_model_artifact_registry_prefers_explicit_env_style_paths(tmp_path: Path) -> None:
+    _write_manifest(tmp_path, "vision")
+    explicit_checkpoint = tmp_path / "custom_vision.pt"
+    explicit_checkpoint.write_text("custom checkpoint", encoding="utf-8")
+    registry = ModelArtifactRegistry(
+        tmp_path,
+        artifact_overrides={
+            "vision": ModelArtifactOverride(checkpoint_path=explicit_checkpoint),
+        },
+    )
+
+    record = registry.get("vision")
+
+    assert record.ready
+    assert record.checkpoint_path == explicit_checkpoint
 
 
 def test_checkpoint_timeseries_adapter_normalizes_backend_output(tmp_path: Path) -> None:
@@ -137,7 +160,7 @@ class _MockAdapter:
         self.model_version = "test"
 
 
-def _ready_record(tmp_path: Path, task: ModelTask):
+def _ready_record(tmp_path: Path, task: ModelTask) -> ModelArtifactRecord:
     _write_manifest(tmp_path, task)
     return ModelArtifactRegistry(tmp_path).get(task)
 

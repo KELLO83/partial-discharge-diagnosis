@@ -1,6 +1,7 @@
 # Experiment Notes
 
-Use this folder only after actual model or composite-evaluation runs begin.
+Use this folder for actual model or composite-evaluation run notes. Keep raw
+datasets, checkpoints, PRPD images, and private artifacts out of the wiki.
 
 Suggested folders:
 
@@ -8,7 +9,7 @@ Suggested folders:
 time_series/
 vlm/
 composite_eval/
-vision_optional/
+vision/
 artifacts/
 ```
 

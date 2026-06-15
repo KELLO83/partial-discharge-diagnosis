@@ -253,16 +253,19 @@ Output:
 natural-language diagnosis or structured JSON diagnosis
 ```
 
-Candidate models:
+Current local baseline:
+
+- SmolVLM2-2.2B-Instruct with QLoRA
+
+Future candidate models:
 
 - Qwen3-VL-2B-Instruct
 - Qwen2.5-VL-3B-Instruct
 - Qwen3-VL-4B-Instruct
-- SmolVLM2-2.2B-Instruct
 - PaliGemma / PaliGemma 2
 - Small LLaVA-family VLMs
 
-Start with 2B to 3B models because the target GPU is an RTX 4060 Laptop with 8GB VRAM.
+Use 2B to 3B models because the target GPU is an RTX 4060 Laptop with 8GB VRAM.
 
 ## 9. Difference Between Classifiers and VLM Training
 

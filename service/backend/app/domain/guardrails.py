@@ -92,16 +92,19 @@ def _label_disagreement(
     vision_result: VisionResult | None,
     vlm_result: VlmResult | None,
 ) -> str | None:
-    labels: dict[str, int] = {}
+    labels: dict[str, tuple[int, str]] = {}
     if ts_result is not None:
-        labels["시계열"] = ts_result.label_id
+        labels["시계열"] = (ts_result.label_id, ts_result.label_name)
     if vision_result is not None:
-        labels["비전"] = vision_result.label_id
+        labels["비전"] = (vision_result.label_id, vision_result.label_name)
     if vlm_result is not None:
-        labels["VLM"] = vlm_result.label_id
-    if len(set(labels.values())) <= 1:
+        labels["VLM"] = (vlm_result.label_id, vlm_result.diagnosis)
+    if len({label_id for label_id, _ in labels.values()}) <= 1:
         return None
-    label_text = ", ".join(f"{name}={label_id}" for name, label_id in labels.items())
+    label_text = ", ".join(
+        f"{source}={label_name}({label_id})"
+        for source, (label_id, label_name) in labels.items()
+    )
     return f"모델 간 예측 라벨이 불일치합니다: {label_text}"
 
 

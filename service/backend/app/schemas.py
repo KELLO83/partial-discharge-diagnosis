@@ -117,12 +117,6 @@ class SimilarCaseResult(BaseModel):
     cases: list[SimilarCase]
 
 
-class DatasetCaseListResponse(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    items: list[SimilarCase]
-
-
 class RagResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -352,38 +346,10 @@ class DiagnosisListResponse(BaseModel):
     items: list[DiagnosisListItem]
 
 
-class ReviewActionRequest(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    action: Literal["approve", "request_retest", "dispatch_field_team", "mark_false_positive"]
-    note: str = Field(default="", max_length=1000)
-
-
-class ReviewActionRecord(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    action: str
-    note: str
-    created_at: str
-
-
-class DiagnosisCommentRequest(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    note: str = Field(min_length=1, max_length=2000)
-
-
-class DiagnosisCommentRecord(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    note: str
-    created_at: str
-
-
 class CaseTimelineEvent(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    kind: Literal["diagnosis", "trace", "action", "comment"]
+    kind: Literal["diagnosis", "trace"]
     title: str
     body: str
     created_at: str
@@ -394,8 +360,6 @@ class DiagnosisDetailResponse(BaseModel):
 
     diagnosis: DiagnosisListItem
     trace: "TraceResponse"
-    actions: list[ReviewActionRecord] = Field(default_factory=list)
-    comments: list[DiagnosisCommentRecord] = Field(default_factory=list)
     timeline: list[CaseTimelineEvent] = Field(default_factory=list)
 
 
@@ -404,38 +368,6 @@ class DiagnosisReportResponse(BaseModel):
 
     detail: DiagnosisDetailResponse
     reference_cases: list[SimilarCase] = Field(default_factory=list)
-
-
-class DemoScenario(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    scenario_id: str
-    title: str
-    diagnosis_id: str
-    route: DiagnosisRoute
-    status: DiagnosisStatus
-    risk_level: str | None = None
-    summary: str
-
-
-class DemoScenarioListResponse(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    scenarios: list[DemoScenario]
-
-
-class DemoSeedResponse(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    seeded: list[str]
-    scenarios: list[DemoScenario]
-
-
-class DemoScenarioActivationResponse(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    scenario: DemoScenario
-    detail: DiagnosisDetailResponse
 
 
 class ModelRuntimeStatus(BaseModel):

@@ -8,11 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from service.backend.app.infrastructure.artifacts import find_uploaded_file, store_upload
-from service.backend.app.application.demo import (
-    activate_demo_scenario,
-    demo_scenarios,
-    seed_demo_records,
-)
 from service.backend.app.infrastructure.openai_agents_adapter import check_agents_sdk
 from service.backend.app.rag.admin import (
     list_rag_documents,
@@ -24,12 +19,6 @@ from service.backend.app.rag.admin import (
 )
 from service.backend.app.rag.chat import RagChatInput, answer_rag_chat
 from service.backend.app.schemas import (
-    DemoScenarioActivationResponse,
-    DemoScenarioListResponse,
-    DemoSeedResponse,
-    DatasetCaseListResponse,
-    DiagnosisCommentRecord,
-    DiagnosisCommentRequest,
     DiagnosisDetailResponse,
     DiagnosisListResponse,
     DiagnosisReportResponse,
@@ -45,8 +34,6 @@ from service.backend.app.schemas import (
     RagSearchRequest,
     RagSearchResponse,
     RagStatusResponse,
-    ReviewActionRecord,
-    ReviewActionRequest,
     SimilarCase,
     TraceResponse,
 )
@@ -204,22 +191,6 @@ def diagnosis_detail(diagnosis_id: str) -> DiagnosisDetailResponse:
     return detail
 
 
-@app.post("/diagnoses/{diagnosis_id}/actions", response_model=ReviewActionRecord)
-def add_review_action(diagnosis_id: str, request: ReviewActionRequest) -> ReviewActionRecord:
-    record = trace_store.add_action(diagnosis_id, request.action, request.note)
-    if record is None:
-        raise HTTPException(status_code=404, detail="diagnosis not found")
-    return record
-
-
-@app.post("/diagnoses/{diagnosis_id}/comments", response_model=DiagnosisCommentRecord)
-def add_diagnosis_comment(diagnosis_id: str, request: DiagnosisCommentRequest) -> DiagnosisCommentRecord:
-    record = trace_store.add_comment(diagnosis_id, request.note)
-    if record is None:
-        raise HTTPException(status_code=404, detail="diagnosis not found")
-    return record
-
-
 @app.get("/diagnoses/{diagnosis_id}/report", response_model=DiagnosisReportResponse)
 def diagnosis_report(diagnosis_id: str) -> DiagnosisReportResponse:
     detail = trace_store.detail(diagnosis_id)
@@ -244,35 +215,6 @@ def diagnosis_timeseries_csv(diagnosis_id: str) -> FileResponse:
     return FileResponse(csv_path, media_type="text/csv")
 
 
-@app.get("/dataset/cases", response_model=DatasetCaseListResponse)
-def dataset_cases(limit: int = 20) -> DatasetCaseListResponse:
-    cases = [
-        to_similar_case(case, 1.0, "데이터셋 등록 사례")
-        for case in dataset_case_repository.list(limit=limit)
-    ]
-    return DatasetCaseListResponse(items=cases)
-
-
-@app.get("/dataset/cases/search", response_model=DatasetCaseListResponse)
-def search_dataset_cases(
-    limit: int = 20,
-    label_id: int | None = None,
-    equipment_name: str | None = None,
-    sensor_type: str | None = None,
-    insulator_type: str | None = None,
-    query: str | None = None,
-) -> DatasetCaseListResponse:
-    cases = dataset_case_repository.search(
-        label_id=label_id,
-        equipment_name=equipment_name,
-        sensor_type=sensor_type,
-        insulator_type=insulator_type,
-        query=query,
-        limit=limit,
-    )
-    return DatasetCaseListResponse(items=cases)
-
-
 @app.get("/dataset/cases/{sample_id}", response_model=SimilarCase)
 def dataset_case_detail(sample_id: str) -> SimilarCase:
     case = dataset_case_repository.get(sample_id)
@@ -295,28 +237,6 @@ def dataset_case_timeseries(sample_id: str) -> FileResponse:
     if case is None or not case.timeseries_path.exists():
         raise HTTPException(status_code=404, detail="dataset case timeseries not found")
     return FileResponse(case.timeseries_path, media_type="text/csv")
-
-
-@app.get("/demo/scenarios", response_model=DemoScenarioListResponse)
-def list_demo_scenarios() -> DemoScenarioListResponse:
-    return DemoScenarioListResponse(scenarios=demo_scenarios())
-
-
-@app.post("/demo/seed", response_model=DemoSeedResponse)
-def seed_demo() -> DemoSeedResponse:
-    return seed_demo_records()
-
-
-@app.post("/demo/scenarios/{scenario_id}/activate", response_model=DemoScenarioActivationResponse)
-def activate_scenario(scenario_id: str) -> DemoScenarioActivationResponse:
-    activated = activate_demo_scenario(scenario_id)
-    if activated is None:
-        raise HTTPException(status_code=404, detail="demo scenario not found")
-    scenario, diagnosis_id = activated
-    detail = trace_store.detail(diagnosis_id)
-    if detail is None:
-        raise HTTPException(status_code=500, detail="demo scenario detail not seeded")
-    return DemoScenarioActivationResponse(scenario=scenario, detail=detail)
 
 
 @app.post("/diagnose", response_model=DiagnosisResponse)

@@ -8,6 +8,10 @@ from ml.vlm.src.schema import PD_LABELS_KO
 
 DEFAULT_MAX_NEW_TOKENS = 512
 DEFAULT_ATTN_IMPLEMENTATION = "sdpa"
+DEFAULT_FALLBACK_CONFIDENCE = 0.5
+DEFAULT_FALLBACK_LABEL_ID = 0
+GENERIC_MODEL_TEXT = {"normal", "noise", "unknown"}
+SUPPORTED_ATTN_IMPLEMENTATIONS = {"sdpa", "eager"}
 
 RISK_LEVEL_BY_LABEL: dict[str, str] = {
     "0": "낮음",
@@ -44,25 +48,16 @@ class VlmServiceAdapter:
 
         label_id = _resolve_label_id(parsed_report.get("label_id"), vote)
         confidence = _resolve_confidence(parsed_report.get("confidence"), vote)
-        diagnosis = str(parsed_report.get("diagnosis") or PD_LABELS_KO.get(label_id, "정상"))
+        diagnosis = _resolve_diagnosis(parsed_report.get("diagnosis"), label_id)
         return {
             "model_name": str(_model_name(self.context)),
             "model_version": str(_model_version(self.context)),
             "label_id": label_id,
             "diagnosis": diagnosis,
-            "risk_level": str(
-                parsed_report.get("risk_level")
-                or RISK_LEVEL_BY_LABEL.get(str(label_id), "확인필요")
-            ),
+            "risk_level": _resolve_risk_level(parsed_report.get("risk_level"), label_id),
             "confidence": confidence,
-            "reason": str(
-                parsed_report.get("reason")
-                or "시계열/비전/지식 근거를 반영해 판단된 결과입니다."
-            ),
-            "recommended_action": str(
-                parsed_report.get("recommended_action")
-                or _default_recommended_action(label_id)
-            ),
+            "reason": _resolve_reason(parsed_report.get("reason")),
+            "recommended_action": _resolve_recommended_action(parsed_report.get("recommended_action"), label_id),
         }
 
     def _run_model(self, tool_input: object) -> dict[str, object]:
@@ -76,7 +71,7 @@ class VlmServiceAdapter:
 
         prompt = _build_prompt(tool_input)
         prompt_text = processor.apply_chat_template(
-            [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image"}]}],
+            [{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": prompt}]}],
             tokenize=False,
             add_generation_prompt=True,
         )
@@ -233,7 +228,7 @@ def _runtime_value(context: object, key: str) -> object | None:
 
 def _attn_implementation(context: object) -> str:
     value = _runtime_value(context, "attn_implementation")
-    if value in {"sdpa", "eager"}:
+    if value in SUPPORTED_ATTN_IMPLEMENTATIONS:
         return str(value)
     return DEFAULT_ATTN_IMPLEMENTATION
 
@@ -260,23 +255,28 @@ def _parse_report(raw_text: str) -> dict[str, object] | None:
 
 
 def _extract_vote(tool_input: object) -> dict[str, Any]:
-    timeseries = getattr(tool_input, "timeseries_result", None)
-    vision = getattr(tool_input, "vision_result", None)
-    votes: list[tuple[int, float]] = []
-    if timeseries is not None:
-        label = getattr(timeseries, "label_id", None)
-        confidence = getattr(timeseries, "confidence", None)
-        if isinstance(label, int) and isinstance(confidence, int | float):
-            votes.append((label, float(confidence)))
-    if vision is not None:
-        label = getattr(vision, "label_id", None)
-        confidence = getattr(vision, "confidence", None)
-        if isinstance(label, int) and isinstance(confidence, int | float):
-            votes.append((label, float(confidence)))
+    votes = [
+        vote
+        for vote in (
+            _vote_from_result(getattr(tool_input, "timeseries_result", None)),
+            _vote_from_result(getattr(tool_input, "vision_result", None)),
+        )
+        if vote is not None
+    ]
     if not votes:
-        return {"label_id": 0, "confidence": 0.5}
+        return {"label_id": DEFAULT_FALLBACK_LABEL_ID, "confidence": DEFAULT_FALLBACK_CONFIDENCE}
     votes.sort(key=lambda pair: pair[1], reverse=True)
     return {"label_id": votes[0][0], "confidence": votes[0][1]}
+
+
+def _vote_from_result(model_result: object | None) -> tuple[int, float] | None:
+    if model_result is None:
+        return None
+    label = getattr(model_result, "label_id", None)
+    confidence = getattr(model_result, "confidence", None)
+    if isinstance(label, int) and isinstance(confidence, int | float):
+        return label, float(confidence)
+    return None
 
 
 def _resolve_label_id(value: object, vote: dict[str, Any]) -> int:
@@ -293,9 +293,37 @@ def _resolve_label_id(value: object, vote: dict[str, Any]) -> int:
 
 
 def _resolve_confidence(value: object, vote: dict[str, Any]) -> float:
-    raw = value if isinstance(value, int | float) else vote.get("confidence", 0.5)
+    raw = value if isinstance(value, int | float) else vote.get("confidence", DEFAULT_FALLBACK_CONFIDENCE)
     confidence = float(raw)
     return max(0.0, min(confidence, 1.0))
+
+
+def _resolve_diagnosis(value: object, label_id: int) -> str:
+    if _is_model_specific_text(value):
+        return str(value)
+    return PD_LABELS_KO.get(label_id, "정상")
+
+
+def _resolve_risk_level(value: object, label_id: int) -> str:
+    if _is_model_specific_text(value):
+        return str(value)
+    return RISK_LEVEL_BY_LABEL.get(str(label_id), "확인필요")
+
+
+def _resolve_reason(value: object) -> str:
+    if _is_model_specific_text(value):
+        return str(value)
+    return "시계열/비전/지식 근거를 반영해 판단된 결과입니다."
+
+
+def _resolve_recommended_action(value: object, label_id: int) -> str:
+    if _is_model_specific_text(value):
+        return str(value)
+    return _default_recommended_action(label_id)
+
+
+def _is_model_specific_text(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and value.strip().lower() not in GENERIC_MODEL_TEXT
 
 
 def _default_recommended_action(label_id: int) -> str:
@@ -321,23 +349,32 @@ def _build_prompt(tool_input: object) -> str:
     metadata_lines = _metadata_lines(metadata)
     parts = [
         "당신은 부분방전 진단 보조 모델입니다.",
-        "주어진 PRPD 이미지와 센서/과거진단 근거를 바탕으로 아래 형식으로만 JSON을 출력하세요.",
+        "이미지 설명을 작성하지 말고, 주어진 PRPD 이미지와 센서/과거진단 근거를 바탕으로 아래 형식의 JSON만 출력하세요.",
+        '분류 번호는 0=정상, 1=노이즈, 2=표면방전, 3=코로나방전, 4=보이드방전 중 하나입니다.',
         '{"label_id": int, "diagnosis": str, "risk_level": str, "reason": str, "recommended_action": str, "confidence": 0~1}',
     ]
     if metadata_lines:
         parts.append("[설비 정보]")
         parts.extend(metadata_lines)
     if timeseries is not None:
-        parts.append(
-            f"[시계열 근거] label={getattr(timeseries, 'label_id', 'n/a')} confidence={getattr(timeseries, 'confidence', 'n/a')}"
-        )
+        parts.append(_model_evidence_line("시계열", timeseries))
     if vision is not None:
-        parts.append(
-            f"[비전 근거] label={getattr(vision, 'label_id', 'n/a')} confidence={getattr(vision, 'confidence', 'n/a')}"
-        )
+        parts.append(_model_evidence_line("비전", vision))
     if rag is not None:
-        parts.append(f"[RAG 문헌 근거] documents={len(getattr(rag, 'documents', []))} similar_cases={len(getattr(rag, 'similar_cases', []))}")
+        parts.append(_rag_evidence_line(rag))
     return "\n".join(parts)
+
+
+def _model_evidence_line(source_name: str, model_result: object) -> str:
+    label = getattr(model_result, "label_id", "n/a")
+    confidence = getattr(model_result, "confidence", "n/a")
+    return f"[{source_name} 근거] label={label} confidence={confidence}"
+
+
+def _rag_evidence_line(rag_result: object) -> str:
+    document_count = len(getattr(rag_result, "documents", []))
+    similar_case_count = len(getattr(rag_result, "similar_cases", []))
+    return f"[RAG 문헌 근거] documents={document_count} similar_cases={similar_case_count}"
 
 
 def _metadata_lines(metadata: object | None) -> list[str]:
@@ -354,12 +391,12 @@ def _metadata_lines(metadata: object | None) -> list[str]:
 
 
 def _fallback_report(vote: dict[str, Any]) -> dict[str, object]:
-    label_id = int(vote.get("label_id", 0))
+    label_id = int(vote.get("label_id", DEFAULT_FALLBACK_LABEL_ID))
     return {
         "label_id": label_id,
         "diagnosis": PD_LABELS_KO.get(label_id, "정상"),
         "risk_level": RISK_LEVEL_BY_LABEL.get(str(label_id), "확인필요"),
-        "confidence": float(vote.get("confidence", 0.5)),
+        "confidence": float(vote.get("confidence", DEFAULT_FALLBACK_CONFIDENCE)),
         "reason": "추론 모듈이 불완전하거나 미설치되어 소스 근거 기반으로 보강 판단했습니다.",
         "recommended_action": _default_recommended_action(label_id),
     }

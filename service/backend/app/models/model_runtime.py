@@ -10,7 +10,20 @@ from service.backend.app.models.checkpoint_adapters import (
     CheckpointVlmInferenceAdapter,
     ModelAdapterLoadError,
 )
-from service.backend.app.models.model_artifacts import AdapterMode, ModelAdapterSettings, ModelArtifactRecord, ModelArtifactRegistry, ModelTask
+from service.backend.app.models.model_artifacts import (
+    AdapterMode,
+    MODEL_TASKS,
+    ModelAdapterSettings,
+    ModelArtifactRecord,
+    ModelArtifactRegistry,
+    ModelTask,
+)
+
+_CHECKPOINT_ADAPTER_TYPES = (
+    CheckpointTimeSeriesInferenceAdapter,
+    CheckpointVisionInferenceAdapter,
+    CheckpointVlmInferenceAdapter,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +46,7 @@ class MockModelAdapters:
 
 
 @dataclass(frozen=True, slots=True)
-class AdapterSelection:
+class _AdapterSelection:
     mode: AdapterMode
     record: ModelArtifactRecord
     mock_adapter: Any
@@ -41,7 +54,27 @@ class AdapterSelection:
 
 
 @dataclass(frozen=True, slots=True)
-class AdapterInfoRequest:
+class _TaskRuntimeSpec:
+    mock_attribute: str
+    checkpoint_factory: Callable[[ModelArtifactRecord], Any]
+
+
+@dataclass(frozen=True, slots=True)
+class _AdapterBuildRequest:
+    mode: AdapterMode
+    records: dict[ModelTask, ModelArtifactRecord]
+    mock_adapters: MockModelAdapters
+
+
+@dataclass(frozen=True, slots=True)
+class _AdapterInfoLookup:
+    mode: AdapterMode
+    records: dict[ModelTask, ModelArtifactRecord]
+    adapters: dict[ModelTask, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class _AdapterInfoRequest:
     task: ModelTask
     mode: AdapterMode
     record: ModelArtifactRecord
@@ -60,11 +93,11 @@ class ServiceModelRuntime:
     vlm_info: ModelAdapterInfo
 
     def info_for(self, task: ModelTask) -> ModelAdapterInfo:
-        if task == "time_series":
-            return self.time_series_info
-        if task == "vision":
-            return self.vision_info
-        return self.vlm_info
+        return {
+            "time_series": self.time_series_info,
+            "vision": self.vision_info,
+            "vlm": self.vlm_info,
+        }[task]
 
 
 def build_service_model_runtime(
@@ -72,70 +105,78 @@ def build_service_model_runtime(
     settings: ModelAdapterSettings | None = None,
 ) -> ServiceModelRuntime:
     active_settings = settings or ModelAdapterSettings.from_env()
-    registry = ModelArtifactRegistry(active_settings.artifact_root)
-    time_series_record = registry.get("time_series")
-    vision_record = registry.get("vision")
-    vlm_record = registry.get("vlm")
-
-    time_series_adapter = _select_adapter(
-        AdapterSelection(
-            mode=active_settings.mode,
-            record=time_series_record,
-            mock_adapter=mock_adapters.time_series,
-            checkpoint_factory=lambda record: CheckpointTimeSeriesInferenceAdapter(record),
-        )
+    registry = ModelArtifactRegistry(
+        active_settings.artifact_root,
+        artifact_overrides=active_settings.artifact_overrides,
     )
-    vision_adapter = _select_adapter(
-        AdapterSelection(
-            mode=active_settings.mode,
-            record=vision_record,
-            mock_adapter=mock_adapters.vision,
-            checkpoint_factory=lambda record: CheckpointVisionInferenceAdapter(record),
-        )
+    records = registry.all()
+    build_request = _AdapterBuildRequest(
+        mode=active_settings.mode,
+        records=records,
+        mock_adapters=mock_adapters,
     )
-    vlm_adapter = _select_adapter(
-        AdapterSelection(
-            mode=active_settings.mode,
-            record=vlm_record,
-            mock_adapter=mock_adapters.vlm,
-            checkpoint_factory=lambda record: CheckpointVlmInferenceAdapter(record),
-        )
+    adapters = {task: _select_task_adapter(task, build_request) for task in MODEL_TASKS}
+    info_lookup = _AdapterInfoLookup(
+        mode=active_settings.mode,
+        records=records,
+        adapters=adapters,
     )
 
     return ServiceModelRuntime(
         mode=active_settings.mode,
         artifact_root=active_settings.artifact_root,
-        time_series_adapter=time_series_adapter,
-        vision_adapter=vision_adapter,
-        vlm_adapter=vlm_adapter,
-        time_series_info=_adapter_info(
-            AdapterInfoRequest(
-                task="time_series",
-                mode=active_settings.mode,
-                record=time_series_record,
-                adapter=time_series_adapter,
-            )
-        ),
-        vision_info=_adapter_info(
-            AdapterInfoRequest(
-                task="vision",
-                mode=active_settings.mode,
-                record=vision_record,
-                adapter=vision_adapter,
-            )
-        ),
-        vlm_info=_adapter_info(
-            AdapterInfoRequest(
-                task="vlm",
-                mode=active_settings.mode,
-                record=vlm_record,
-                adapter=vlm_adapter,
-            )
-        ),
+        time_series_adapter=adapters["time_series"],
+        vision_adapter=adapters["vision"],
+        vlm_adapter=adapters["vlm"],
+        time_series_info=_adapter_info_for_task("time_series", info_lookup),
+        vision_info=_adapter_info_for_task("vision", info_lookup),
+        vlm_info=_adapter_info_for_task("vlm", info_lookup),
     )
 
 
-def _select_adapter(selection: AdapterSelection) -> Any:
+_TASK_RUNTIME_SPECS: dict[ModelTask, _TaskRuntimeSpec] = {
+    "time_series": _TaskRuntimeSpec(
+        mock_attribute="time_series",
+        checkpoint_factory=CheckpointTimeSeriesInferenceAdapter,
+    ),
+    "vision": _TaskRuntimeSpec(
+        mock_attribute="vision",
+        checkpoint_factory=CheckpointVisionInferenceAdapter,
+    ),
+    "vlm": _TaskRuntimeSpec(
+        mock_attribute="vlm",
+        checkpoint_factory=CheckpointVlmInferenceAdapter,
+    ),
+}
+
+
+def _select_task_adapter(task: ModelTask, request: _AdapterBuildRequest) -> Any:
+    spec = _TASK_RUNTIME_SPECS[task]
+    return _select_adapter(
+        _AdapterSelection(
+            mode=request.mode,
+            record=request.records[task],
+            mock_adapter=getattr(request.mock_adapters, spec.mock_attribute),
+            checkpoint_factory=spec.checkpoint_factory,
+        )
+    )
+
+
+def _adapter_info_for_task(
+    task: ModelTask,
+    lookup: _AdapterInfoLookup,
+) -> ModelAdapterInfo:
+    return _adapter_info(
+        _AdapterInfoRequest(
+            task=task,
+            mode=lookup.mode,
+            record=lookup.records[task],
+            adapter=lookup.adapters[task],
+        )
+    )
+
+
+def _select_adapter(selection: _AdapterSelection) -> Any:
     if selection.mode == "mock":
         return selection.mock_adapter
     if selection.mode == "auto" and not selection.record.ready:
@@ -148,11 +189,8 @@ def _select_adapter(selection: AdapterSelection) -> Any:
         raise
 
 
-def _adapter_info(request: AdapterInfoRequest) -> ModelAdapterInfo:
-    is_checkpoint = isinstance(
-        request.adapter,
-        (CheckpointTimeSeriesInferenceAdapter, CheckpointVisionInferenceAdapter, CheckpointVlmInferenceAdapter),
-    )
+def _adapter_info(request: _AdapterInfoRequest) -> ModelAdapterInfo:
+    is_checkpoint = isinstance(request.adapter, _CHECKPOINT_ADAPTER_TYPES)
     adapter_kind = "checkpoint" if is_checkpoint else "mock"
     error = None
     if request.mode == "checkpoint" and not request.record.ready:

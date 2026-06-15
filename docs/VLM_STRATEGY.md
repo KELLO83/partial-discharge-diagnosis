@@ -7,6 +7,7 @@ The VLM is not an image-only model that predicts a discharge type from a PRPD im
 ```text
 PRPD image
 + JSON metadata
++ optional vision model prediction/context
 + time-series model prediction
 + time-series summary features
 -> natural-language or JSON diagnosis report
@@ -34,41 +35,37 @@ The key VLM task is multimodal diagnosis reporting, not image classification.
 
 ## Recommended Models
 
-### First Choice: Qwen3-VL-2B-Instruct
+### Current Implemented Baseline: SmolVLM2-2.2B-Instruct
 
-Use as the initial main candidate.
+Use `HuggingFaceTB/SmolVLM2-2.2B-Instruct` as the current local VLM baseline.
 
 Reasons:
 
-- The 2B scale is the most realistic candidate for RTX 4060 Laptop 8GB QLoRA smoke tests.
-- It is strong at image/text instruction following.
-- It is suitable for English prompts and structured JSON responses.
-- It fits well with Hugging Face, TRL, PEFT, and QLoRA tooling.
-- It matches the planned input structure: PRPD image, JSON metadata, and time-series summaries.
+- It is small enough for RTX 4060 Laptop 8GB QLoRA smoke training.
+- It supports the project input structure: PRPD image plus text context.
+- It completed the current local training smoke path and produced a checkpoint.
+- It works with PyTorch SDPA, so FlashAttention is not required.
 
-### Stable Fallback: Qwen2.5-VL-3B-Instruct
+Current service artifact:
 
-Use when Qwen3-VL local Transformers support or Windows dependencies are unstable.
+```text
+artifacts/models/vlm/smolvlm2_2b_qlora/20260615_202950/best.pt
+```
 
-Advantages:
+### Future Comparison Candidates
 
-- It was already reviewed as a main candidate in earlier planning.
-- It is heavier than 2B but more realistic than 7B on 8GB VRAM.
-- It belongs to the Qwen-VL family and fits the current prompt/JSON-output goal.
+- `Qwen/Qwen2.5-VL-3B-Instruct`: good next comparison once the SmolVLM2 baseline
+  has a larger validation run.
+- `Qwen/Qwen3-VL-2B-Instruct`: keep as a candidate if local Transformers support
+  and Windows dependencies are stable.
+- `google/paligemma2-3b-mix-224`: possible transfer candidate, but less aligned
+  with strict JSON diagnosis reports than instruction-tuned VLMs.
 
-### Risk Candidate: Qwen3-VL-4B-Instruct
+### Not Current Targets
 
-Use only after 2B and 3B experiments are stable.
-
-Cautions:
-
-- Even with QLoRA, RTX 4060 Laptop 8GB may be tight.
-- Batch size 1, gradient accumulation, gradient checkpointing, and 4-bit quantization are required.
-- If OOM occurs, immediately return to the 2B/3B track.
-
-### Alternative Candidate: PaliGemma / PaliGemma 2
-
-PaliGemma-family models are useful for classification-style VLM fine-tuning, but Qwen-VL is a better project fit for instruction-following diagnosis reports and JSON output.
+- `Qwen/Qwen3-VL-4B-Instruct`: high OOM risk on the current 8GB GPU target.
+- `LGAI-EXAONE/EXAONE-4.0-1.2B-AWQ`: text-only LLM, not a VLM.
+- Large EXAONE VLM variants: too heavy for the current local baseline workflow.
 
 ## Input Data Design
 
@@ -104,6 +101,11 @@ time-series analysis information
 - abs_p99
 - pulse_rate
 - spectral energy
+
+vision analysis information, when available
+- vision model predicted class ID
+- confidence
+- class probability
 ```
 
 Do not place full raw CSV data in VLM prompts. Compress raw time-series signals through a time-series model or feature extractor and provide text features. Do not include `label_id`, `label_name`, file paths, class-bearing file names, defect-detail fields, or `max_discharge_value` in user prompts.
@@ -141,7 +143,7 @@ Start with QLoRA-based SFT.
 Recommended initial settings:
 
 ```text
-base_model: Qwen3-VL-2B-Instruct
+base_model: HuggingFaceTB/SmolVLM2-2.2B-Instruct
 quantization: 4bit NF4
 training: SFT
 vision_encoder: freeze
@@ -150,6 +152,8 @@ LLM: LoRA
 batch_size: 1
 gradient_accumulation_steps: 8~16
 gradient_checkpointing: enabled
+attention_backend: PyTorch SDPA
+gpu_memory_fraction: 0.9
 ```
 
 Do not train the full vision encoder at the beginning. The PRPD domain may be unfamiliar to the pretrained VLM, but pretrained vision encoders can still extract generic visual features such as points, lines, density, distribution, and symmetry.
@@ -178,11 +182,21 @@ Recommended stages:
 
 Do not start with all 300k samples. First validate data format, training stability, and JSON-output quality on the 30k working dataset.
 
-## Connection to Time-Series Models
+## Connection to Vision and Time-Series Models
 
-VLM development starts after time-series classification experiments.
+VLM development does not strictly require the time-series and vision classifiers
+to be trained first. A VLM can learn from PRPD image plus safe metadata alone.
+For the composite diagnosis system, however, the preferred runtime input also
+includes compact classifier context.
 
-Time-series track artifacts:
+Active classifier artifacts:
+
+```text
+time-series: inception_time_small
+vision: efficientnet_b0
+```
+
+Context fields:
 
 ```text
 best model name
@@ -193,7 +207,7 @@ statistical features
 optional embedding
 ```
 
-Include the above information in the VLM instruction prompt as text context.
+Include available information in the VLM instruction prompt as text context.
 
 Example prompt:
 
@@ -216,6 +230,10 @@ Time-series model analysis:
 - abs_p99: 1.300
 - pulse_rate: 0.004
 
+Vision model analysis:
+- predicted_class_id: 1
+- confidence: 0.77
+
 Using the attached PRPD image and the information above, diagnose the current partial-discharge state as JSON.
 ```
 
@@ -225,10 +243,10 @@ Final portfolio flow:
 
 ```text
 1. Build CSV time-series classification models.
-2. Compare multiple time-series models.
-3. Extract predictions and summaries from the best time-series model.
-4. Convert PRPD image + JSON metadata + time-series summary into a VLM instruction dataset.
-5. Fine-tune Qwen3-VL-2B-Instruct with QLoRA.
+2. Build a lightweight PRPD image classifier baseline.
+3. Extract compact predictions and summaries from the best classifiers.
+4. Convert PRPD image + safe metadata + classifier context into a VLM instruction dataset.
+5. Fine-tune SmolVLM2-2.2B-Instruct with QLoRA.
 6. Generate and evaluate JSON diagnosis reports.
 ```
 

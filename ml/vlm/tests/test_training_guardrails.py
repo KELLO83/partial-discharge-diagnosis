@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import pytest
-
 import json
 from pathlib import Path
+
+import pytest
 
 from ml.vlm.scripts.train_sft import TrainingRiskError, build_training_config, write_dry_run_artifacts
 

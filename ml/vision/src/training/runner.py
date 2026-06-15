@@ -18,7 +18,7 @@ from tqdm.auto import tqdm
 from ml.vision.src.data.dataset import PrpdImageDataset
 from ml.vision.src.data.manifest import load_vision_manifest, split_vision_manifest
 from ml.vision.src.eval import classification_metrics
-from ml.vision.src.models import SmallPrpdCnn
+from ml.vision.src.models import create_vision_model
 from ml.vision.src.schema import DEFAULT_NUM_CLASSES, PD_LABELS_KO, VisionManifestSplit, VisionTrainingConfig
 from ml.training.artifacts import relative_artifact_path, timestamped_model_dir
 from ml.timeseries.src.torch_runtime import autocast_dtype, autocast_enabled
@@ -197,7 +197,11 @@ def _train_and_save(config: VisionTrainingConfig, split: VisionManifestSplit) ->
 def _build_train_state(config: VisionTrainingConfig) -> VisionTrainState:
     device = _resolve_device(config.device)
     _configure_cuda_memory(device, config.gpu_memory_fraction)
-    model = SmallPrpdCnn(num_classes=DEFAULT_NUM_CLASSES).to(device)
+    model = create_vision_model(
+        config.model_name,
+        num_classes=DEFAULT_NUM_CLASSES,
+        pretrained=config.model_name == "efficientnet_b0",
+    ).to(device)
     return VisionTrainState(
         model=model,
         optimizer=_build_optimizer(model, config),
@@ -310,7 +314,7 @@ def _save_checkpoint(
         {
             "model_state_dict": {key: value.cpu() for key, value in state.model.state_dict().items()},
             "model_name": config.model_name,
-            "model_class": "SmallPrpdCnn",
+            "model_class": state.model.__class__.__name__,
             "image_size": config.image_size,
             "label_mapping": _label_mapping(),
             "epoch": epoch,
@@ -336,7 +340,7 @@ def _save_resume_checkpoint(
             "model_state_dict": {key: value.cpu() for key, value in state.model.state_dict().items()},
             "optimizer_state_dict": state.optimizer.state_dict(),
             "model_name": config.model_name,
-            "model_class": "SmallPrpdCnn",
+            "model_class": state.model.__class__.__name__,
             "image_size": config.image_size,
             "label_mapping": _label_mapping(),
             "epoch": epoch,

@@ -46,7 +46,7 @@ Responsibilities:
 - parse safe metadata
 - call deterministic model/retrieval adapters
 - apply confidence, probability, disagreement, and RAG guardrails
-- store trace, history, review actions, comments, and report detail
+- store trace, history, review queue, and report detail
 
 ### React Manager Dashboard
 
@@ -63,7 +63,6 @@ Responsibilities:
 - show final verdict
 - show metadata, time-series, vision, similar case, RAG, and VLM evidence cards
 - show trace log, history, review queue, model runtime status, similar cases, and report references
-- provide a dedicated similar-case search page for field operators to filter historical PRPD cases by label, equipment, sensor, and insulation type
 - provide a RAG administration panel below the trace menu for index health, evidence search, source counts, recent query logs, and reindexing
 - render all operator-facing copy in Korean because the target user is a plant/process manager or PRPD monitoring operator
 
@@ -221,13 +220,6 @@ mock_dataset_case_retriever@pre_embedding_mock
 
 This is the practical field-evidence path: a new upload can be compared against existing `data/` cases before trained embedding models are available.
 
-The same dataset case repository also powers the dashboard's manual similar-case search:
-
-```text
-label / equipment / sensor / insulation / free-text query
--> matching historical PRPD references
-```
-
 ### VLM Adapter
 
 Input:
@@ -351,19 +343,10 @@ Core endpoints:
 - `GET /diagnoses`
 - `GET /diagnoses/{diagnosis_id}`
 - `GET /review-queue`
-- `POST /diagnoses/{diagnosis_id}/actions`
-- `POST /diagnoses/{diagnosis_id}/comments`
 - `GET /diagnoses/{diagnosis_id}/report`
-- `GET /dataset/cases`
-- `GET /dataset/cases/search`
 - `GET /dataset/cases/{sample_id}`
 - `GET /dataset/cases/{sample_id}/image`
-
-Scenario replay endpoints:
-
-- `GET /demo/scenarios`
-- `POST /demo/seed`
-- `POST /demo/scenarios/{scenario_id}/activate`
+- `GET /dataset/cases/{sample_id}/timeseries`
 
 ## 8. Done Criteria
 

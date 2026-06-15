@@ -5,10 +5,6 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any
 
-from service.backend.app.domain.fusion import time_series_evidence, vision_evidence, vlm_evidence
-from service.backend.app.models.model_artifacts import ModelArtifactManifest, ModelArtifactRecord
-from service.backend.app.domain.policy import label_name, recommended_action, risk_level
-from service.backend.app.schemas import TimeSeriesResult, VisionResult, VlmResult
 from service.backend.app.application.contracts import (
     TimeSeriesInferenceAdapter,
     TimeSeriesToolInput,
@@ -17,6 +13,16 @@ from service.backend.app.application.contracts import (
     VlmInferenceAdapter,
     VlmToolInput,
 )
+from service.backend.app.domain.fusion import time_series_evidence, vision_evidence, vlm_evidence
+from service.backend.app.domain.policy import label_name, recommended_action, risk_level
+from service.backend.app.models.model_artifacts import ModelArtifactManifest, ModelArtifactRecord
+from service.backend.app.schemas import TimeSeriesResult, VisionResult, VlmResult
+
+TIME_SERIES_PREDICTION_METHODS = ("predict_csv", "predict")
+VISION_PREDICTION_METHODS = ("predict_image", "predict")
+VLM_PREDICTION_METHODS = ("generate_report", "predict")
+MIN_CONFIDENCE = 0.0
+MAX_CONFIDENCE = 1.0
 
 
 class ModelAdapterLoadError(RuntimeError):
@@ -38,12 +44,13 @@ class ModelRuntimeContext:
 class CheckpointTimeSeriesInferenceAdapter(TimeSeriesInferenceAdapter):
     def __init__(self, record: ModelArtifactRecord, backend: object | None = None) -> None:
         self.record = _require_ready_record(record)
-        self.model_name = self.record.manifest.model_name  # type: ignore[union-attr]
-        self.model_version = self.record.manifest.model_version  # type: ignore[union-attr]
+        manifest = _require_manifest(self.record)
+        self.model_name = manifest.model_name
+        self.model_version = manifest.model_version
         self._backend = backend
 
     def run(self, tool_input: TimeSeriesToolInput) -> TimeSeriesResult:
-        raw = _predict(self._load_backend(), ("predict_csv", "predict"), tool_input)
+        raw = _predict(self._load_backend(), TIME_SERIES_PREDICTION_METHODS, tool_input)
         result = _timeseries_result(raw, self.model_name, self.model_version)
         return result.model_copy(update={"standard_evidence": time_series_evidence(result)})
 
@@ -56,12 +63,13 @@ class CheckpointTimeSeriesInferenceAdapter(TimeSeriesInferenceAdapter):
 class CheckpointVisionInferenceAdapter(VisionInferenceAdapter):
     def __init__(self, record: ModelArtifactRecord, backend: object | None = None) -> None:
         self.record = _require_ready_record(record)
-        self.model_name = self.record.manifest.model_name  # type: ignore[union-attr]
-        self.model_version = self.record.manifest.model_version  # type: ignore[union-attr]
+        manifest = _require_manifest(self.record)
+        self.model_name = manifest.model_name
+        self.model_version = manifest.model_version
         self._backend = backend
 
     def run(self, tool_input: VisionToolInput) -> VisionResult:
-        raw = _predict(self._load_backend(), ("predict_image", "predict"), tool_input)
+        raw = _predict(self._load_backend(), VISION_PREDICTION_METHODS, tool_input)
         result = _vision_result(raw, self.model_name, self.model_version)
         return result.model_copy(update={"standard_evidence": vision_evidence(result)})
 
@@ -74,12 +82,13 @@ class CheckpointVisionInferenceAdapter(VisionInferenceAdapter):
 class CheckpointVlmInferenceAdapter(VlmInferenceAdapter):
     def __init__(self, record: ModelArtifactRecord, backend: object | None = None) -> None:
         self.record = _require_ready_record(record)
-        self.model_name = self.record.manifest.model_name  # type: ignore[union-attr]
-        self.model_version = self.record.manifest.model_version  # type: ignore[union-attr]
+        manifest = _require_manifest(self.record)
+        self.model_name = manifest.model_name
+        self.model_version = manifest.model_version
         self._backend = backend
 
     def run(self, tool_input: VlmToolInput) -> VlmResult:
-        raw = _predict(self._load_backend(), ("generate_report", "predict"), tool_input)
+        raw = _predict(self._load_backend(), VLM_PREDICTION_METHODS, tool_input)
         result = _vlm_result(raw, self.model_name, self.model_version)
         return result.model_copy(update={"standard_evidence": vlm_evidence(result)})
 
@@ -113,6 +122,12 @@ def _require_ready_record(record: ModelArtifactRecord) -> ModelArtifactRecord:
     if not record.ready or record.manifest is None:
         raise ModelAdapterLoadError(record.error or f"{record.task} model artifact is not ready")
     return record
+
+
+def _require_manifest(record: ModelArtifactRecord) -> ModelArtifactManifest:
+    if record.manifest is None:
+        raise ModelAdapterLoadError(record.error or f"{record.task} model manifest is not ready")
+    return record.manifest
 
 
 def _split_entrypoint(entrypoint: str) -> tuple[str, str]:
@@ -194,7 +209,7 @@ def _required_int(raw: dict[str, object], key: str) -> int:
 def _required_float(raw: dict[str, object], key: str) -> float:
     value = raw.get(key)
     if isinstance(value, int | float) and not isinstance(value, bool):
-        return max(0.0, min(float(value), 1.0))
+        return _clamp_confidence(float(value))
     raise ModelInferenceError(f"{key} must be a float in [0, 1]")
 
 
@@ -203,10 +218,14 @@ def _probabilities(value: object, label_id: int, confidence: float) -> dict[str,
         probabilities: dict[str, float] = {}
         for key, item in value.items():
             if isinstance(item, int | float) and not isinstance(item, bool):
-                probabilities[str(key)] = max(0.0, min(float(item), 1.0))
+                probabilities[str(key)] = _clamp_confidence(float(item))
         if probabilities:
             return probabilities
     return {str(label_id): confidence}
+
+
+def _clamp_confidence(value: float) -> float:
+    return max(MIN_CONFIDENCE, min(value, MAX_CONFIDENCE))
 
 
 def _float_map(value: object) -> dict[str, float]:

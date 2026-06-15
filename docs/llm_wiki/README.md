@@ -13,15 +13,19 @@ artifacts.
 
 1. `INDEX.md`
    - Entry point for current project state and wiki navigation.
-2. `concepts/current_development_findings.md`
+2. `../PROJECT_STRUCTURE.md`
+   - Folder and code responsibility map.
+3. `concepts/current_development_findings.md`
    - Current synthesized interpretation of the project.
-3. `concepts/composite_diagnosis_architecture.md`
+4. `concepts/composite_diagnosis_architecture.md`
    - How time-series, VLM, reviewer, trace, and service layers fit together.
-4. `source_cards/`
+5. `../VLM_TRAINING_GUIDE.md`
+   - Current VLM training and activation workflow.
+6. `source_cards/`
    - Stable cards for tools, model families, SDKs, and implementation sources.
-5. `experiment_notes/`
-   - Run-level notes after actual model experiments begin.
-6. `LOG.md`
+7. `experiment_notes/`
+   - Run-level notes for actual model experiments.
+8. `LOG.md`
    - Chronological wiki update record.
 
 ## Layer Responsibilities

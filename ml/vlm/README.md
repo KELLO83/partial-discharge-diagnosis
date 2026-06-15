@@ -22,15 +22,15 @@ python ml/vlm/train.py --model-profile smolvlm2_2b_qlora --sample-size 20 --dry-
 Training:
 
 ```powershell
-python ml/vlm/train.py --model-profile qwen3_vl_2b_qlora --sample-size 500 --max-steps 100
+python ml/vlm/train.py --model-profile smolvlm2_2b_qlora --sample-size 500 --max-steps 100
 ```
 
 Model profiles:
 
 ```text
-qwen3_vl_2b_qlora     default Qwen3-VL 2B profile for Korean PRPD report SFT
+smolvlm2_2b_qlora     current low-VRAM baseline profile
 qwen2_5_vl_3b_qlora   stable fallback profile
-smolvlm2_2b_qlora     low-VRAM smoke profile
+qwen3_vl_2b_qlora     future Qwen3-VL comparison profile
 ```
 
 Default outputs:

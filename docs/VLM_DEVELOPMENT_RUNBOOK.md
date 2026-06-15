@@ -1,80 +1,142 @@
 # VLM Development Runbook
 
-## Goal
+This runbook is the short operational version of `docs/VLM_TRAINING_GUIDE.md`.
+Use the guide for detailed explanations; use this file when re-running or
+checking the current VLM baseline.
 
-VLM experiments are a separate track from time-series classification experiments. The input is a PRPD image, leakage-safe equipment/environment metadata, and time-series summary values. The output is structured diagnosis JSON.
+## Current Baseline
 
-## Model Order
+| Item | Value |
+|---|---|
+| Base model | `HuggingFaceTB/SmolVLM2-2.2B-Instruct` |
+| Training method | 4-bit QLoRA SFT |
+| Attention backend | PyTorch SDPA |
+| Default GPU memory target | `--gpu-memory-fraction 0.9` |
+| Output directory | `artifacts/models/vlm/smolvlm2_2b_qlora/<run_id>/` |
+| Active checkpoint | `artifacts/models/vlm/smolvlm2_2b_qlora/20260615_202950/best.pt` |
 
-1. `Qwen/Qwen3-VL-2B-Instruct`: first QLoRA target for RTX 4060 Laptop 8GB.
-2. `Qwen/Qwen2.5-VL-3B-Instruct`: stable fallback if local Qwen3-VL support is unstable.
-3. `Qwen/Qwen3-VL-4B-Instruct`: try only after 2B/3B smoke tests succeed and VRAM usage is measured.
+Qwen-VL remains a future comparison candidate. The first working local baseline
+is SmolVLM2 because it completed on the available RTX 4060 Laptop workflow with
+the existing training stack.
 
-## Build Data
+## Input Contract
 
-```bash
-python ml/vlm/scripts/export_ts_context.py --manifest data/manifest.csv --sample-size 20 --output .omo/evidence/vlm-task-5-ts-context.csv
-python ml/vlm/train.py --model-profile smolvlm2_2b_qlora --manifest data/manifest.csv --sample-size 20 --ts-context .omo/evidence/vlm-task-5-ts-context.csv --dataset-output .omo/evidence/vlm-smoke.jsonl --dry-run
-python ml/vlm/scripts/validate_instruction_dataset.py --input .omo/evidence/vlm-smoke.jsonl --output .omo/evidence/vlm-task-7-validate.json
-```
-
-## Dry-Run Pipeline
-
-```bash
-python ml/vlm/scripts/run_inference.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --load-in-4bit --limit 20 --dry-run --output .omo/evidence/vlm-task-8-predictions.jsonl
-python ml/vlm/scripts/evaluate_outputs.py --predictions .omo/evidence/vlm-task-8-predictions.jsonl --output .omo/evidence/vlm-task-7-evaluation.json
-python ml/vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --output-dir .omo/evidence/vlm-task-9-adapter --load-in-4bit --max-steps 10 --dry-run
-```
-
-## Real Training
-
-Install VLM dependencies first:
-
-```bash
-pip install -r ml/vlm/requirements.txt
-```
-
-Then run:
-
-```bash
-python ml/vlm/scripts/train_sft.py --dataset .omo/evidence/vlm-smoke.jsonl --model-id Qwen/Qwen3-VL-2B-Instruct --output-dir results/vlm/qwen3_vl_2b_lora --load-in-4bit --max-steps 10
-```
-
-Keep these first-run constraints:
-
-- batch size 1
-- 4-bit NF4
-- LoRA rank 8
-- gradient checkpointing enabled
-- vision tower frozen
-- flash attention disabled by default on Windows
-
-## Interpretation
-
-Dry-run inference echoes assistant targets and is only for validating JSON parsing, leakage checks, evaluation code, and file paths. It is not model performance. Real performance is measured only after running without `--dry-run`.
-
-## Prompt Shape
+The VLM receives one PRPD image plus text context. It is not trained from raw
+CSV arrays and it does not require the time-series or vision classifiers to be
+trained first.
 
 ```text
-You are an assistant model for partial-discharge diagnosis in industrial power equipment.
-Use only the provided PRPD image and text information.
-Do not guess. Output JSON only.
-
-[Equipment and environment information]
-equipment_name: ACSR-OC
-equipment_rated_voltage: 22900V
-equipment_rated_current: 268A
-sensor_type: HFCT
-temperature: 19
-humidity: 66
-
-[Time-series model analysis]
-ts_model_name: feature_summary_untrained
-ts_pred_class: unavailable
-ts_confidence: unavailable
-rms: 30.3781
-std: 4.96528
-abs_p99: 39
-pulse_rate: 0.00693359
-spectral_energy: 1.39821e+07
+PRPD image
++ safe equipment/environment metadata
++ time-series context CSV
++ optional vision context CSV
+-> SmolVLM2 QLoRA adapter
+-> structured diagnosis JSON/report context
 ```
+
+Forbidden prompt fields remain forbidden even when they exist in the manifest:
+
+```text
+label_id
+label_name
+PD_type
+sample_id
+image_path string
+timeseries_path string
+json_path string
+file name
+defect_details
+defect_nums
+max_discharge_value
+full raw CSV values
+```
+
+## Build Context CSVs
+
+```powershell
+python ml/vlm/scripts/export_ts_context.py `
+  --manifest data/manifest.csv `
+  --output artifacts/models/vlm/context/ts_context.csv
+
+python ml/vlm/scripts/export_vision_context.py `
+  --manifest data/manifest.csv `
+  --output artifacts/models/vlm/context/vision_context.csv
+```
+
+The context CSVs contain compact model predictions and summary features that are
+safe to place in text prompts. They are not user-facing reports.
+
+## Train
+
+Smoke run:
+
+```powershell
+python ml/vlm/train.py `
+  --model-profile smolvlm2_2b_qlora `
+  --manifest data/manifest.csv `
+  --sample-size 20 `
+  --ts-context artifacts/models/vlm/context/ts_context.csv `
+  --vision-context artifacts/models/vlm/context/vision_context.csv `
+  --epochs 1 `
+  --max-steps 20 `
+  --eval-steps 5 `
+  --gpu-memory-fraction 0.9 `
+  --output-dir artifacts/models/vlm/smolvlm2_2b_qlora
+```
+
+Longer local run:
+
+```powershell
+python ml/vlm/train.py `
+  --model-profile smolvlm2_2b_qlora `
+  --manifest data/manifest.csv `
+  --sample-size 2000 `
+  --ts-context artifacts/models/vlm/context/ts_context.csv `
+  --vision-context artifacts/models/vlm/context/vision_context.csv `
+  --epochs 2 `
+  --eval-steps 100 `
+  --gpu-memory-fraction 0.9 `
+  --output-dir artifacts/models/vlm/smolvlm2_2b_qlora
+```
+
+## Check Results
+
+Each run directory should contain:
+
+```text
+best.pt
+model_manifest.json
+summary.json
+events.out.tfevents.*
+```
+
+Open TensorBoard from the run parent:
+
+```powershell
+tensorboard --logdir artifacts/models/vlm/smolvlm2_2b_qlora
+```
+
+Current smoke metrics from `20260615_202950`:
+
+| Step | Eval loss |
+|---:|---:|
+| 5 | 10.6423 |
+| 10 | 7.1014 |
+| 15 | 4.8421 |
+| 20 | 4.2387 |
+
+The run proves the training loop and adapter path are usable. It is not yet a
+final production-quality VLM.
+
+## Activate In Service
+
+Set root `.env`:
+
+```dotenv
+MODEL_ADAPTER_MODE=checkpoint
+MODEL_VLM_MANIFEST=artifacts/models/vlm/smolvlm2_2b_qlora/20260615_202950/model_manifest.json
+MODEL_VLM_CHECKPOINT=artifacts/models/vlm/smolvlm2_2b_qlora/20260615_202950/best.pt
+```
+
+The frontend reads this only through backend APIs. It does not load the VLM
+checkpoint directly.

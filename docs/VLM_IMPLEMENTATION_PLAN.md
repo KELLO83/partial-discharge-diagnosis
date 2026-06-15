@@ -7,6 +7,7 @@ The VLM stage is not PRPD image-only classification. The goal is to build a mode
 ```text
 PRPD image
 + safe equipment/environment metadata
++ optional vision model context
 + time-series model prediction
 + time-series summary features
 -> lightweight pretrained VLM
@@ -17,41 +18,37 @@ The target GPU is an RTX 4060 Laptop with 8GB VRAM. Full fine-tuning of large VL
 
 ## Model Selection
 
-### First Choice: Qwen/Qwen3-VL-2B-Instruct
+### Current Implemented Baseline: HuggingFaceTB/SmolVLM2-2.2B-Instruct
 
-This is the first model to validate on the 8GB GPU.
+The current local VLM baseline is `smolvlm2_2b_qlora`.
 
 Reasons:
 
-- The 2B scale is the most realistic for 8GB VRAM.
-- It is an image-text-to-text VLM, matching the PRPD image + text metadata input design.
-- Qwen-family models are generally strong at instruction following and JSON-style output.
-- It is suitable for LoRA/QLoRA SFT experiments.
+- It is small enough for the RTX 4060 Laptop 8GB workflow with 4-bit QLoRA.
+- It supports the project input shape: PRPD image plus text context.
+- It completed a local smoke run and produced a checkpoint-backed service artifact.
+- It can use PyTorch SDPA without requiring FlashAttention.
 
-### Stable Alternative: Qwen/Qwen2.5-VL-3B-Instruct
+Current artifact:
 
-Use as a comparison candidate if Qwen3-VL-2B is unstable locally or quality is insufficient.
+```text
+artifacts/models/vlm/smolvlm2_2b_qlora/20260615_202950/best.pt
+```
 
-Cautions:
+### Future Comparison Candidates
 
-- The 3B scale is tighter on 8GB VRAM.
-- Use 4-bit QLoRA, batch size 1, gradient accumulation, and gradient checkpointing.
+- `Qwen/Qwen2.5-VL-3B-Instruct`: strong comparison candidate after the current
+  SmolVLM2 baseline is evaluated on a larger validation set.
+- `Qwen/Qwen3-VL-2B-Instruct`: keep as a target if the local Transformers stack
+  and Windows dependency path are stable.
+- `google/paligemma2-3b-mix-224`: possible image-text transfer candidate, but
+  less aligned with strict instruction-following JSON reports.
 
-### Lower-Priority Risk Candidate: Qwen/Qwen3-VL-4B-Instruct
+### Not Current Targets
 
-Review only after 2B/3B smoke tests pass.
-
-Cautions:
-
-- OOM risk is high on 8GB VRAM.
-- It is not the first implementation target.
-- 4-bit QLoRA, low LoRA rank, and image-resolution limits are required.
-
-### Fallback Candidates
-
-- `HuggingFaceTB/SmolVLM2-2.2B-Instruct`: use if Qwen-family models are blocked by memory or installation issues.
-- `google/paligemma2-3b-mix-224`: possible image-text transfer candidate, but Qwen-family models remain the priority for JSON diagnosis output.
-- `llava-hf/llava-onevision-qwen2-0.5b-si-hf`: pipeline sanity-check candidate only.
+- `Qwen/Qwen3-VL-4B-Instruct`: high OOM risk on 8GB VRAM.
+- `LGAI-EXAONE/EXAONE-4.0-1.2B-AWQ`: text-only LLM, not a VLM training target.
+- Large EXAONE VLM variants: too heavy for the current 8GB local training target.
 
 ## Input Data Design
 
@@ -66,6 +63,7 @@ image:
 text:
   equipment information
   environment information
+  optional vision model analysis
   time-series model analysis
   JSON-output instruction
 ```
@@ -93,9 +91,28 @@ humidity
 clearance_distance
 ```
 
-### Time-Series Model Information for Text Input
+### Vision and Time-Series Model Information for Text Input
 
-After time-series experiments are complete, export the following information into a separate CSV and join it in the VLM dataset builder:
+The VLM can be trained without pre-training the vision and time-series
+classifiers, but the preferred project flow is to include compact model context
+when it exists. Export the following information into separate CSVs and join it
+in the VLM dataset builder:
+
+Vision context:
+
+```text
+sample_id
+vision_model_name
+vision_pred_label_id
+vision_confidence
+vision_prob_0
+vision_prob_1
+vision_prob_2
+vision_prob_3
+vision_prob_4
+```
+
+Time-series context:
 
 ```text
 sample_id
@@ -114,7 +131,8 @@ pulse_rate
 spectral_energy
 ```
 
-If time-series model results are unavailable, the smoke dataset should explicitly state that the time-series model result is unavailable and use feature-only context.
+If model results are unavailable, the smoke dataset should explicitly state that
+the model result is unavailable and use feature-only context.
 
 ### Fields Forbidden in Prompts
 
@@ -173,7 +191,7 @@ pretrained VLM
 ### Default 8GB Settings
 
 ```yaml
-model_id: Qwen/Qwen3-VL-2B-Instruct
+model_id: HuggingFaceTB/SmolVLM2-2.2B-Instruct
 quantization: 4bit_nf4
 lora_r: 8
 lora_alpha: 16
@@ -186,7 +204,8 @@ gradient_accumulation_steps: 8
 gradient_checkpointing: true
 max_length: null
 image_max_pixels: 512x512
-flash_attention: false
+attention_backend: sdpa
+gpu_memory_fraction: 0.9
 ```
 
 Do not train the vision tower at first. Let the pretrained vision encoder extract generic points, lines, density, and distribution patterns from PRPD images, and apply LoRA to language layers to learn the JSON diagnosis format.
@@ -266,54 +285,56 @@ JSONL row shape:
 }
 ```
 
-### 4. Qwen3-VL-2B Inference Smoke
+### 4. SmolVLM2 Inference Smoke
 
 File:
 
 ```text
-ml/vlm/scripts/run_inference.py
+ml/vlm/src/service_adapter.py
 ```
 
 Validation command:
 
 ```powershell
-python ml/vlm/scripts/run_inference.py `
-  --dataset results/vlm/instruction_smoke/valid.jsonl `
-  --index 0 `
-  --model-id Qwen/Qwen3-VL-2B-Instruct `
-  --load-in-4bit `
-  --output results/vlm/inference_smoke.json
+python -m pytest service/backend/tests/test_model_runtime.py
 ```
 
 Success criteria:
 
-- Model loads successfully.
+- Adapter registry resolves the VLM manifest and checkpoint.
 - Image + text input is processed successfully.
-- Raw output is saved.
+- Raw output is returned or fallback errors are recorded clearly.
 - JSON parses successfully or parse errors are recorded clearly.
-- CUDA peak memory is recorded.
+- Runtime metadata records checkpoint/model status.
 
 ### 5. QLoRA SFT Smoke
 
 Files:
 
 ```text
-ml/vlm/scripts/train_sft.py
-ml/vlm/configs/qwen3_vl_2b_smoke.yaml
+ml/vlm/train.py
+docs/VLM_TRAINING_GUIDE.md
 ```
 
 Validation command:
 
 ```powershell
-python ml/vlm/scripts/train_sft.py `
-  --config ml/vlm/configs/qwen3_vl_2b_smoke.yaml `
-  --max-steps 10
+python ml/vlm/train.py `
+  --model-profile smolvlm2_2b_qlora `
+  --manifest data/manifest.csv `
+  --sample-size 20 `
+  --epochs 1 `
+  --max-steps 20 `
+  --eval-steps 5 `
+  --gpu-memory-fraction 0.9 `
+  --output-dir artifacts/models/vlm/smolvlm2_2b_qlora
 ```
 
 Success criteria:
 
-- 10-step smoke training completes.
+- 20-step smoke training completes.
 - Adapter checkpoint is saved.
+- TensorBoard event file is saved.
 - Training summary is saved.
 - If OOM occurs, 8GB fallback settings are recorded.
 

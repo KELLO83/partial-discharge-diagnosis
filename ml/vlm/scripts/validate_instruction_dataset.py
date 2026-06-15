@@ -31,8 +31,8 @@ def validate_jsonl(input_path: Path) -> ValidationReport:
             invalid_targets += 1
         leakage_hits += sum(1 for field in FORBIDDEN_PROMPT_FIELDS if field in prompt)
         try:
-            target = json.loads(record["messages"][1]["content"])
-        except (json.JSONDecodeError, KeyError, IndexError, TypeError):
+            target = json.loads(_assistant_text(record))
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError, ValueError):
             invalid_targets += 1
             continue
         if not _target_valid(target):
@@ -64,6 +64,27 @@ def _prompt_text(record: dict[str, object]) -> str:
             if isinstance(value, str):
                 texts.append(value)
     return "\n".join(texts)
+
+
+def _assistant_text(record: dict[str, object]) -> str:
+    messages = record["messages"]
+    if not isinstance(messages, list) or len(messages) < 2:
+        raise ValueError("missing assistant message")
+    assistant = messages[1]
+    if not isinstance(assistant, dict):
+        raise ValueError("invalid assistant message")
+    content = assistant.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        texts = [
+            str(block.get("text", ""))
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ]
+        if texts:
+            return "\n".join(texts)
+    raise ValueError("assistant content must contain text")
 
 
 def _target_valid(target: object) -> bool:

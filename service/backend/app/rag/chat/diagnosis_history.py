@@ -3,12 +3,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from service.backend.app.domain.policy import label_name as policy_label_name
 from service.backend.app.rag.chat.constants import ANSWER_MODE_DIAGNOSIS_HISTORY, LOCAL_DIAGNOSIS_HISTORY_MODEL
 from service.backend.app.rag.chat.models import DiagnosisHistoryStore, RagChatInput
 from service.backend.app.schemas import DiagnosisDetailResponse, RagChatResponse, TraceResponse
 
 
 DIAGNOSIS_ID_PATTERN = re.compile(r"\b(?:diag_[0-9a-z_]+|demo_[0-9a-z_]+)\b", re.IGNORECASE)
+REASON_LABEL_ID_PATTERN = re.compile(r"(시계열|비전|VLM)=(\d+)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,18 +19,22 @@ class DiagnosisSignal:
     value: str
 
 
+@dataclass(frozen=True, slots=True)
+class DiagnosisHistoryLookup:
+    diagnosis_id: str
+    detail: DiagnosisDetailResponse | None
+
+
 def answer_diagnosis_history_question(
     chat_input: RagChatInput,
     store: DiagnosisHistoryStore | None,
 ) -> RagChatResponse | None:
-    diagnosis_id = extract_diagnosis_id(chat_input.question)
-    if diagnosis_id is None:
+    lookup = lookup_diagnosis_history_question(chat_input, store)
+    if lookup is None:
         return None
-    active_store = store or default_diagnosis_store()
-    detail = active_store.detail(diagnosis_id)
-    if detail is None:
+    if lookup.detail is None:
         return RagChatResponse(
-            answer=missing_diagnosis_answer(diagnosis_id),
+            answer=missing_diagnosis_answer(lookup.diagnosis_id),
             documents=[],
             model=LOCAL_DIAGNOSIS_HISTORY_MODEL,
             ready=True,
@@ -41,6 +47,17 @@ def answer_diagnosis_history_question(
         ready=True,
         answer_mode=ANSWER_MODE_DIAGNOSIS_HISTORY,
     )
+
+
+def lookup_diagnosis_history_question(
+    chat_input: RagChatInput,
+    store: DiagnosisHistoryStore | None,
+) -> DiagnosisHistoryLookup | None:
+    diagnosis_id = extract_diagnosis_id(chat_input.question)
+    if diagnosis_id is None:
+        return None
+    active_store = store or default_diagnosis_store()
+    return DiagnosisHistoryLookup(diagnosis_id, active_store.detail(diagnosis_id))
 
 
 def extract_diagnosis_id(question: str) -> str | None:
@@ -70,17 +87,19 @@ def missing_diagnosis_answer(diagnosis_id: str) -> str:
 
 def diagnosis_history_answer(detail: DiagnosisDetailResponse) -> str:
     diagnosis = detail.diagnosis
-    final_label = diagnosis.diagnosis
+    final_label = diagnosis.diagnosis or fusion_final_label(detail.trace)
+    confidence = diagnosis.confidence if diagnosis.confidence is not None else fusion_confidence(detail.trace)
     signals = trace_signals(detail.trace, final_label)
     input_summary = input_summary_lines(detail.trace)
     reference_cases = similar_case_titles(detail.trace, final_label)
+    reason = normalize_reason_label_ids(diagnosis.reason)
     lines = [
         "진단 요약",
         f"- 진단 ID: {diagnosis.diagnosis_id}",
         f"- 처리 경로: {route_label(diagnosis.route)}",
         f"- 처리 상태: {status_label(diagnosis.status)}",
         f"- 최종 판정: {final_label or '없음'}",
-        f"- 신뢰도: {confidence_text(diagnosis.confidence)}",
+        f"- 신뢰도: {confidence_text(confidence)}",
         f"- 검토 필요: {'필요' if diagnosis.requires_human_review else '불필요'}",
         "",
         "입력 데이터",
@@ -90,7 +109,7 @@ def diagnosis_history_answer(detail: DiagnosisDetailResponse) -> str:
         *signal_lines(signals),
         "",
         "판정 근거",
-        f"- {diagnosis.reason}",
+        f"- {reason}",
         "",
         "권고 조치",
         f"- {recommended_action(detail.trace)}",
@@ -125,9 +144,9 @@ def fusion_signal(trace: TraceResponse) -> str:
     summary = event_summary(trace, "fusion_engine")
     if summary is None:
         return "없음"
-    label = text_value(summary.get("final_label_name")) or "없음"
+    label = fusion_final_label(trace) or "없음"
     agreement = text_value(summary.get("agreement_level")) or "none"
-    confidence = confidence_text(float_value(summary.get("confidence")))
+    confidence = confidence_text(fusion_confidence(trace))
     return f"{label} / 합의 수준 {agreement} / 신뢰도 {confidence}"
 
 
@@ -259,9 +278,36 @@ def route_label(route: str) -> str:
 def status_label(status: str) -> str:
     return {
         "completed": "완료",
-        "needs_review": "판정 보류",
+        "needs_review": "검토 필요",
         "rejected": "반려",
     }.get(status, status)
+
+
+def fusion_final_label(trace: TraceResponse) -> str | None:
+    summary = event_summary(trace, "fusion_engine")
+    if summary is None:
+        return None
+    return text_value(summary.get("final_label_name"))
+
+
+def fusion_confidence(trace: TraceResponse) -> float | None:
+    summary = event_summary(trace, "fusion_engine")
+    if summary is None:
+        return None
+    return float_value(summary.get("confidence"))
+
+
+def normalize_reason_label_ids(reason: str) -> str:
+    def replacement(match: re.Match[str]) -> str:
+        source = match.group(1)
+        label_id = int(match.group(2))
+        try:
+            label = policy_label_name(label_id)
+        except ValueError:
+            return match.group(0)
+        return f"{source}={label}({label_id})"
+
+    return REASON_LABEL_ID_PATTERN.sub(replacement, reason)
 
 
 def has_label_mismatch(candidate: str | None, final_label: str | None) -> bool:

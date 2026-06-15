@@ -429,6 +429,8 @@ a {
 :root[data-theme='dark'] .ragIndexCard,
 :root[data-theme='dark'] .ragResultCard,
 :root[data-theme='dark'] .ragDocumentCard,
+:root[data-theme='dark'] .ragEvidenceOverview div,
+:root[data-theme='dark'] .ragDocumentSummaryText,
 :root[data-theme='dark'] .ragReader > section,
 :root[data-theme='dark'] .ragFactChip,
 :root[data-theme='dark'] .ragChatShell,
@@ -487,6 +489,12 @@ a {
   border-color: var(--line);
   background: var(--dark-sunken);
   color: var(--ink);
+}
+
+:root[data-theme='dark'] .ragDocumentFactGrid div,
+:root[data-theme='dark'] .ragDocumentScoreBar {
+  border-color: var(--line);
+  background: var(--dark-sunken);
 }
 
 :root[data-theme='dark'] .field select {
@@ -680,6 +688,13 @@ a {
 
 .topbar h2 {
   font-size: 25px;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .iconButton,
@@ -2756,6 +2771,14 @@ tr:last-child td {
   line-height: 1.15;
 }
 
+.reportVerdictLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .reportPaper {
   display: grid;
   gap: 0;
@@ -3069,6 +3092,39 @@ tr:last-child td {
   font-size: 12px;
 }
 
+.ragEvidenceOverview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ragEvidenceOverview div {
+  min-width: 0;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 9px 10px;
+}
+
+.ragEvidenceOverview span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.ragEvidenceOverview strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .reportDocumentList {
   display: grid;
   gap: 8px;
@@ -3076,13 +3132,68 @@ tr:last-child td {
 
 .ragDocumentCard {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   padding: 12px;
+}
+
+.ragDocumentCard.strong {
+  border-color: #93c5fd;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.ragDocumentCard.medium {
+  border-color: #c7d2fe;
+  box-shadow: inset 3px 0 0 #4f46e5;
+}
+
+.ragDocumentRail {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.ragDocumentRank {
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.ragDocumentScore {
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.ragDocumentScore.strong {
+  color: #1d4ed8;
+}
+
+.ragDocumentScore.medium {
+  color: #4f46e5;
+}
+
+.ragDocumentScore.weak {
+  color: #64748b;
+}
+
+.ragDocumentScoreBar {
+  overflow: hidden;
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.ragDocumentScoreBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #14b8a6);
 }
 
 .ragDocumentType {
@@ -3106,6 +3217,19 @@ tr:last-child td {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: start;
+}
+
+.ragDocumentTitleStack {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ragDocumentPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .ragDocumentCard strong {
@@ -3149,12 +3273,29 @@ tr:last-child td {
   max-width: 82ch;
 }
 
+.ragDocumentSummaryText {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
 .ragDocumentTitleRow small {
   justify-self: end;
   white-space: nowrap;
 }
 
-.ragDocumentSource {
+.ragDocumentFooter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ragDocumentFooter span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4211,6 +4352,7 @@ tr:last-child td {
   .reportMetricGrid,
   .reportMetaStrip,
   .reportSignalGrid,
+  .ragEvidenceOverview,
   .ragStatusGrid,
   .ragIndexHealthStrip,
   .ragAdminGrid,
@@ -4238,9 +4380,23 @@ tr:last-child td {
     grid-template-columns: 1fr;
   }
 
-  .ragDocumentCard span,
+  .ragDocumentRail {
+    grid-template-columns: auto auto minmax(80px, 1fr);
+    align-items: center;
+  }
+
+  .ragDocumentTitleRow,
+  .ragDocumentFooter {
+    grid-template-columns: 1fr;
+  }
+
+  .ragDocumentTitleRow small {
+    justify-self: start;
+  }
+
   .ragDocumentCard p,
-  .ragDocumentCard small {
+  .ragDocumentFooter small,
+  .ragDocumentFooter span {
     grid-column: auto;
     grid-row: auto;
     justify-self: start;
@@ -4261,6 +4417,16 @@ tr:last-child td {
   .reportHero {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .topbarActions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .topbarActions .iconButton {
+    flex: 1;
+    min-width: 0;
   }
 
   .reportCanvas {
@@ -4453,6 +4619,8 @@ tr:last-child td {
 :root[data-theme='dark'] .ragDocumentHero p,
 :root[data-theme='dark'] .ragDocumentHero dt,
 :root[data-theme='dark'] .ragDocumentHero dd,
+:root[data-theme='dark'] .ragEvidenceOverview strong,
+:root[data-theme='dark'] .ragDocumentRank,
 :root[data-theme='dark'] .ragReadableText dt,
 :root[data-theme='dark'] .ragReadableText dd,
 :root[data-theme='dark'] .ragReadableText p,

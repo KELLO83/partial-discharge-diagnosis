@@ -287,6 +287,7 @@ def run_sft_training(config: TrainingConfig) -> Path:
             save_steps=config.save_steps,
             save_strategy="steps",
             save_total_limit=2,
+            max_length=None,
         ),
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,

@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Printer,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   ShieldCheck,
@@ -89,6 +90,8 @@ const RAG_TOP_K_MAX = 20;
 const RAG_DATASET_LIMIT_MIN = 1;
 const RAG_DATASET_LIMIT_MAX = 50_000;
 const DEFAULT_SIMILAR_CASE_LIMIT = 3;
+const REPORT_RAG_DOCUMENT_LIMIT = 5;
+const REPORT_RAG_FACT_LIMIT = 6;
 
 type SignalAnomalyRegion = {
   readonly frame: number;
@@ -174,6 +177,25 @@ type RagFact = {
   readonly value: string;
 };
 
+type ReportRagDocument = {
+  readonly document: RagDocument;
+  readonly facts: readonly RagFact[];
+  readonly hiddenFactCount: number;
+  readonly rank: number;
+  readonly retrievalLabel: string;
+  readonly scoreTone: string;
+  readonly sourceLabel: string;
+  readonly summary: string;
+};
+
+type RagEvidenceSummary = {
+  readonly documentCount: number;
+  readonly retrievalText: string;
+  readonly shownCount: number;
+  readonly sourceText: string;
+  readonly topScore: number | null;
+};
+
 type RagChatTurn = RagChatMessage & {
   readonly answerMode?: string | null;
   readonly documents?: readonly RagDocument[];
@@ -218,6 +240,20 @@ const DEFAULT_INTAKE_FILES = {
     url: "/demo-intake/default-metadata.json",
   },
 } as const;
+
+const EMPTY_METADATA: MetadataForm = {
+  equipmentName: "",
+  equipmentType: "",
+  ratedVoltage: "",
+  ratedCurrent: "",
+  sensorType: "",
+  measurementLocation: "",
+  operatingCondition: "",
+  temperature: "",
+  humidity: "",
+  insulatorType: "",
+  clearanceDistance: "",
+};
 
 const dashboardViewIds = [
   "overview",
@@ -291,6 +327,7 @@ export function App() {
   const [csv, setCsv] = useState<File | null>(null);
   const [metadataJsonStatus, setMetadataJsonStatus] = useState("메타데이터 JSON 업로드 대기");
   const [metadata, setMetadata] = useState<MetadataForm>(DEFAULT_METADATA);
+  const [uploadResetKey, setUploadResetKey] = useState(0);
   const [result, setResult] = useState<DiagnosisResponse | null>(null);
   const [trace, setTrace] = useState<TraceResponse | null>(null);
   const [detail, setDetail] = useState<DiagnosisDetailResponse | null>(null);
@@ -437,6 +474,22 @@ export function App() {
     void handleMetadataJson(file);
   }
 
+  function resetIntakeForm(): void {
+    intakeTouchedRef.current = true;
+    setImage(null);
+    setCsv(null);
+    setMetadata(EMPTY_METADATA);
+    setMetadataJsonStatus("메타데이터 JSON 업로드 대기");
+    setRequestError(null);
+    setRequestStatus("idle");
+    setResult(null);
+    setTrace(null);
+    setDetail(null);
+    setSelectedHistory(null);
+    setExpandedTraceKey(null);
+    setUploadResetKey((current) => current + 1);
+  }
+
   function handleThemeModeChange(mode: ThemeMode): void {
     setThemeMode(mode);
   }
@@ -539,6 +592,7 @@ export function App() {
                 accept=".png,image/png"
                 description={fileDisplayText(image, "PRPD 이미지")}
                 icon={<FileImage size={20} />}
+                key={`image-${uploadResetKey}`}
                 label="PRPD 이미지"
                 onChange={handleImageFile}
               />
@@ -546,6 +600,7 @@ export function App() {
                 accept=".csv,text/csv,application/vnd.ms-excel"
                 description={fileDisplayText(csv, "시계열 CSV")}
                 icon={<FileText size={20} />}
+                key={`csv-${uploadResetKey}`}
                 label="시계열 CSV"
                 onChange={handleCsvFile}
               />
@@ -553,6 +608,7 @@ export function App() {
                 accept=".json,application/json"
                 description={metadataJsonStatus}
                 icon={<FileJson size={20} />}
+                key={`metadata-${uploadResetKey}`}
                 label="메타데이터 JSON"
                 onChange={handleMetadataFile}
               />
@@ -758,10 +814,18 @@ export function App() {
             <p className="eyebrow">설비 관측 콘솔</p>
             <h2>{activeNavLabel}</h2>
           </div>
-          <button className="iconButton" type="button" onClick={() => window.location.reload()}>
-            <RefreshCw size={18} />
-            새로고침
-          </button>
+          <div className="topbarActions">
+            {activeView === "intake" ? (
+              <button className="iconButton" type="button" onClick={resetIntakeForm}>
+                <RotateCcw size={18} />
+                초기화
+              </button>
+            ) : null}
+            <button className="iconButton" type="button" onClick={() => window.location.reload()}>
+              <RefreshCw size={18} />
+              새로고침
+            </button>
+          </div>
         </header>
 
         <div className="viewFrame" key={activeView}>
@@ -1007,7 +1071,7 @@ function DetailPanel(props: {
   const referenceCases = similarCasesFromTrace(props.detail.trace);
   const activeSimilarCaseLimit = boundedSimilarCaseLimit(similarCaseLimit, referenceCases.length);
   const visibleReferenceCases = referenceCases.slice(0, activeSimilarCaseLimit);
-  const timeline = props.detail.timeline.filter((event) => event.kind !== "action" && event.kind !== "comment");
+  const timeline = props.detail.timeline;
   return (
     <div className="detailGrid">
       <section className="detailSummary">
@@ -1072,6 +1136,8 @@ function ReportPanel(props: {
 
   const signals = modelSignalsFromTrace(props.detail.trace);
   const ragDocuments = ragDocumentsFromTrace(props.detail.trace);
+  const reportRagDocuments = rankedReportRagDocuments(ragDocuments);
+  const ragEvidenceSummary = reportRagEvidenceSummary(ragDocuments, reportRagDocuments.length);
   const referenceCases = similarCasesFromTrace(props.detail.trace);
   const fusion = parseFusionSummary(findTraceEvent(props.detail.trace, "fusion_engine")?.summary);
   const finalLabel = fusion?.final_label_name ?? props.detail.diagnosis.diagnosis ?? "판정 보류";
@@ -1082,7 +1148,10 @@ function ReportPanel(props: {
         <section className="reportHero">
           <div className="reportTitleBlock">
             <p className="eyebrow">관리자 검토 리포트</p>
-            <h4>{finalLabel}</h4>
+            <div className="reportVerdictLine">
+              <h4>최종 판정: {finalLabel}</h4>
+              <span className={`status ${props.detail.diagnosis.status}`}>{statusLabel[props.detail.diagnosis.status]}</span>
+            </div>
             <p className="reportLead">{props.detail.diagnosis.reason}</p>
           </div>
           <div className="reportActions">
@@ -1164,37 +1233,78 @@ function ReportPanel(props: {
             <span>03</span>
             <div>
               <h5>RAG 근거 문서</h5>
-              <p>리포터 입력에 포함된 지식 문서와 검색 관련도를 첨부 근거로 표시합니다.</p>
+              <p>리포터 입력에 포함된 지식 문서를 출처, 검색 방식, 관련도, 핵심 필드로 나누어 표시합니다.</p>
             </div>
           </div>
+          {ragDocuments.length > 0 ? (
+            <div className="ragEvidenceOverview" aria-label="RAG 근거 요약">
+              <div>
+                <span>표시 문서</span>
+                <strong>{ragEvidenceSummary.shownCount}/{ragEvidenceSummary.documentCount}건</strong>
+              </div>
+              <div>
+                <span>최고 관련도</span>
+                <strong>{formatMetric(ragEvidenceSummary.topScore)}</strong>
+              </div>
+              <div>
+                <span>출처 구성</span>
+                <strong>{ragEvidenceSummary.sourceText}</strong>
+              </div>
+              <div>
+                <span>검색 방식</span>
+                <strong>{ragEvidenceSummary.retrievalText}</strong>
+              </div>
+            </div>
+          ) : null}
           <div className="reportDocumentList">
             {ragDocuments.length === 0 ? (
               <div className="similarCaseEmpty">
                 <BookOpen size={20} />
                 <span>리포트에 포함된 RAG 문서가 없습니다.</span>
               </div>
-            ) : ragDocuments.slice(0, 4).map((document) => {
-              const facts = ragDocumentFacts(document);
+            ) : reportRagDocuments.map((item) => {
+              const retrievalMode = ragRetrievalMode(item.document);
               return (
-                <article className="ragDocumentCard" key={document.document_id}>
-                  <span className="ragDocumentType">{sourceTypeLabel(document.source_type ?? undefined)}</span>
+                <article className={`ragDocumentCard ${item.scoreTone}`} key={item.document.document_id}>
+                  <div className="ragDocumentRail">
+                    <span className="ragDocumentRank">#{item.rank}</span>
+                    <b className={`ragDocumentScore ${item.scoreTone}`}>{formatMetric(item.document.relevance)}</b>
+                    <div className="ragDocumentScoreBar" aria-label={`관련도 ${formatMetric(item.document.relevance)}`}>
+                      <span style={{width: `${metricWidth(item.document.relevance)}%`}} />
+                    </div>
+                  </div>
                   <div className="ragDocumentBody">
                     <div className="ragDocumentTitleRow">
-                      <strong>{ragDocumentTitle(document)}</strong>
-                      <small>{retrievalModeLabel(ragRetrievalMode(document))} · 관련도 {formatMetric(document.relevance)}</small>
+                      <div className="ragDocumentTitleStack">
+                        <div className="ragDocumentPills">
+                          <span className="ragDocumentType">{item.sourceLabel}</span>
+                          <span className={`ragModePill ${retrievalMode}`}>{item.retrievalLabel}</span>
+                        </div>
+                        <strong>{ragDocumentTitle(item.document)}</strong>
+                      </div>
+                      <small>관련도 {formatMetric(item.document.relevance)}</small>
                     </div>
-                    {facts.length > 0 ? (
+                    <p className="ragDocumentSummaryText">{item.summary}</p>
+                    {item.facts.length > 0 ? (
                       <dl className="ragDocumentFactGrid">
-                        {facts.map((fact) => (
-                          <div key={`${document.document_id}-${fact.label}`}>
+                        {item.facts.map((fact) => (
+                          <div key={`${item.document.document_id}-${fact.label}`}>
                             <dt>{fact.label}</dt>
                             <dd>{fact.value}</dd>
                           </div>
                         ))}
+                        {item.hiddenFactCount > 0 ? (
+                          <div className="ragDocumentMoreFacts">
+                            <dt>추가</dt>
+                            <dd>{item.hiddenFactCount}개 항목</dd>
+                          </div>
+                        ) : null}
                       </dl>
                     ) : null}
-                    <p>{ragDocumentSummary(document, facts)}</p>
-                    <small className="ragDocumentSource">{document.source}</small>
+                    <div className="ragDocumentFooter">
+                      <small>출처</small>
+                      <span title={item.document.source}>{item.document.source}</span>
+                    </div>
                   </div>
                 </article>
               );
@@ -3550,6 +3660,51 @@ function ragDocumentsFromTrace(trace: TraceResponse): readonly RagDocument[] {
     return [];
   }
   return documents.filter(isRagDocument);
+}
+
+function rankedReportRagDocuments(documents: readonly RagDocument[]): readonly ReportRagDocument[] {
+  return [...documents]
+    .sort((left, right) => right.relevance - left.relevance)
+    .slice(0, REPORT_RAG_DOCUMENT_LIMIT)
+    .map((document, index) => {
+      const facts = ragDocumentFacts(document);
+      return {
+        document,
+        facts: facts.slice(0, REPORT_RAG_FACT_LIMIT),
+        hiddenFactCount: Math.max(0, facts.length - REPORT_RAG_FACT_LIMIT),
+        rank: index + 1,
+        retrievalLabel: retrievalModeLabel(ragRetrievalMode(document)),
+        scoreTone: ragScoreTone(document.relevance),
+        sourceLabel: sourceTypeLabel(document.source_type ?? undefined),
+        summary: ragDocumentSummary(document, facts),
+      };
+    });
+}
+
+function reportRagEvidenceSummary(
+  documents: readonly RagDocument[],
+  shownCount: number,
+): RagEvidenceSummary {
+  return {
+    documentCount: documents.length,
+    retrievalText: distributionText(documents.map((document) => retrievalModeLabel(ragRetrievalMode(document))), "없음"),
+    shownCount,
+    sourceText: distributionText(documents.map((document) => sourceTypeLabel(document.source_type ?? undefined)), "없음"),
+    topScore: topDocumentScore(documents),
+  };
+}
+
+function distributionText(values: readonly string[], emptyText: string): string {
+  if (values.length === 0) {
+    return emptyText;
+  }
+  const counts = new Map<string, number>();
+  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 2)
+    .map(([label, count]) => `${label} ${count}`)
+    .join(" · ");
 }
 
 function evidenceLinksForSignal(

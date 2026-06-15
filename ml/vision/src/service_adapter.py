@@ -6,7 +6,7 @@ from typing import Any
 import torch
 
 from ml.vision.src.data import image_file_to_tensor
-from ml.vision.src.models import SmallPrpdCnn
+from ml.vision.src.models import create_vision_model
 from ml.vision.src.schema import DEFAULT_NUM_CLASSES, PD_LABELS_KO
 
 
@@ -14,7 +14,7 @@ class VisionServiceAdapter:
     def __init__(self, context: object) -> None:
         self.context = context
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self._model: SmallPrpdCnn | None = None
+        self._model: torch.nn.Module | None = None
         self._checkpoint: dict[str, Any] | None = None
 
     def predict_image(self, tool_input: object) -> dict[str, object]:
@@ -43,10 +43,11 @@ class VisionServiceAdapter:
             },
         }
 
-    def _load_model(self) -> SmallPrpdCnn:
+    def _load_model(self) -> torch.nn.Module:
         if self._model is None:
             checkpoint = self._load_checkpoint()
-            model = SmallPrpdCnn(num_classes=DEFAULT_NUM_CLASSES)
+            model_name = str(checkpoint.get("model_name", "small_prpd_cnn"))
+            model = create_vision_model(model_name, num_classes=DEFAULT_NUM_CLASSES, pretrained=False)
             model.load_state_dict(checkpoint["model_state_dict"])
             self._model = model.to(self.device)
         return self._model

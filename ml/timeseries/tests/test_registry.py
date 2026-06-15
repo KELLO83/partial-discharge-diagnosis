@@ -22,7 +22,7 @@ def test_gru_forward_shape() -> None:
     assert y.shape == (2, 5)
 
 
-@pytest.mark.parametrize("name", ["tcn", "inception_time", "resnet1d", "timesnet", "timemixer"])
+@pytest.mark.parametrize("name", ["tcn", "inception_time_small", "inception_time", "resnet1d", "timesnet", "timemixer"])
 def test_channel_first_models_forward_shape(name: str) -> None:
     model = create_model_or_skip(name)
     x = torch.randn(2, 20, 7680)

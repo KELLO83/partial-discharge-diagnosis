@@ -138,6 +138,47 @@ class TimeSeriesContext:
 
 
 @dataclass(frozen=True, slots=True)
+class VisionContext:
+    sample_id: str
+    vision_model_name: str
+    vision_pred_label_id: int | None
+    vision_confidence: float | None
+    vision_prob_0: float | None
+    vision_prob_1: float | None
+    vision_prob_2: float | None
+    vision_prob_3: float | None
+    vision_prob_4: float | None
+
+    @classmethod
+    def unavailable(cls, sample_id: str) -> VisionContext:
+        return cls(
+            sample_id=sample_id,
+            vision_model_name="unavailable",
+            vision_pred_label_id=None,
+            vision_confidence=None,
+            vision_prob_0=None,
+            vision_prob_1=None,
+            vision_prob_2=None,
+            vision_prob_3=None,
+            vision_prob_4=None,
+        )
+
+    @classmethod
+    def from_mapping(cls, row: dict[str, str]) -> VisionContext:
+        return cls(
+            sample_id=row.get("sample_id", ""),
+            vision_model_name=row.get("vision_model_name", "vision_model"),
+            vision_pred_label_id=_optional_int(row.get("vision_pred_label_id", "")),
+            vision_confidence=_optional_float(row.get("vision_confidence", "")),
+            vision_prob_0=_optional_float(row.get("vision_prob_0", "")),
+            vision_prob_1=_optional_float(row.get("vision_prob_1", "")),
+            vision_prob_2=_optional_float(row.get("vision_prob_2", "")),
+            vision_prob_3=_optional_float(row.get("vision_prob_3", "")),
+            vision_prob_4=_optional_float(row.get("vision_prob_4", "")),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DatasetBuildSummary:
     rows_written: int
     output_path: Path

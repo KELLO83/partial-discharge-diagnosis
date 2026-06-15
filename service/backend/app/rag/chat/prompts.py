@@ -39,6 +39,26 @@ def build_rag_chat_messages(
     ]
 
 
+def build_diagnosis_history_chat_messages(
+    question: str,
+    history: list[RagChatMessage],
+    diagnosis_context: str,
+) -> list[dict[str, str]]:
+    return [
+        {"role": "system", "content": build_diagnosis_history_system_prompt()},
+        *history_messages(history),
+        {
+            "role": "user",
+            "content": "\n\n".join(
+                [
+                    f"사용자 질문:\n{question}",
+                    f"진단 이력 근거:\n{diagnosis_context}",
+                ]
+            ),
+        },
+    ]
+
+
 def build_system_prompt(has_rag_evidence: bool = True) -> str:
     if not has_rag_evidence:
         return build_general_domain_system_prompt()
@@ -62,6 +82,22 @@ def build_system_prompt(has_rag_evidence: bool = True) -> str:
             "영어 표현을 섞지 말고 한국어로만 설명합니다.",
             "한 줄에 여러 수치와 메타데이터를 길게 나열하지 말고 중요한 항목만 선별합니다.",
             "장비, 전압, 전류, 절연, clearance를 모두 나열하지 말고 질문에 필요한 항목만 사용합니다.",
+            '반드시 JSON 객체 하나만 반환합니다. 형식: {"answer":"답변"}',
+        ]
+    )
+
+
+def build_diagnosis_history_system_prompt() -> str:
+    return "\n".join(
+        [
+            "당신은 부분방전 진단 이력을 설명하는 RAG 챗봇입니다.",
+            "반드시 제공된 진단 이력 근거만 사용해 한국어로 답변합니다.",
+            "검토 필요 상태는 판정 실패가 아니라 모델 불일치나 추가 확인이 필요한 상태로 설명합니다.",
+            "최종 판정, 처리 상태, 모델별 판단을 서로 섞지 말고 분리해서 설명합니다.",
+            "시계열/비전/VLM 라벨이 다르면 어떤 모델이 무엇을 다르게 봤는지 라벨명과 번호를 함께 설명합니다.",
+            "RAG 또는 유사 사례가 최종 판정과 다르면 정답이 아니라 검토 근거 또는 불일치 신호라고 설명합니다.",
+            "사용자가 정답 여부를 묻지 않았으면 정답이라고 단정하지 않습니다.",
+            "답변은 핵심 판단, 왜 그렇게 표시됐나, 확인 포인트 순서로 짧게 씁니다.",
             '반드시 JSON 객체 하나만 반환합니다. 형식: {"answer":"답변"}',
         ]
     )

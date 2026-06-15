@@ -12,12 +12,10 @@ from service.backend.app.config.env import load_project_env
 from service.backend.app.rag.settings import DEFAULT_DATABASE_URL
 from service.backend.app.schemas import (
     CaseTimelineEvent,
-    DiagnosisCommentRecord,
     DiagnosisDetailResponse,
     DiagnosisListItem,
     DiagnosisRoute,
     DiagnosisStatus,
-    ReviewActionRecord,
     TraceResponse,
 )
 
@@ -44,8 +42,6 @@ class TraceRecord:
 @dataclass(slots=True)
 class TraceStore:
     records: dict[str, TraceRecord] = field(default_factory=dict)
-    actions: dict[str, list[ReviewActionRecord]] = field(default_factory=dict)
-    comments: dict[str, list[DiagnosisCommentRecord]] = field(default_factory=dict)
     database_url: str | None = field(default_factory=lambda: _database_url_from_env())
     database_path: Path | None = None
 
@@ -95,30 +91,8 @@ class TraceStore:
         return DiagnosisDetailResponse(
             diagnosis=_to_list_item(record),
             trace=trace,
-            actions=list(self.actions.get(diagnosis_id, [])),
-            comments=list(self.comments.get(diagnosis_id, [])),
-            timeline=_timeline_for_record(
-                record,
-                actions=self.actions.get(diagnosis_id, []),
-                comments=self.comments.get(diagnosis_id, []),
-            ),
+            timeline=_timeline_for_record(record),
         )
-
-    def add_action(self, diagnosis_id: str, action: str, note: str) -> ReviewActionRecord | None:
-        if diagnosis_id not in self.records:
-            return None
-        record = ReviewActionRecord(action=action, note=note, created_at=now_iso())
-        self.actions.setdefault(diagnosis_id, []).append(record)
-        self._save_action(diagnosis_id, record)
-        return record
-
-    def add_comment(self, diagnosis_id: str, note: str) -> DiagnosisCommentRecord | None:
-        if diagnosis_id not in self.records:
-            return None
-        record = DiagnosisCommentRecord(note=note, created_at=now_iso())
-        self.comments.setdefault(diagnosis_id, []).append(record)
-        self._save_comment(diagnosis_id, record)
-        return record
 
     def _recent_records(self, limit: int) -> list[TraceRecord]:
         records = list(self.records.values())
@@ -158,28 +132,6 @@ class TraceStore:
                 )
                 """
             )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS diagnosis_actions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    diagnosis_id TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    FOREIGN KEY (diagnosis_id) REFERENCES diagnosis_records(diagnosis_id)
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS diagnosis_comments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    diagnosis_id TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    FOREIGN KEY (diagnosis_id) REFERENCES diagnosis_records(diagnosis_id)
-                )
-                """
-            )
 
     def _load_database(self) -> None:
         if self.database_path is not None:
@@ -192,14 +144,6 @@ class TraceStore:
             for payload, in connection.execute("SELECT payload FROM diagnosis_records"):
                 record = _record_from_json(payload)
                 self.records[record.diagnosis_id] = record
-            for diagnosis_id, payload in connection.execute(
-                "SELECT diagnosis_id, payload FROM diagnosis_actions ORDER BY id"
-            ):
-                self.actions.setdefault(diagnosis_id, []).append(_action_from_json(payload))
-            for diagnosis_id, payload in connection.execute(
-                "SELECT diagnosis_id, payload FROM diagnosis_comments ORDER BY id"
-            ):
-                self.comments.setdefault(diagnosis_id, []).append(_comment_from_json(payload))
 
     def _save_record(self, record: TraceRecord) -> None:
         if self.database_path is not None:
@@ -220,38 +164,6 @@ class TraceStore:
                 (record.diagnosis_id, record.created_at, _record_to_json(record)),
             )
 
-    def _save_action(self, diagnosis_id: str, record: ReviewActionRecord) -> None:
-        if self.database_path is not None:
-            self._save_sqlite_action(diagnosis_id, record)
-            return
-        self._save_postgres_action(diagnosis_id, record)
-
-    def _save_sqlite_action(self, diagnosis_id: str, record: ReviewActionRecord) -> None:
-        with self._connect_sqlite() as connection:
-            connection.execute(
-                """
-                INSERT INTO diagnosis_actions (diagnosis_id, created_at, payload)
-                VALUES (?, ?, ?)
-                """,
-                (diagnosis_id, record.created_at, _model_to_json(record)),
-            )
-
-    def _save_comment(self, diagnosis_id: str, record: DiagnosisCommentRecord) -> None:
-        if self.database_path is not None:
-            self._save_sqlite_comment(diagnosis_id, record)
-            return
-        self._save_postgres_comment(diagnosis_id, record)
-
-    def _save_sqlite_comment(self, diagnosis_id: str, record: DiagnosisCommentRecord) -> None:
-        with self._connect_sqlite() as connection:
-            connection.execute(
-                """
-                INSERT INTO diagnosis_comments (diagnosis_id, created_at, payload)
-                VALUES (?, ?, ?)
-                """,
-                (diagnosis_id, record.created_at, _model_to_json(record)),
-            )
-
     def _initialize_postgres_database(self) -> None:
         with self._connect_postgres() as connection:
             connection.execute(f"CREATE SCHEMA IF NOT EXISTS {DIAGNOSIS_SCHEMA}")
@@ -259,26 +171,6 @@ class TraceStore:
                 f"""
                 CREATE TABLE IF NOT EXISTS {DIAGNOSIS_SCHEMA}.records (
                     diagnosis_id TEXT PRIMARY KEY,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    payload JSONB NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS {DIAGNOSIS_SCHEMA}.actions (
-                    id BIGSERIAL PRIMARY KEY,
-                    diagnosis_id TEXT NOT NULL REFERENCES {DIAGNOSIS_SCHEMA}.records(diagnosis_id) ON DELETE CASCADE,
-                    created_at TIMESTAMPTZ NOT NULL,
-                    payload JSONB NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS {DIAGNOSIS_SCHEMA}.comments (
-                    id BIGSERIAL PRIMARY KEY,
-                    diagnosis_id TEXT NOT NULL REFERENCES {DIAGNOSIS_SCHEMA}.records(diagnosis_id) ON DELETE CASCADE,
                     created_at TIMESTAMPTZ NOT NULL,
                     payload JSONB NOT NULL
                 )
@@ -303,20 +195,6 @@ class TraceStore:
             if row is None:
                 return
             self.records[diagnosis_id] = _record_from_json(row[0])
-            self.actions[diagnosis_id] = [
-                _action_from_json(payload)
-                for payload, in connection.execute(
-                    "SELECT payload FROM diagnosis_actions WHERE diagnosis_id = ? ORDER BY id",
-                    (diagnosis_id,),
-                )
-            ]
-            self.comments[diagnosis_id] = [
-                _comment_from_json(payload)
-                for payload, in connection.execute(
-                    "SELECT payload FROM diagnosis_comments WHERE diagnosis_id = ? ORDER BY id",
-                    (diagnosis_id,),
-                )
-            ]
 
     def _load_postgres_record(self, diagnosis_id: str) -> None:
         with self._connect_postgres() as connection:
@@ -327,44 +205,12 @@ class TraceStore:
             if row is None:
                 return
             self.records[diagnosis_id] = _record_from_payload(row[0])
-            self.actions[diagnosis_id] = [
-                _action_from_payload(payload)
-                for _, payload in connection.execute(
-                    f"""
-                    SELECT diagnosis_id, payload
-                    FROM {DIAGNOSIS_SCHEMA}.actions
-                    WHERE diagnosis_id = %s
-                    ORDER BY id
-                    """,
-                    (diagnosis_id,),
-                )
-            ]
-            self.comments[diagnosis_id] = [
-                _comment_from_payload(payload)
-                for _, payload in connection.execute(
-                    f"""
-                    SELECT diagnosis_id, payload
-                    FROM {DIAGNOSIS_SCHEMA}.comments
-                    WHERE diagnosis_id = %s
-                    ORDER BY id
-                    """,
-                    (diagnosis_id,),
-                )
-            ]
 
     def _load_postgres_database(self) -> None:
         with self._connect_postgres() as connection:
             for payload, in connection.execute(f"SELECT payload FROM {DIAGNOSIS_SCHEMA}.records"):
                 record = _record_from_payload(payload)
                 self.records[record.diagnosis_id] = record
-            for diagnosis_id, payload in connection.execute(
-                f"SELECT diagnosis_id, payload FROM {DIAGNOSIS_SCHEMA}.actions ORDER BY id"
-            ):
-                self.actions.setdefault(diagnosis_id, []).append(_action_from_payload(payload))
-            for diagnosis_id, payload in connection.execute(
-                f"SELECT diagnosis_id, payload FROM {DIAGNOSIS_SCHEMA}.comments ORDER BY id"
-            ):
-                self.comments.setdefault(diagnosis_id, []).append(_comment_from_payload(payload))
 
     def _save_postgres_record(self, record: TraceRecord) -> None:
         with self._connect_postgres() as connection:
@@ -377,28 +223,6 @@ class TraceStore:
                     payload = excluded.payload
                 """,
                 (record.diagnosis_id, record.created_at, _record_to_json(record)),
-            )
-            connection.commit()
-
-    def _save_postgres_action(self, diagnosis_id: str, record: ReviewActionRecord) -> None:
-        with self._connect_postgres() as connection:
-            connection.execute(
-                f"""
-                INSERT INTO {DIAGNOSIS_SCHEMA}.actions (diagnosis_id, created_at, payload)
-                VALUES (%s, %s, %s::jsonb)
-                """,
-                (diagnosis_id, record.created_at, _model_to_json(record)),
-            )
-            connection.commit()
-
-    def _save_postgres_comment(self, diagnosis_id: str, record: DiagnosisCommentRecord) -> None:
-        with self._connect_postgres() as connection:
-            connection.execute(
-                f"""
-                INSERT INTO {DIAGNOSIS_SCHEMA}.comments (diagnosis_id, created_at, payload)
-                VALUES (%s, %s, %s::jsonb)
-                """,
-                (diagnosis_id, record.created_at, _model_to_json(record)),
             )
             connection.commit()
 
@@ -465,28 +289,6 @@ def _record_from_mapping(data: dict[str, object]) -> TraceRecord:
     )
 
 
-def _model_to_json(record: ReviewActionRecord | DiagnosisCommentRecord) -> str:
-    return json.dumps(record.model_dump(), ensure_ascii=False, separators=(",", ":"))
-
-
-def _action_from_json(payload: str) -> ReviewActionRecord:
-    return _action_from_payload(json.loads(payload))
-
-
-def _comment_from_json(payload: str) -> DiagnosisCommentRecord:
-    return _comment_from_payload(json.loads(payload))
-
-
-def _action_from_payload(payload: object) -> ReviewActionRecord:
-    data = payload if isinstance(payload, dict) else json.loads(str(payload))
-    return ReviewActionRecord.model_validate(data)
-
-
-def _comment_from_payload(payload: object) -> DiagnosisCommentRecord:
-    data = payload if isinstance(payload, dict) else json.loads(str(payload))
-    return DiagnosisCommentRecord.model_validate(data)
-
-
 def _optional_string(value: object) -> str | None:
     return value if isinstance(value, str) else None
 
@@ -530,11 +332,7 @@ def _to_list_item(record: TraceRecord) -> DiagnosisListItem:
     )
 
 
-def _timeline_for_record(
-    record: TraceRecord,
-    actions: list[ReviewActionRecord],
-    comments: list[DiagnosisCommentRecord],
-) -> list[CaseTimelineEvent]:
+def _timeline_for_record(record: TraceRecord) -> list[CaseTimelineEvent]:
     events = [
         CaseTimelineEvent(
             kind="diagnosis",
@@ -544,24 +342,6 @@ def _timeline_for_record(
         )
     ]
     events.extend(_trace_timeline_events(record))
-    events.extend(
-        CaseTimelineEvent(
-            kind="action",
-            title=_action_label(action.action),
-            body=action.note or "운영 조치가 기록되었습니다.",
-            created_at=action.created_at,
-        )
-        for action in actions
-    )
-    events.extend(
-        CaseTimelineEvent(
-            kind="comment",
-            title="운영 메모",
-            body=comment.note,
-            created_at=comment.created_at,
-        )
-        for comment in comments
-    )
     return sorted(events, key=lambda event: event.created_at)
 
 
@@ -601,16 +381,6 @@ def _status_label(status: str) -> str:
     return labels.get(status, status)
 
 
-def _action_label(action: str) -> str:
-    labels = {
-        "approve": "승인",
-        "dispatch_field_team": "현장 출동",
-        "mark_false_positive": "오탐 처리",
-        "request_retest": "재측정 요청",
-    }
-    return labels.get(action, action)
-
-
 def _step_label(step: str) -> str:
     labels = {
         "confidence_guardrail": "신뢰도 확인",
@@ -639,7 +409,6 @@ def _event_kind_label(kind: str) -> str:
         "context": "정보 정리",
         "fusion": "융합",
         "guardrail": "보호 규칙",
-        "operation_scenario": "운영 시나리오",
         "router": "라우터",
         "tool": "모델/도구",
     }

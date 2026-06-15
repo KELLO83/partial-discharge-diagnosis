@@ -48,7 +48,7 @@ VLM_TRAINING_PROFILES: dict[str, VlmTrainingProfile] = {
     "smolvlm2_2b_qlora": VlmTrainingProfile(
         key="smolvlm2_2b_qlora",
         model_id="HuggingFaceTB/SmolVLM2-2.2B-Instruct",
-        description="Low-VRAM smoke profile before longer Qwen-family runs.",
+        description="Current low-VRAM baseline profile for PRPD report SFT.",
         training_strategy="4bit_qlora_sft_text_projector_only",
         min_vram_gb=6,
         load_in_4bit=True,
@@ -66,7 +66,7 @@ VLM_TRAINING_PROFILES: dict[str, VlmTrainingProfile] = {
     "qwen3_vl_2b_qlora": VlmTrainingProfile(
         key="qwen3_vl_2b_qlora",
         model_id="Qwen/Qwen3-VL-2B-Instruct",
-        description="Default Qwen3-VL 2B profile for Korean PRPD report SFT with 4-bit QLoRA.",
+        description="Future Qwen3-VL 2B comparison profile for Korean PRPD report SFT.",
         training_strategy="4bit_qlora_sft_text_projector_only",
         min_vram_gb=8,
         load_in_4bit=True,

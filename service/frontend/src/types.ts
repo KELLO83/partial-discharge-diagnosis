@@ -102,21 +102,8 @@ export type DiagnosisListResponse = {
   readonly items: readonly DiagnosisListItem[];
 };
 
-export type ReviewAction = "approve" | "request_retest" | "dispatch_field_team" | "mark_false_positive";
-
-export type ReviewActionRecord = {
-  readonly action: string;
-  readonly note: string;
-  readonly created_at: string;
-};
-
-export type DiagnosisCommentRecord = {
-  readonly note: string;
-  readonly created_at: string;
-};
-
 export type CaseTimelineEvent = {
-  readonly kind: "diagnosis" | "trace" | "action" | "comment";
+  readonly kind: "diagnosis" | "trace";
   readonly title: string;
   readonly body: string;
   readonly created_at: string;
@@ -125,8 +112,6 @@ export type CaseTimelineEvent = {
 export type DiagnosisDetailResponse = {
   readonly diagnosis: DiagnosisListItem;
   readonly trace: TraceResponse;
-  readonly actions: readonly ReviewActionRecord[];
-  readonly comments: readonly DiagnosisCommentRecord[];
   readonly timeline: readonly CaseTimelineEvent[];
 };
 
@@ -266,30 +251,6 @@ export type SimilarCase = {
   readonly image_url: string;
   readonly timeseries_url: string | null;
   readonly metadata: Record<string, string | number | null>;
-};
-
-export type DemoScenario = {
-  readonly scenario_id: string;
-  readonly title: string;
-  readonly diagnosis_id: string;
-  readonly route: InputRoute;
-  readonly status: DiagnosisStatus;
-  readonly risk_level: string | null;
-  readonly summary: string;
-};
-
-export type DemoScenarioListResponse = {
-  readonly scenarios: readonly DemoScenario[];
-};
-
-export type DemoSeedResponse = {
-  readonly seeded: readonly string[];
-  readonly scenarios: readonly DemoScenario[];
-};
-
-export type DemoScenarioActivationResponse = {
-  readonly scenario: DemoScenario;
-  readonly detail: DiagnosisDetailResponse;
 };
 
 export type HealthResponse = {

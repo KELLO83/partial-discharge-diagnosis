@@ -162,9 +162,17 @@ def _assistant_text(record: dict[str, Any]) -> str:
     if not isinstance(assistant, dict):
         raise ValueError(f"Invalid assistant message for sample {record.get('sample_id')}")
     content = assistant.get("content")
-    if not isinstance(content, str):
-        raise ValueError(f"Assistant content must be a string for sample {record.get('sample_id')}")
-    return content
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        texts = [
+            str(block.get("text", ""))
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ]
+        if texts:
+            return "\n".join(texts)
+    raise ValueError(f"Assistant content must contain text for sample {record.get('sample_id')}")
 
 
 def parse_args() -> argparse.Namespace:

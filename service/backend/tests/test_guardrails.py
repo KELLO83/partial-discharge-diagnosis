@@ -25,6 +25,9 @@ def test_reviewer_marks_label_disagreement_as_needs_review() -> None:
 
     assert decision.status == "needs_review"
     assert "불일치" in decision.reason
+    assert "시계열=표면 방전(2)" in decision.reason
+    assert "비전=표면 방전(2)" in decision.reason
+    assert "VLM=코로나 방전(3)" in decision.reason
 
 
 def test_reviewer_marks_time_series_vision_disagreement_as_needs_review() -> None:
@@ -32,6 +35,8 @@ def test_reviewer_marks_time_series_vision_disagreement_as_needs_review() -> Non
 
     assert decision.status == "needs_review"
     assert "불일치" in decision.reason
+    assert "시계열=표면 방전(2)" in decision.reason
+    assert "비전=코로나 방전(3)" in decision.reason
 
 
 def test_reviewer_marks_invalid_probabilities_as_needs_review() -> None:

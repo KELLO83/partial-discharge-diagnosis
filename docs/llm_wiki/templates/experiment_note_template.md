@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | Date | |
-| Track | time-series / VLM / composite / vision_optional |
+| Track | time-series / vision / VLM / composite |
 | Model | |
 | Checkpoint | |
 | Sample size | |

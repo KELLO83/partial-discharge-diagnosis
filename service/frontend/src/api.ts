@@ -1,7 +1,4 @@
 import type {
-  DemoScenarioActivationResponse,
-  DemoScenarioListResponse,
-  DemoSeedResponse,
   DiagnosisDetailResponse,
   DiagnosisListResponse,
   DiagnosisReportResponse,
@@ -17,7 +14,6 @@ import type {
   RagReindexResponse,
   RagSearchResponse,
   RagStatusResponse,
-  ReviewAction,
   SimilarCase,
   TraceResponse,
 } from "./types";
@@ -190,35 +186,6 @@ export async function fetchDiagnosisDetail(diagnosisId: string): Promise<Diagnos
   return await response.json() as DiagnosisDetailResponse;
 }
 
-export async function submitReviewAction(input: {
-  readonly action: ReviewAction;
-  readonly diagnosisId: string;
-  readonly note: string;
-}): Promise<void> {
-  const response = await fetch(`${API_BASE}/diagnoses/${input.diagnosisId}/actions`, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({action: input.action, note: input.note}),
-  });
-  if (!response.ok) {
-    throw new Error(`review action request failed: ${response.status}`);
-  }
-}
-
-export async function submitDiagnosisComment(input: {
-  readonly diagnosisId: string;
-  readonly note: string;
-}): Promise<void> {
-  const response = await fetch(`${API_BASE}/diagnoses/${input.diagnosisId}/comments`, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({note: input.note}),
-  });
-  if (!response.ok) {
-    throw new Error(`diagnosis comment request failed: ${response.status}`);
-  }
-}
-
 export async function fetchDiagnosisReport(diagnosisId: string): Promise<DiagnosisReportResponse> {
   const response = await fetch(`${API_BASE}/diagnoses/${diagnosisId}/report`);
   if (!response.ok) {
@@ -233,30 +200,6 @@ export async function fetchDatasetCaseDetail(sampleId: string): Promise<SimilarC
     throw new Error(`dataset case detail request failed: ${response.status}`);
   }
   return await response.json() as SimilarCase;
-}
-
-export async function fetchDemoScenarios(): Promise<DemoScenarioListResponse> {
-  const response = await fetch(`${API_BASE}/demo/scenarios`);
-  if (!response.ok) {
-    throw new Error(`demo scenarios request failed: ${response.status}`);
-  }
-  return await response.json() as DemoScenarioListResponse;
-}
-
-export async function seedDemoRecords(): Promise<DemoSeedResponse> {
-  const response = await fetch(`${API_BASE}/demo/seed`, {method: "POST"});
-  if (!response.ok) {
-    throw new Error(`demo seed request failed: ${response.status}`);
-  }
-  return await response.json() as DemoSeedResponse;
-}
-
-export async function activateDemoScenario(scenarioId: string): Promise<DemoScenarioActivationResponse> {
-  const response = await fetch(`${API_BASE}/demo/scenarios/${scenarioId}/activate`, {method: "POST"});
-  if (!response.ok) {
-    throw new Error(`demo scenario activation request failed: ${response.status}`);
-  }
-  return await response.json() as DemoScenarioActivationResponse;
 }
 
 function metadataComplete(metadata: MetadataForm): boolean {

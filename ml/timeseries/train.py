@@ -28,7 +28,7 @@ from ml.timeseries.src.models.registry import MODEL_REGISTRY
 
 LOGGER = logging.getLogger(__name__)
 
-CORE_MODELS = ["gru", "inception_time", "patchtst", "timesnet", "moment"]
+CORE_MODELS = ["gru", "inception_time_small", "inception_time", "patchtst", "timesnet", "moment"]
 EXTENDED_MODELS = ["tcn", "resnet1d", "moderntcn", "itransformer", "timemixer", "units", "gpt4ts", "ts2vec"]
 EXTENDED_COST_NOTES = {
     "tcn": "medium: convolution baseline, usually manageable after small smoke runs",
@@ -104,6 +104,11 @@ MODEL_PRESETS: dict[str, TrainPreset] = {
         },
     ),
     "tcn": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
+    "inception_time_small": TrainPreset(
+        auto_batch_start_size=16,
+        learning_rate=1e-3,
+        model_params={"filters": 24, "depth": 3, "bottleneck_channels": 24},
+    ),
     "inception_time": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
     "resnet1d": TrainPreset(auto_batch_start_size=8, learning_rate=1e-3),
     "moderntcn": TrainPreset(auto_batch_start_size=4, learning_rate=1e-4, model_params={"seq_len": 4096}),

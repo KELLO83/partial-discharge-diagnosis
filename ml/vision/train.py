@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train the lightweight PRPD vision classifier.")
     parser.add_argument("--manifest", type=Path, default=Path("data/manifest.csv"))
     parser.add_argument("--output-dir", type=Path, default=Path("artifacts/models/vision"))
-    parser.add_argument("--model-name", default="small_prpd_cnn")
+    parser.add_argument("--model-name", default="small_prpd_cnn", choices=("small_prpd_cnn", "efficientnet_b0"))
     parser.add_argument("--image-size", type=int, default=224)
     parser.add_argument("--sample-size", type=int, default=None)
     parser.add_argument("--valid-ratio", type=float, default=0.2)

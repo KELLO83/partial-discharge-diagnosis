@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import pytest
 
+from ml.vlm.train import DEFAULT_MODEL_PROFILE, parse_args
 from ml.vlm.src.model_profiles import profile_keys, resolve_training_profile
 
 
-def test_default_qwen3_2b_profile_uses_qlora_guardrails() -> None:
-    profile = resolve_training_profile("qwen3_vl_2b_qlora")
+def test_current_default_profile_uses_smolvlm2() -> None:
+    profile = resolve_training_profile(DEFAULT_MODEL_PROFILE)
 
-    assert profile.model_id == "Qwen/Qwen3-VL-2B-Instruct"
+    assert profile.key == "smolvlm2_2b_qlora"
+    assert profile.model_id == "HuggingFaceTB/SmolVLM2-2.2B-Instruct"
     assert profile.load_in_4bit is True
     assert profile.train_vision_tower is False
     assert profile.train_projector is False
@@ -17,11 +19,20 @@ def test_default_qwen3_2b_profile_uses_qlora_guardrails() -> None:
     assert profile.image_max_pixels == "512x512"
 
 
-def test_low_vram_profile_is_available_for_smoke_runs() -> None:
-    profile = resolve_training_profile("smolvlm2_2b_qlora")
+def test_train_cli_uses_current_default_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.argv", ["train.py"])
 
-    assert profile.min_vram_gb <= 8
+    args = parse_args()
+
+    assert args.model_profile == DEFAULT_MODEL_PROFILE
+
+
+def test_qwen3_profile_is_available_for_future_comparison() -> None:
+    profile = resolve_training_profile("qwen3_vl_2b_qlora")
+
+    assert profile.model_id == "Qwen/Qwen3-VL-2B-Instruct"
     assert profile.training_strategy == "4bit_qlora_sft_text_projector_only"
+    assert profile.min_vram_gb <= 8
 
 
 def test_unknown_profile_reports_supported_profiles() -> None:

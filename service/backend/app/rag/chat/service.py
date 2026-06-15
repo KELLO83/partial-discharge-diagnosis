@@ -5,17 +5,24 @@ import json
 from pydantic import ValidationError
 
 from service.backend.app.rag.chat.constants import (
+    ANSWER_MODE_DIAGNOSIS_HISTORY,
     ANSWER_MODE_GENERAL_DOMAIN,
     ANSWER_MODE_RAG_EVIDENCE,
+    LOCAL_DIAGNOSIS_HISTORY_MODEL,
     LOCAL_RAG_EVIDENCE_FALLBACK_MODEL,
     NO_RAG_EVIDENCE_NOTICE,
 )
-from service.backend.app.rag.chat.diagnosis_history import answer_diagnosis_history_question
+from service.backend.app.rag.chat.diagnosis_history import (
+    DiagnosisHistoryLookup,
+    diagnosis_history_answer,
+    lookup_diagnosis_history_question,
+    missing_diagnosis_answer,
+)
 from service.backend.app.rag.chat.guard import build_non_domain_response
 from service.backend.app.rag.chat.intent import QueryIntent, QueryIntentKind, classify_question
 from service.backend.app.rag.chat.models import ChatCompleter, RagChatDependencies, RagChatInput
 from service.backend.app.rag.chat.parser import parse_rag_chat_payload
-from service.backend.app.rag.chat.prompts import build_rag_chat_messages
+from service.backend.app.rag.chat.prompts import build_diagnosis_history_chat_messages, build_rag_chat_messages
 from service.backend.app.rag.openrouter_client import (
     OpenRouterClient,
     OpenRouterConfigError,
@@ -49,15 +56,50 @@ def answer_rag_chat(
     dependencies: RagChatDependencies | None = None,
 ) -> RagChatResponse:
     active_dependencies = dependencies or RagChatDependencies()
-    history_response = answer_diagnosis_history_question(chat_input, active_dependencies.diagnosis_store)
-    if history_response is not None:
-        return history_response
+    history_lookup = lookup_diagnosis_history_question(chat_input, active_dependencies.diagnosis_store)
+    if history_lookup is not None:
+        return answer_with_diagnosis_history(chat_input, active_dependencies, history_lookup)
 
     intent = classify_question(chat_input.question)
     if not intent.should_retrieve:
         return build_non_domain_response()
 
     return answer_with_rag(chat_input, active_dependencies, intent)
+
+
+def answer_with_diagnosis_history(
+    chat_input: RagChatInput,
+    dependencies: RagChatDependencies,
+    lookup: DiagnosisHistoryLookup,
+) -> RagChatResponse:
+    if lookup.detail is None:
+        return RagChatResponse(
+            answer=missing_diagnosis_answer(lookup.diagnosis_id),
+            documents=[],
+            model=LOCAL_DIAGNOSIS_HISTORY_MODEL,
+            ready=True,
+            answer_mode=ANSWER_MODE_DIAGNOSIS_HISTORY,
+        )
+
+    local_answer = diagnosis_history_answer(lookup.detail)
+    try:
+        settings = dependencies.settings or OpenRouterSettings.from_env()
+    except OpenRouterConfigError as exc:
+        return local_diagnosis_history_fallback_response(exc, local_answer)
+
+    messages = build_diagnosis_history_chat_messages(chat_input.question, chat_input.history, local_answer)
+    try:
+        payload = parse_rag_chat_payload(chat_client(dependencies, settings).complete(messages))
+    except (OpenRouterRequestError, ValidationError, ValueError, json.JSONDecodeError) as exc:
+        return local_diagnosis_history_fallback_response(exc, local_answer)
+
+    return RagChatResponse(
+        answer=payload.answer.strip(),
+        documents=[],
+        model=settings.model,
+        ready=True,
+        answer_mode=ANSWER_MODE_DIAGNOSIS_HISTORY,
+    )
 
 
 def answer_with_rag(
@@ -138,6 +180,26 @@ def local_rag_fallback_response(exc: Exception, documents: list[RagDocument]) ->
         model=LOCAL_RAG_EVIDENCE_FALLBACK_MODEL,
         ready=True,
         answer_mode=chat_answer_mode(documents),
+    )
+
+
+def local_diagnosis_history_fallback_response(exc: Exception, local_answer: str) -> RagChatResponse:
+    return RagChatResponse(
+        answer=local_diagnosis_history_fallback_answer(exc, local_answer),
+        documents=[],
+        model=LOCAL_DIAGNOSIS_HISTORY_MODEL,
+        ready=True,
+        answer_mode=ANSWER_MODE_DIAGNOSIS_HISTORY,
+    )
+
+
+def local_diagnosis_history_fallback_answer(exc: Exception, local_answer: str) -> str:
+    return "\n\n".join(
+        [
+            "핵심 판단:",
+            f"- OpenRouter 응답 생성이 실패해 저장된 진단 이력 요약으로 답변합니다. ({short_error_text(exc)})",
+            local_answer,
+        ]
     )
 
 

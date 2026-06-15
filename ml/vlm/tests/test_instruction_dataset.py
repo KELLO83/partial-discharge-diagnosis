@@ -82,7 +82,7 @@ def test_build_dataset_writes_image_text_messages_when_manifest_valid(tmp_path: 
     assert rows[0]["images"] == [str(image_path)]
     assert rows[0]["messages"][0]["content"][0]["type"] == "image"
     assert rows[0]["messages"][0]["content"][1]["type"] == "text"
-    assert json.loads(rows[0]["messages"][1]["content"])["label_id"] == 1
+    assert json.loads(rows[0]["messages"][1]["content"][0]["text"])["label_id"] == 1
 
 
 def test_build_dataset_excludes_leakage_fields_from_prompt(tmp_path: Path) -> None:

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import io
 import json
+from urllib.parse import quote
 
 from fastapi.testclient import TestClient
 
+from service.backend.app.domain.similar_cases import dataset_case_repository
 from service.backend.app.main import app
 
 
@@ -266,7 +268,7 @@ def test_rag_admin_endpoints_return_operational_state() -> None:
     assert "result_count" in search_payload
 
 
-def test_diagnosis_detail_actions_comments_and_report() -> None:
+def test_diagnosis_detail_and_report() -> None:
     client = TestClient(app)
     diagnosis = client.post(
         "/diagnose",
@@ -274,73 +276,30 @@ def test_diagnosis_detail_actions_comments_and_report() -> None:
     ).json()
     diagnosis_id = diagnosis["diagnosis_id"]
 
-    action_response = client.post(
-        f"/diagnoses/{diagnosis_id}/actions",
-        json={"action": "approve", "note": "confirmed by operator"},
-    )
-    comment_response = client.post(
-        f"/diagnoses/{diagnosis_id}/comments",
-        json={"note": "maintenance ticket created"},
-    )
     detail_response = client.get(f"/diagnoses/{diagnosis_id}")
     report_response = client.get(f"/diagnoses/{diagnosis_id}/report")
 
-    assert action_response.status_code == 200
-    assert comment_response.status_code == 200
     assert detail_response.status_code == 200
     detail = detail_response.json()
     assert detail["diagnosis"]["diagnosis_id"] == diagnosis_id
-    assert detail["actions"][0]["action"] == "approve"
-    assert detail["comments"][0]["note"] == "maintenance ticket created"
+    assert any(event["kind"] == "diagnosis" for event in detail["timeline"])
     assert report_response.status_code == 200
     assert report_response.json()["detail"]["trace"]["diagnosis_id"] == diagnosis_id
 
 
 def test_dataset_case_endpoints_expose_reference_images() -> None:
     client = TestClient(app)
+    case = dataset_case_repository.list(limit=1)[0]
 
-    cases_response = client.get("/dataset/cases?limit=1")
+    detail_response = client.get(f"/dataset/cases/{case.sample_id}")
+    payload = detail_response.json()
+    image_response = client.get(payload["image_url"])
+    timeseries_response = client.get(payload["timeseries_url"])
 
-    assert cases_response.status_code == 200
-    case = cases_response.json()["items"][0]
-    image_response = client.get(case["image_url"])
-    timeseries_response = client.get(case["timeseries_url"])
-    detail_response = client.get(f"/dataset/cases/{case['sample_id']}")
+    assert detail_response.status_code == 200
     assert image_response.status_code == 200
     assert image_response.headers["content-type"] == "image/png"
     assert timeseries_response.status_code == 200
     assert timeseries_response.headers["content-type"].startswith("text/csv")
-    assert detail_response.status_code == 200
-    assert detail_response.json()["sample_id"] == case["sample_id"]
-    assert detail_response.json()["timeseries_url"] == case["timeseries_url"]
-
-
-def test_dataset_case_search_filters_by_label_and_sensor() -> None:
-    client = TestClient(app)
-
-    response = client.get("/dataset/cases/search?label_id=1&sensor_type=HFCT&limit=3")
-
-    assert response.status_code == 200
-    items = response.json()["items"]
-    assert len(items) == 3
-    assert all(item["label_id"] == 1 for item in items)
-    assert all(item["sensor_type"] == "HFCT" for item in items)
-
-
-def test_demo_seed_and_scenario_activation_populates_detail_timeline() -> None:
-    client = TestClient(app)
-
-    scenarios_response = client.get("/demo/scenarios")
-    seed_response = client.post("/demo/seed")
-    activate_response = client.post("/demo/scenarios/model_disagreement/activate")
-
-    assert scenarios_response.status_code == 200
-    assert len(scenarios_response.json()["scenarios"]) == 5
-    assert seed_response.status_code == 200
-    assert "demo_disagree_0001" in seed_response.json()["seeded"]
-    assert activate_response.status_code == 200
-    payload = activate_response.json()
-    assert payload["scenario"]["scenario_id"] == "model_disagreement"
-    assert payload["detail"]["diagnosis"]["status"] == "needs_review"
-    assert payload["detail"]["timeline"]
-    assert any(event["kind"] == "action" for event in payload["detail"]["timeline"])
+    assert payload["sample_id"] == case.sample_id
+    assert payload["timeseries_url"] == f"/dataset/cases/{quote(case.sample_id, safe='')}/timeseries"

@@ -3,12 +3,10 @@ from __future__ import annotations
 from service.backend.app.infrastructure.store import TraceRecord, TraceStore
 
 
-def test_trace_store_persists_records_actions_and_comments(tmp_path) -> None:
+def test_trace_store_persists_records(tmp_path) -> None:
     database_path = tmp_path / "diagnosis_history.sqlite3"
     store = TraceStore(database_path=database_path)
     store.save(persisted_record())
-    assert store.add_action("diag_persisted", "request_retest", "재측정") is not None
-    assert store.add_comment("diag_persisted", "운영 메모") is not None
 
     restored = TraceStore(database_path=database_path)
     detail = restored.detail("diag_persisted")
@@ -16,8 +14,7 @@ def test_trace_store_persists_records_actions_and_comments(tmp_path) -> None:
     assert detail is not None
     assert detail.diagnosis.diagnosis_id == "diag_persisted"
     assert detail.trace.steps == ["input_router", "vlm_tool"]
-    assert detail.actions[0].note == "재측정"
-    assert detail.comments[0].note == "운영 메모"
+    assert detail.timeline[0].kind == "diagnosis"
     assert restored.review_queue()[0].diagnosis_id == "diag_persisted"
 
 

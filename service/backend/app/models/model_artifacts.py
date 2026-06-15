@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -16,6 +16,8 @@ MANIFEST_FILENAME = "model_manifest.json"
 
 ModelTask = Literal["time_series", "vision", "vlm"]
 AdapterMode = Literal["mock", "checkpoint", "auto"]
+MODEL_TASKS: tuple[ModelTask, ...] = ("time_series", "vision", "vlm")
+_ADAPTER_MODES: set[str] = {"mock", "checkpoint", "auto"}
 
 
 class ModelInputSpec(BaseModel):
@@ -79,6 +81,7 @@ class ModelArtifactRecord:
 class ModelAdapterSettings:
     mode: AdapterMode
     artifact_root: Path
+    artifact_overrides: dict[ModelTask, "ModelArtifactOverride"] = field(default_factory=dict)
 
     @classmethod
     def from_env(cls) -> "ModelAdapterSettings":
@@ -86,49 +89,66 @@ class ModelAdapterSettings:
         return cls(
             mode=_env_mode("MODEL_ADAPTER_MODE", "mock"),
             artifact_root=_artifact_root(os.getenv("MODEL_ARTIFACT_ROOT")),
+            artifact_overrides=_artifact_overrides_from_env(),
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ModelArtifactOverride:
+    manifest_path: Path | None = None
+    checkpoint_path: Path | None = None
+    preprocessor_path: Path | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _UnreadyArtifactRecordRequest:
+    task: ModelTask
+    manifest_path: Path
+    error: str
+    manifest: ModelArtifactManifest | None = None
+
+
 class ModelArtifactRegistry:
-    def __init__(self, artifact_root: Path = DEFAULT_MODEL_ARTIFACT_ROOT) -> None:
+    def __init__(
+        self,
+        artifact_root: Path = DEFAULT_MODEL_ARTIFACT_ROOT,
+        artifact_overrides: dict[ModelTask, ModelArtifactOverride] | None = None,
+    ) -> None:
         self.artifact_root = artifact_root
+        self.artifact_overrides = artifact_overrides or {}
 
     def get(self, task: ModelTask) -> ModelArtifactRecord:
-        manifest_path = self.artifact_root / task / MANIFEST_FILENAME
+        override = self.artifact_overrides.get(task, ModelArtifactOverride())
+        manifest_path = self._manifest_path(task, override)
         if not manifest_path.exists():
-            return ModelArtifactRecord(
-                task=task,
-                manifest_path=manifest_path,
-                manifest=None,
-                checkpoint_path=None,
-                preprocessor_path=None,
-                ready=False,
-                error=f"manifest not found: {manifest_path}",
+            return _unready_record(
+                _UnreadyArtifactRecordRequest(
+                    task=task,
+                    manifest_path=manifest_path,
+                    error=f"manifest not found: {manifest_path}",
+                )
             )
         try:
             manifest = ModelArtifactManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
         except (OSError, ValidationError) as exc:
-            return ModelArtifactRecord(
-                task=task,
-                manifest_path=manifest_path,
-                manifest=None,
-                checkpoint_path=None,
-                preprocessor_path=None,
-                ready=False,
-                error=str(exc),
+            return _unready_record(
+                _UnreadyArtifactRecordRequest(
+                    task=task,
+                    manifest_path=manifest_path,
+                    error=str(exc),
+                )
             )
         if manifest.task != task:
-            return ModelArtifactRecord(
-                task=task,
-                manifest_path=manifest_path,
-                manifest=manifest,
-                checkpoint_path=None,
-                preprocessor_path=None,
-                ready=False,
-                error=f"manifest task mismatch: expected {task}, got {manifest.task}",
+            return _unready_record(
+                _UnreadyArtifactRecordRequest(
+                    task=task,
+                    manifest_path=manifest_path,
+                    manifest=manifest,
+                    error=f"manifest task mismatch: expected {task}, got {manifest.task}",
+                )
             )
-        checkpoint_path = _resolve_optional_path(manifest_path, manifest.checkpoint_path)
-        preprocessor_path = _resolve_optional_path(manifest_path, manifest.preprocessor_path)
+        checkpoint_path = override.checkpoint_path or _resolve_optional_path(manifest_path, manifest.checkpoint_path)
+        preprocessor_path = override.preprocessor_path or _resolve_optional_path(manifest_path, manifest.preprocessor_path)
         missing_path = _first_missing_path(checkpoint_path, preprocessor_path)
         return ModelArtifactRecord(
             task=task,
@@ -141,16 +161,15 @@ class ModelArtifactRegistry:
         )
 
     def all(self) -> dict[ModelTask, ModelArtifactRecord]:
-        return {
-            "time_series": self.get("time_series"),
-            "vision": self.get("vision"),
-            "vlm": self.get("vlm"),
-        }
+        return {task: self.get(task) for task in MODEL_TASKS}
+
+    def _manifest_path(self, task: ModelTask, override: ModelArtifactOverride) -> Path:
+        return override.manifest_path or self.artifact_root / task / MANIFEST_FILENAME
 
 
 def _env_mode(name: str, fallback: AdapterMode) -> AdapterMode:
     value = os.getenv(name, fallback).strip().lower()
-    if value in {"mock", "checkpoint", "auto"}:
+    if value in _ADAPTER_MODES:
         return value  # type: ignore[return-value]
     return fallback
 
@@ -159,6 +178,35 @@ def _artifact_root(value: str | None) -> Path:
     if value is None or value.strip() == "":
         return DEFAULT_MODEL_ARTIFACT_ROOT
     path = Path(value)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def _artifact_overrides_from_env() -> dict[ModelTask, ModelArtifactOverride]:
+    overrides: dict[ModelTask, ModelArtifactOverride] = {}
+    for task in MODEL_TASKS:
+        prefix = _TASK_ENV_PREFIXES[task]
+        override = ModelArtifactOverride(
+            manifest_path=_env_project_path(f"{prefix}_MANIFEST"),
+            checkpoint_path=_env_project_path(f"{prefix}_CHECKPOINT"),
+            preprocessor_path=_env_project_path(f"{prefix}_PREPROCESSOR"),
+        )
+        if any((override.manifest_path, override.checkpoint_path, override.preprocessor_path)):
+            overrides[task] = override
+    return overrides
+
+
+_TASK_ENV_PREFIXES: dict[ModelTask, str] = {
+    "time_series": "MODEL_TIME_SERIES",
+    "vision": "MODEL_VISION",
+    "vlm": "MODEL_VLM",
+}
+
+
+def _env_project_path(name: str) -> Path | None:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return None
+    path = Path(value.strip())
     return path if path.is_absolute() else PROJECT_ROOT / path
 
 
@@ -176,3 +224,15 @@ def _first_missing_path(*paths: Path | None) -> Path | None:
         if path is not None and not path.exists():
             return path
     return None
+
+
+def _unready_record(request: _UnreadyArtifactRecordRequest) -> ModelArtifactRecord:
+    return ModelArtifactRecord(
+        task=request.task,
+        manifest_path=request.manifest_path,
+        manifest=request.manifest,
+        checkpoint_path=None,
+        preprocessor_path=None,
+        ready=False,
+        error=request.error,
+    )

@@ -21,18 +21,39 @@ from ml.vlm.scripts.train_sft import (
 )
 from ml.training.artifacts import timestamped_model_dir
 
+DEFAULT_MANIFEST_PATH = Path("data/manifest.csv")
+DEFAULT_DATASET_OUTPUT = Path("artifacts/models/vlm/instruction_dataset.jsonl")
+DEFAULT_OUTPUT_DIR = Path("artifacts/models/vlm")
+DEFAULT_MODEL_PROFILE = "smolvlm2_2b_qlora"
+DEFAULT_GPU_MEMORY_FRACTION = 0.9
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build PRPD instruction data and train the VLM SFT adapter.")
-    parser.add_argument("--manifest", type=Path, default=Path("data/manifest.csv"))
+    _add_dataset_arguments(parser)
+    _add_model_arguments(parser)
+    _add_training_arguments(parser)
+    _add_runtime_arguments(parser)
+    return parser.parse_args()
+
+
+def _add_dataset_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST_PATH)
     parser.add_argument("--dataset", type=Path, default=None)
-    parser.add_argument("--dataset-output", type=Path, default=Path("artifacts/models/vlm/instruction_dataset.jsonl"))
+    parser.add_argument("--dataset-output", type=Path, default=DEFAULT_DATASET_OUTPUT)
     parser.add_argument("--ts-context", type=Path, default=None)
+    parser.add_argument("--vision-context", type=Path, default=None)
     parser.add_argument("--sample-size", type=int, default=None)
     parser.add_argument("--skip-dataset-build", action="store_true")
-    parser.add_argument("--model-profile", default="qwen3_vl_2b_qlora", choices=profile_keys())
+
+
+def _add_model_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--model-profile", default=DEFAULT_MODEL_PROFILE, choices=profile_keys())
     parser.add_argument("--model-id", default=None, help="Override the model id from --model-profile.")
-    parser.add_argument("--output-dir", type=Path, default=Path("artifacts/models/vlm"))
+
+
+def _add_training_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--max-steps", type=int, default=10)
     parser.add_argument("--save-steps", type=int, default=1)
     parser.add_argument("--early-stop-patience", type=int, default=3)
@@ -43,7 +64,7 @@ def parse_args() -> argparse.Namespace:
         "--gpu-memory-fracion",
         dest="gpu_memory_fraction",
         type=float,
-        default=0.9,
+        default=DEFAULT_GPU_MEMORY_FRACTION,
     )
     parser.add_argument("--eval-ratio", type=float, default=0.2)
     parser.add_argument("--weight-decay", type=float, default=0.0)
@@ -54,12 +75,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--i-understand-8gb-risk", action="store_true")
     parser.add_argument("--no-4bit", dest="load_in_4bit", action="store_false")
     parser.set_defaults(load_in_4bit=None)
+
+
+def _add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--attn-implementation", default=None, choices=SUPPORTED_ATTENTION_IMPLEMENTATIONS)
     parser.add_argument("--precision", default=None, choices=("fp16", "bf16", "off"))
     parser.add_argument("--torch-compile", action="store_true")
     parser.add_argument("--torch-compile-mode", default="default", choices=("default", "reduce-overhead", "max-autotune"))
     parser.add_argument("--dry-run", action="store_true")
-    return parser.parse_args()
 
 
 def main() -> None:
@@ -127,7 +150,7 @@ def main() -> None:
 def _dataset_path(args: argparse.Namespace, run_output_dir: Path) -> Path:
     if args.dataset is not None:
         return args.dataset
-    if args.dataset_output != Path("artifacts/models/vlm/instruction_dataset.jsonl"):
+    if args.dataset_output != DEFAULT_DATASET_OUTPUT:
         return args.dataset_output
     return run_output_dir / "instruction_dataset.jsonl"
 
@@ -142,6 +165,7 @@ def _prepare_dataset(args: argparse.Namespace, dataset_path: Path) -> int | None
         output_path=dataset_path,
         sample_size=args.sample_size,
         ts_context_path=args.ts_context,
+        vision_context_path=args.vision_context,
     )
     return summary.rows_written
 

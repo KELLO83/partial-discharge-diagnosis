@@ -142,6 +142,24 @@ def test_answer_rag_chat_skips_retrieval_for_greeting() -> None:
     assert response.documents == []
 
 
+def test_answer_rag_chat_uses_openrouter_for_diagnosis_history() -> None:
+    response = answer_rag_chat(
+        chat_input("이력 diag_111111111111 에대해서 설명해줘 및 보고해줘"),
+        RagChatDependencies(
+            diagnosis_store=_DiagnosisStore(_diagnosis_detail()),
+            retriever=_ExplodingRetriever(),
+            client=_DiagnosisHistoryClient(),
+            settings=OpenRouterSettings(api_key="test-key", model="test-model"),
+        ),
+    )
+
+    assert response.ready is True
+    assert response.model == "test-model"
+    assert response.answer_mode == "diagnosis_history"
+    assert response.documents == []
+    assert response.answer == "LLM이 진단 이력을 설명한 답변"
+
+
 def test_answer_rag_chat_explains_diagnosis_history_without_openrouter(monkeypatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "")
 
@@ -184,6 +202,27 @@ def test_answer_rag_chat_explains_demo_diagnosis_history_without_openrouter(monk
     assert response.documents == []
     assert "demo_disagree_0001" in response.answer
     assert "진단 요약" in response.answer
+
+
+def test_answer_rag_chat_history_fallback_uses_fusion_label_for_review_case(monkeypatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "")
+
+    response = answer_rag_chat(
+        chat_input("diag_333333333333 왜 판정보류야?"),
+        RagChatDependencies(
+            diagnosis_store=_DiagnosisStore(_needs_review_diagnosis_detail()),
+            retriever=_ExplodingRetriever(),
+            client=_ExplodingClient(),
+        ),
+    )
+
+    assert response.ready is True
+    assert "처리 상태: 검토 필요" in response.answer
+    assert "최종 판정: 정상" in response.answer
+    assert "신뢰도: 99%" in response.answer
+    assert "시계열=정상(0), 비전=코로나 방전(3), VLM=정상(0)" in response.answer
+    assert "최종 판정과 같은 참조 사례 없음" in response.answer
+    assert "최종 판정과 같은 상위 근거 없음" in response.answer
 
 
 def test_answer_rag_chat_hides_mismatched_history_references(monkeypatch) -> None:
@@ -324,6 +363,15 @@ class _NoEvidenceClient:
         assert "검색 근거 없음" in messages[0]["content"]
         assert "RAG 검색 근거: 없음" in messages[-1]["content"]
         return self._response
+
+
+class _DiagnosisHistoryClient:
+    def complete(self, messages: list[dict[str, str]]) -> str:
+        assert "진단 이력" in messages[0]["content"]
+        assert "진단 이력 근거" in messages[-1]["content"]
+        assert "diag_111111111111" in messages[-1]["content"]
+        assert "최종 판정: 코로나 방전" in messages[-1]["content"]
+        return '{"answer":"LLM이 진단 이력을 설명한 답변"}'
 
 
 class _ExplodingRetriever:
@@ -524,3 +572,65 @@ def _diagnosis_detail_with_mismatched_references() -> DiagnosisDetailResponse:
                 "top_title": "데이터셋 사례 노이즈_고체_ACSR-OC_001",
             }
     return detail
+
+
+def _needs_review_diagnosis_detail() -> DiagnosisDetailResponse:
+    detail = _diagnosis_detail("diag_333333333333")
+    diagnosis = detail.diagnosis.model_copy(
+        update={
+            "diagnosis_id": "diag_333333333333",
+            "status": "needs_review",
+            "diagnosis": None,
+            "confidence": None,
+            "reason": "모델 간 예측 라벨이 불일치합니다: 시계열=0, 비전=3, VLM=0",
+            "requires_human_review": True,
+        }
+    )
+    trace = detail.trace.model_copy(
+        update={
+            "diagnosis_id": "diag_333333333333",
+            "status": "needs_review",
+        }
+    )
+    for event in trace.events:
+        if event.get("name") == "time_series_tool":
+            event["summary"] = {
+                "model_name": "inception_time_small",
+                "label_name": "정상",
+                "confidence": 0.97,
+            }
+        if event.get("name") == "vision_tool":
+            event["summary"] = {
+                "model_name": "efficientnet_b0",
+                "label_name": "코로나방전",
+                "confidence": 1.0,
+            }
+        if event.get("name") == "vlm_tool":
+            event["summary"] = {
+                "model_name": "HuggingFaceTB/SmolVLM2-2.2B-Instruct",
+                "label_name": "정상",
+                "confidence": 0.97,
+                "recommended_action": "정상 상태로 판단되며 정기 모니터링을 유지하세요.",
+            }
+        if event.get("name") == "fusion_engine":
+            event["summary"] = {
+                "final_label_name": "정상",
+                "agreement_level": "partial_agreement",
+                "confidence": 0.99,
+            }
+        if event.get("name") == "similar_case_tool":
+            event["summary"] = {
+                "cases": [
+                    {
+                        "sample_id": "코로나방전_액체_전력용유입변압기_001",
+                        "label_name": "코로나 방전",
+                        "similarity": 0.98,
+                    }
+                ]
+            }
+        if event.get("name") == "rag_tool":
+            event["summary"] = {
+                "document_count": 1,
+                "top_title": "데이터셋 사례 코로나방전_액체_전력용유입변압기_001",
+            }
+    return DiagnosisDetailResponse(diagnosis=diagnosis, trace=trace)
